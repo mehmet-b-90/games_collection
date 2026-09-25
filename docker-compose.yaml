@@ -1,0 +1,40 @@
+services:
+  games_collection:
+    build: .
+    image: mehmet_b_90/games_collection:v0.7
+    container_name: games_collection
+    restart: unless-stopped
+    volumes:
+      - "./data:/app/data"
+    env_file:
+      - ".env"
+    ports:
+      - "7000:5000"
+#    networks:
+#      - caddy
+
+#  caddy:
+#    image: caddy:latest
+#    container_name: caddy
+#    restart: unless-stopped
+#    ports:
+#      - "80:80"
+#      - "443:443"
+#      - "443:443/udp"
+#    volumes:
+#      - "./caddy/conf/:/etc/caddy"
+#      - "caddy_data:/data"
+#      - "caddy_config:/config"
+#    networks:
+#      - caddy
+
+#volumes:
+#  caddy_data:
+#    name: caddy_data
+#  caddy_config:
+#    name: caddy_config
+
+#networks:
+#  caddy:
+#    name: caddy
+#    external: true
