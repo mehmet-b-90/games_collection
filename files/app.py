@@ -1,5 +1,6 @@
 from flask import Flask, request
 from flask_wtf.csrf import CSRFError
+from werkzeug.exceptions import HTTPException
 from .config import configure_app
 from .database import api_error
 from .extensions import csrf, db, login_manager
@@ -27,6 +28,12 @@ def create_app():
             response.headers['X-CSRF-Error'] = '1'
             return response, status
         return str(error.description), 400
+
+    @application.errorhandler(HTTPException)
+    def handle_http_error(error):
+        if request.path.startswith('/api/'):
+            return api_error(error.description, error.code or 500)
+        return error
 
     with application.app_context():
         db.create_all()

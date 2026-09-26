@@ -18,6 +18,18 @@ class Game(db.Model):
         db.CheckConstraint('rating IS NULL OR (rating >= 0 AND rating <= 10)', name='rating_range'),
         db.CheckConstraint("format IN ('Physisch', 'Digital')", name='valid_format'),
         db.CheckConstraint("status IN ('Nicht gespielt', 'Gespielt', 'Abgebrochen')", name='valid_status'),
+        db.CheckConstraint(
+            "release_date IS NULL OR (length(release_date) = 4 "
+            "AND release_date GLOB '[0-9][0-9][0-9][0-9]' "
+            "AND CAST(release_date AS INTEGER) BETWEEN 1900 AND 2100)",
+            name='valid_release_year',
+        ),
+        db.CheckConstraint(
+            "age_rating IS NULL OR age_rating IN "
+            "('USK 0', 'USK 6', 'USK 12', 'USK 16', 'USK 18', "
+            "'PEGI 3', 'PEGI 7', 'PEGI 12', 'PEGI 16', 'PEGI 18')",
+            name='valid_age_rating',
+        ),
         db.UniqueConstraint('user_id', 'igdb_id', name='unique_user_igdb_game'),
     )
     id = db.Column(db.Integer, primary_key=True)

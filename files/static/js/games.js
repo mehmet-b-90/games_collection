@@ -57,8 +57,9 @@ export async function saveGame() {
         developer: document.getElementById('devInput').value, publisher: document.getElementById('pubInput').value,
         game_engine: document.getElementById('engineInput').value, available_platforms: document.getElementById('platformsInput').value,
         igdb_id: document.getElementById('igdbIdInput').value, igdb_url: document.getElementById('igdbUrlInput').value,
-        version: document.getElementById('gameVersion').value, age_rating: document.getElementById('ageRatingInput').value
+        age_rating: document.getElementById('ageRatingInput').value
     };
+    if (id) data.version = document.getElementById('gameVersion').value;
     const button = document.getElementById('gameSaveBtn');
     button.disabled = true;
     try {

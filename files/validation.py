@@ -7,6 +7,10 @@ GAME_TEXT_FIELDS = {
     'igdb_url': 500, 'age_rating': 50,
 }
 GAME_ALLOWED_FIELDS = set(GAME_TEXT_FIELDS) | {'igdb_id', 'owned_platform', 'format', 'rating', 'status', 'version'}
+VALID_AGE_RATINGS = {
+    'USK 0', 'USK 6', 'USK 12', 'USK 16', 'USK 18',
+    'PEGI 3', 'PEGI 7', 'PEGI 12', 'PEGI 16', 'PEGI 18',
+}
 
 def normalize_username(username):
     return username.strip().casefold()
@@ -34,7 +38,8 @@ def validate_https_url(value, field, allowed_hosts):
     return value
 
 def validate_game_payload(data, creating=False):
-    unexpected = set(data) - GAME_ALLOWED_FIELDS
+    allowed_fields = GAME_ALLOWED_FIELDS - {'version'} if creating else GAME_ALLOWED_FIELDS
+    unexpected = set(data) - allowed_fields
     if unexpected:
         raise ValueError(f'Unbekannte Felder: {", ".join(sorted(unexpected))}.')
     if creating and 'title' not in data:
@@ -43,6 +48,13 @@ def validate_game_payload(data, creating=False):
     for field, maximum in GAME_TEXT_FIELDS.items():
         if field in data:
             cleaned[field] = validate_text(data[field], field, maximum, field == 'title')
+    release_year = cleaned.get('release_date')
+    if release_year is not None:
+        if not release_year.isascii() or not release_year.isdigit() or len(release_year) != 4 or not 1900 <= int(release_year) <= 2100:
+            raise ValueError('"release_date" muss ein Jahr zwischen 1900 und 2100 sein.')
+    age_rating = cleaned.get('age_rating')
+    if age_rating is not None and age_rating not in VALID_AGE_RATINGS:
+        raise ValueError('"age_rating" enthält keine unterstützte USK- oder PEGI-Freigabe.')
     if 'cover_url' in cleaned:
         cleaned['cover_url'] = validate_https_url(cleaned['cover_url'], 'cover_url', {'images.igdb.com'})
     if 'igdb_url' in cleaned:

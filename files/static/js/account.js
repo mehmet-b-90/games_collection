@@ -1,5 +1,9 @@
 import {apiFetch, responseJson} from './api.js';
 
+let persistedTheme;
+let latestThemeRequest = 0;
+let themeSaveQueue = Promise.resolve();
+
 export function openAccountModal() {
     ['accountCurrentPassword', 'accountNewPassword', 'accountNewPasswordConfirm'].forEach(id => { document.getElementById(id).value = ''; });
     new bootstrap.Modal(document.getElementById('accountModal')).show();
@@ -10,26 +14,32 @@ function applyTheme(theme) {
     document.documentElement.dataset.bsTheme = theme === 'editorial' ? 'light' : 'dark';
 }
 
-async function saveTheme(theme) {
+function saveTheme(theme) {
     const status = document.getElementById('themeSaveStatus');
-    const previousTheme = document.documentElement.dataset.uiTheme;
+    const requestId = ++latestThemeRequest;
     applyTheme(theme);
     status.textContent = 'Darstellung wird gespeichert …';
-    try {
-        const response = await apiFetch('/api/account/theme', {
-            method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({theme})
-        });
-        await responseJson(response, 'Die Darstellung konnte nicht gespeichert werden.');
-        status.textContent = 'Darstellung gespeichert.';
-    } catch (error) {
-        applyTheme(previousTheme);
-        const previousInput = document.querySelector(`input[name="uiTheme"][value="${previousTheme}"]`);
-        if (previousInput) previousInput.checked = true;
-        status.textContent = error.message;
-    }
+    themeSaveQueue = themeSaveQueue.then(async () => {
+        if (requestId !== latestThemeRequest) return;
+        try {
+            const response = await apiFetch('/api/account/theme', {
+                method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({theme})
+            });
+            await responseJson(response, 'Die Darstellung konnte nicht gespeichert werden.');
+            persistedTheme = theme;
+            if (requestId === latestThemeRequest) status.textContent = 'Darstellung gespeichert.';
+        } catch (error) {
+            if (requestId !== latestThemeRequest) return;
+            applyTheme(persistedTheme);
+            const persistedInput = document.querySelector(`input[name="uiTheme"][value="${persistedTheme}"]`);
+            if (persistedInput) persistedInput.checked = true;
+            status.textContent = error.message;
+        }
+    });
 }
 
 export function initializeThemePicker() {
+    persistedTheme = document.documentElement.dataset.uiTheme;
     document.querySelectorAll('input[name="uiTheme"]').forEach(input => {
         input.addEventListener('change', () => {
             if (input.checked) saveTheme(input.value);

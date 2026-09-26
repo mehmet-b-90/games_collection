@@ -146,6 +146,36 @@ class GamesCollectionTestCase(unittest.TestCase):
         })
         self.assertEqual(response.status_code, 400)
 
+    def test_game_metadata_and_create_version_are_validated(self):
+        self.register()
+        base = {
+            'title': 'Metadaten-Test',
+            'owned_platform': 'Steam',
+            'format': 'Digital',
+            'status': 'Nicht gespielt',
+        }
+        for field, value in (
+            ('release_date', 'kein-jahr'),
+            ('release_date', '1899'),
+            ('release_date', '2101'),
+            ('age_rating', 'frei erfunden'),
+            ('version', 99),
+        ):
+            response = self.client.post('/api/games', json={**base, field: value})
+            self.assertEqual(response.status_code, 400, (field, value, response.get_json()))
+
+        valid = self.client.post('/api/games', json={
+            **base, 'release_date': '2026', 'age_rating': 'PEGI 18',
+        })
+        self.assertEqual(valid.status_code, 201, valid.get_json())
+
+    def test_api_not_found_is_json(self):
+        self.register()
+        response = self.client.put('/api/games/999999', json={'title': 'Nicht vorhanden', 'version': 1})
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.content_type, 'application/json')
+        self.assertIn('error', response.get_json())
+
     def test_age_rating_prefers_usk_then_pegi(self):
         ratings = [
             {'organization': {'name': 'PEGI'}, 'rating_category': {'rating': '16'}},
@@ -208,12 +238,25 @@ class GamesCollectionTestCase(unittest.TestCase):
         static_response.close()
         games_script = self.client.get('/static/js/games.js')
         self.assertIn('https://www.dekudeals.com/search?q=', games_script.get_data(as_text=True))
+        self.assertIn('if (id) data.version =', games_script.get_data(as_text=True))
         games_script.close()
         ui_script = self.client.get('/static/js/ui.js')
         self.assertIn("rating >= minimumRating", ui_script.get_data(as_text=True))
         self.assertIn("platform-icon-label", ui_script.get_data(as_text=True))
         self.assertIn("'Wii U': 'Wii U'", ui_script.get_data(as_text=True))
+        self.assertIn('ownedPlatforms.includes(platform)', ui_script.get_data(as_text=True))
         ui_script.close()
+
+        igdb_response = self.client.get('/static/js/igdb-search.js')
+        igdb_script = igdb_response.get_data(as_text=True)
+        self.assertIn('requestSequence', igdb_script)
+        self.assertIn('activeController.signal.aborted', igdb_script)
+        igdb_response.close()
+        account_response = self.client.get('/static/js/account.js')
+        account_script = account_response.get_data(as_text=True)
+        self.assertIn('themeSaveQueue', account_script)
+        self.assertIn('latestThemeRequest', account_script)
+        account_response.close()
 
     def test_pwa_manifest_icons_and_service_worker(self):
         manifest_response = self.client.get('/static/manifest.webmanifest')

@@ -50,9 +50,10 @@ export function applyFilters() {
     const minimumRating = Number.parseFloat(value('filterMinRating'));
     document.querySelectorAll('.game-card').forEach(card => {
         const rating = Number.parseFloat(card.dataset.rating);
+        const ownedPlatforms = (card.dataset.platform || '').split(',').map(item => item.trim()).filter(Boolean);
         const matches = (card.dataset.title.includes(text) || card.dataset.dev.includes(text) || card.dataset.pub.includes(text))
             && (!engine || card.dataset.engine.includes(engine))
-            && (!platform || card.dataset.platform.includes(platform))
+            && (!platform || ownedPlatforms.includes(platform))
             && (!status || card.dataset.status === status)
             && (!format || card.dataset.format === format)
             && (!ageRating || (card.dataset.ageRating || '').includes(ageRating))

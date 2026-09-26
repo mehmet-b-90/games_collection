@@ -3,8 +3,13 @@ import {updateDekuDealsLink} from './games.js';
 
 let timeout;
 let controller;
+let requestSequence = 0;
 
 function selectGame(game, results) {
+    clearTimeout(timeout);
+    controller?.abort();
+    controller = undefined;
+    requestSequence += 1;
     const set = (id, value = '') => { document.getElementById(id).value = value; };
     const releaseYear = game.first_release_date ? new Date(game.first_release_date * 1000).getFullYear() : '';
     set('titleInput', game.name);
@@ -50,6 +55,9 @@ export function initializeIgdbSearch() {
     const results = document.getElementById('searchResults');
     const scheduleSearch = () => {
         clearTimeout(timeout);
+        controller?.abort();
+        controller = undefined;
+        const sequence = ++requestSequence;
         const query = input.value.trim();
         const releaseYear = yearInput.value.trim();
         if (!query || (!/^\d+$/.test(query) && query.length < 3)) {
@@ -61,16 +69,19 @@ export function initializeIgdbSearch() {
             return;
         }
         timeout = setTimeout(async () => {
-            controller?.abort();
-            controller = new AbortController();
+            const activeController = new AbortController();
+            controller = activeController;
             try {
                 const response = await apiFetch('/api/search', {
                     method: 'POST', headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({query, release_year: releaseYear || null}), signal: controller.signal
+                    body: JSON.stringify({query, release_year: releaseYear || null}), signal: activeController.signal
                 });
-                renderResults(await responseJson(response, 'Die IGDB-Suche ist fehlgeschlagen.'), results);
+                const games = await responseJson(response, 'Die IGDB-Suche ist fehlgeschlagen.');
+                if (sequence === requestSequence && !activeController.signal.aborted) renderResults(games, results);
             } catch (error) {
-                if (error.name !== 'AbortError') alert(error.message);
+                if (error.name !== 'AbortError' && sequence === requestSequence) alert(error.message);
+            } finally {
+                if (controller === activeController) controller = undefined;
             }
         }, 500);
     };
