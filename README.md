@@ -45,11 +45,19 @@ SESSION_COOKIE_SECURE=false
 
 `SECRET_KEY` gehört zur lokalen Flask-Anwendung und **nicht** zur IGDB-API. Flask verwendet diesen Wert, um unter anderem Sitzungs-Cookies und CSRF-Tokens kryptografisch zu signieren. Dadurch kann der Server erkennen, ob diese Werte nachträglich verändert wurden.
 
-Für jede Installation sollte ein eigener, langer und zufälliger Schlüssel verwendet werden. Ein geeigneter Wert lässt sich beispielsweise so erzeugen:
+Für jede Installation sollte ein eigener, langer und zufälliger Schlüssel verwendet werden. Mit Python lässt sich ein geeigneter Wert so erzeugen:
 
 ```bash
 python3 -c "import secrets; print(secrets.token_hex(32))"
 ```
+
+Alternativ kann OpenSSL verwendet werden:
+
+```bash
+openssl rand -hex 32
+```
+
+Beide Befehle erzeugen 32 kryptografisch sichere Zufallsbytes und geben sie als 64 Hexadezimalzeichen aus. Der ausgegebene Wert wird anschließend ohne Anführungszeichen hinter `SECRET_KEY=` in die `.env`-Datei eingetragen.
 
 Wird `SECRET_KEY` bei einer laufenden Installation geändert, werden bestehende Benutzersitzungen ungültig und die Benutzer müssen sich erneut anmelden.
 
