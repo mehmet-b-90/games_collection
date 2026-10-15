@@ -1,4 +1,4 @@
-from flask import Flask, request
+from flask import Flask, redirect, request, url_for
 from flask_wtf.csrf import CSRFError
 from werkzeug.exceptions import HTTPException
 from .config import configure_app
@@ -16,6 +16,12 @@ def create_app():
     login_manager.init_app(application)
     login_manager.login_view = 'auth.login'
     register_blueprints(application)
+
+    @login_manager.unauthorized_handler
+    def unauthorized():
+        if request.path.startswith('/api/'):
+            return api_error('Bitte melde dich erneut an.', 401)
+        return redirect(url_for('auth.login'))
 
     @login_manager.user_loader
     def load_user(user_id):

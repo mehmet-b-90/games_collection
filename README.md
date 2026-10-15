@@ -96,6 +96,14 @@ Die Client-ID und das Client-Secret können nach der Registrierung einer Anwendu
 
 Für eine öffentlich oder im Netzwerk erreichbare Installation mit HTTPS sollte der Wert auf `true` gesetzt werden.
 
+## Android-App
+
+[Android-App 0.6 direkt als APK herunterladen](https://github.com/mehmet-b-90/games_collection/releases/download/android-v0.6/games-collection-android-0.6.apk)
+
+Die APK ist eine vorläufige Testversion für Android 8.0 oder neuer. Bei der Installation muss gegebenenfalls die Installation aus dieser Quelle zugelassen werden. Für die Verbindung benötigt der Server die JSON-API dieser Projektversion.
+
+Im Ordner [`android/`](android/README.md) liegt eine eigenständige native Android-App mit Kotlin und Jetpack Compose. Sammlung, Filter, Statistik, Anmeldung und Spielverwaltung werden direkt in der App dargestellt. Die App kommuniziert per JSON-API mit dem Docker-Server; eine WebView wird nicht verwendet. Die beiden Designs Cinematic Dark und Editorial Shelf stehen auch nativ zur Verfügung. Vor der ersten Verbindung muss der Server mit dieser Projektversion neu gebaut werden. Hinweise zur Installation, zum APK-Build und zu HTTPS stehen in der [Android-Anleitung](android/README.md).
+
 ## Technischer Aufbau
 
 - Flask und Gunicorn

@@ -74,6 +74,76 @@ class GamesCollectionTestCase(unittest.TestCase):
         self.assertIn('.form-check-input:checked', css)
         stylesheet.close()
 
+    def test_native_session_login_logout_and_csrf_rotation(self):
+        self.register()
+        self.client.post('/logout')
+        app.config['WTF_CSRF_ENABLED'] = True
+        anonymous = self.client.get('/api/session')
+        self.assertEqual(anonymous.headers['Cache-Control'], 'no-store')
+        self.assertFalse(anonymous.json['authenticated'])
+        token = anonymous.json['csrf_token']
+        self.assertEqual(self.client.post('/api/session', json={
+            'username': 'Tester', 'password': 'password1',
+        }).status_code, 400)
+        logged_in = self.client.post('/api/session', json={
+            'username': 'tester', 'password': 'password1', 'remember': True,
+        }, headers={'X-CSRFToken': token})
+        self.assertEqual(logged_in.status_code, 200)
+        self.assertTrue(logged_in.json['authenticated'])
+        self.assertEqual(logged_in.json['user']['username'], 'Tester')
+        self.assertNotIn('password', logged_in.json['user'])
+        self.assertNotEqual(logged_in.json['csrf_token'], token)
+        self.assertTrue(any('remember_token=' in cookie for cookie in logged_in.headers.getlist('Set-Cookie')))
+        self.assertEqual(self.client.get('/api/games').status_code, 200)
+        logged_out = self.client.delete('/api/session', headers={'X-CSRFToken': logged_in.json['csrf_token']})
+        self.assertEqual(logged_out.status_code, 200)
+        self.assertFalse(logged_out.json['authenticated'])
+        self.assertIsNone(logged_out.json['user'])
+        self.assertTrue(any('remember_token=;' in cookie for cookie in logged_out.headers.getlist('Set-Cookie')))
+        self.assertEqual(self.client.get('/api/games').status_code, 401)
+
+    def test_native_api_requires_authentication_and_isolates_collections(self):
+        unauthorized = self.client.get('/api/games')
+        self.assertEqual(unauthorized.status_code, 401)
+        self.assertIsNotNone(unauthorized.json['error'])
+        self.register('First')
+        self.add_game('Private First', 11)
+        self.client.post('/logout')
+        self.register('Second')
+        self.add_game('Private Second', 22)
+        response = self.client.get('/api/games')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.headers['Cache-Control'], 'no-store')
+        self.assertEqual([game['title'] for game in response.json['games']], ['Private Second'])
+        self.assertEqual(response.json['platforms'], sorted(PLATFORMS))
+        self.assertIn('version', response.json['games'][0])
+
+    def test_native_https_login_keeps_strict_csrf_referrer_check(self):
+        self.register()
+        self.client.post('/logout')
+        app.config['WTF_CSRF_ENABLED'] = True
+        token = self.client.get('/api/session', base_url='https://localhost').json['csrf_token']
+        payload = {'username': 'Tester', 'password': 'password1'}
+        self.assertEqual(self.client.post('/api/session', base_url='https://localhost', json=payload,
+                         headers={'X-CSRFToken': token}).status_code, 400)
+        response = self.client.post('/api/session', base_url='https://localhost', json=payload,
+                                    headers={'X-CSRFToken': token, 'Referer': 'https://localhost/'})
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json['authenticated'])
+
+    def test_native_login_rejects_invalid_json_and_bad_credentials(self):
+        self.register()
+        self.client.post('/logout')
+        for payload in ([], {'username': ['Tester'], 'password': 'password1'},
+                        {'username': 'Tester', 'password': 'password1', 'remember': 'false'},
+                        {'username': 'Tester', 'password': 'password1', 'extra': True}):
+            self.assertEqual(self.client.post('/api/session', json=payload).status_code, 400)
+        for username, password in [('Missing', 'password1'), ('Tester', 'wrong')]:
+            self.assertEqual(self.client.post('/api/session', json={
+                'username': username, 'password': password,
+            }).status_code, 401)
+        self.assertFalse(self.client.get('/api/session').json['authenticated'])
+
     def test_csrf_rejects_state_change_without_token(self):
         app.config['WTF_CSRF_ENABLED'] = True
         response = self.client.post('/register', data={

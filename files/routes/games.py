@@ -4,6 +4,7 @@ import requests
 from flask import Blueprint, current_app, jsonify, request
 from flask_login import current_user, login_required
 from ..database import api_error, commit_changes
+from ..config import PLATFORMS
 from ..extensions import db
 from ..igdb import get_igdb_token, get_preferred_age_rating
 from ..models import Game, GamePlatformOwnership
@@ -14,6 +15,15 @@ games_bp = Blueprint('games', __name__, url_prefix='/api')
 def json_object():
     data = request.get_json(silent=True)
     return data if isinstance(data, dict) else None
+
+@games_bp.route('/games', methods=['GET'])
+@login_required
+def list_games():
+    games = Game.query.filter_by(user_id=current_user.id).order_by(Game.id.desc()).all()
+    response = jsonify({'api_version': 1, 'games': [game.to_dict() for game in games],
+                        'platforms': sorted(PLATFORMS)})
+    response.headers['Cache-Control'] = 'no-store'
+    return response
 
 @games_bp.route('/search', methods=['POST'])
 @login_required

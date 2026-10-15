@@ -5,3 +5,11 @@ data/
 .pytest_cache/
 .coverage
 .DS_Store
+android/.gradle/
+android/.kotlin/
+android/**/build/
+android/local.properties
+android/.idea/
+android/*.iml
+android/*.jks
+android/*.keystore
