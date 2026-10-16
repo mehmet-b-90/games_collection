@@ -19,7 +19,8 @@ import javax.net.ssl.SSLException
 data class ViewerState(
     val server: String = "", val username: String? = null, val busy: Boolean = false,
     val games: List<Game> = emptyList(), val platforms: List<String> = emptyList(),
-    val theme: String = "cinematic", val error: String? = null, val connected: Boolean = false
+    val theme: String = "cinematic", val coverSize: Int = 150,
+    val error: String? = null, val connected: Boolean = false
 )
 
 class CollectionViewModel(application: Application) : AndroidViewModel(application) {
@@ -27,7 +28,8 @@ class CollectionViewModel(application: Application) : AndroidViewModel(applicati
     private val persistence = SessionStore(application)
     private var api: ApiClient? = null
     var state by mutableStateOf(ViewerState(server = preferences.getString("server", "").orEmpty(),
-        theme = preferences.getString("native_theme", "cinematic").orEmpty()))
+        theme = preferences.getString("native_theme", "cinematic").orEmpty(),
+        coverSize = preferences.getInt("cover_size", 150).coerceIn(100, 240)))
         private set
     var searchResults by mutableStateOf<List<Game>>(emptyList())
         private set
@@ -68,7 +70,7 @@ class CollectionViewModel(application: Application) : AndroidViewModel(applicati
                 withContext(Dispatchers.IO) { api?.clearSession(); persistence.write(emptyList()) }
                 api = ApiClient(normalized, persistence)
                 preferences.edit { putString("server", normalized) }
-                state = ViewerState(server = normalized, busy = true, theme = state.theme)
+                state = ViewerState(server = normalized, busy = true, theme = state.theme, coverSize = state.coverSize)
                 searchResults = emptyList()
             }
             val session = withContext(Dispatchers.IO) { api!!.session() }
@@ -124,6 +126,11 @@ class CollectionViewModel(application: Application) : AndroidViewModel(applicati
     }
     fun clearSearch() { searchResults = emptyList() }
     fun clearError() { state = state.copy(error = null) }
+    fun setCoverSize(value: Int) {
+        val size = value.coerceIn(100, 240)
+        preferences.edit { putInt("cover_size", size) }
+        state = state.copy(coverSize = size)
+    }
     fun setTheme(value: String) {
         if (value !in setOf("cinematic", "editorial")) return
         preferences.edit { putString("native_theme", value) }

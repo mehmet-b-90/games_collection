@@ -7,6 +7,7 @@ data/
 .DS_Store
 android/.gradle/
 android/.kotlin/
+android/.toolchain/
 android/**/build/
 android/local.properties
 android/.idea/

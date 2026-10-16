@@ -23,6 +23,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -40,6 +41,9 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.ImeAction
@@ -88,6 +92,7 @@ private val EditorialColors = lightColorScheme(
     MaterialTheme(colorScheme = if (state.theme == "editorial") EditorialColors else DarkColors) {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             var serverDialog by rememberSaveable { mutableStateOf(false) }
+            var settingsOpen by rememberSaveable(state.server, state.username) { mutableStateOf(false) }
             // Never retain a previous account's detail view or drafts across a login/server change.
             var tab by rememberSaveable(state.server, state.username) { mutableIntStateOf(0) }
             var filtersOpen by rememberSaveable(state.server, state.username) { mutableStateOf(false) }
@@ -140,7 +145,7 @@ private val EditorialColors = lightColorScheme(
                         when (tab) {
                             0 -> LibraryScreen(state, filter, sort, { sort = it }) { selected = it; edit = false }
                             1 -> StatisticsScreen(state.games)
-                            else -> ProfileScreen(state, model::setTheme, { serverDialog = true }, {
+                            else -> ProfileScreen(state, { settingsOpen = true }, {
                                 selected = null; adding = false; model.logout()
                             })
                         }
@@ -149,6 +154,8 @@ private val EditorialColors = lightColorScheme(
                 }
             }
 
+            if (settingsOpen && state.username != null) SettingsDialog(state, model::setTheme, model::setCoverSize,
+                { serverDialog = true }, { settingsOpen = false })
             if (serverDialog) Dialog(onDismissRequest = { if (!state.busy) serverDialog = false }) {
                 Surface(shape = RoundedCornerShape(24.dp)) {
                     ServerScreen(state, { address, http -> model.connect(address, http); serverDialog = false },
@@ -201,15 +208,15 @@ private val EditorialColors = lightColorScheme(
             shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surface,
             tonalElevation = 6.dp, shadowElevation = 16.dp) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                OutlinedTextField(query, changeQuery, modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
-                    placeholder = { Text("Sammlung durchsuchen") },
+                FormTextField(query, changeQuery, label = "Sammlung durchsuchen",
+                    modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
                     leadingIcon = { Icon(Icons.Default.Search, null) },
                     trailingIcon = {
                         if (query.isNotEmpty()) IconButton(onClick = { changeQuery("") }) {
                             Icon(Icons.Default.Clear, "Suchtext löschen")
                         }
                     },
-                    singleLine = true, shape = RoundedCornerShape(16.dp),
+                    singleLine = true,
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                     keyboardActions = KeyboardActions(onSearch = { keyboard?.hide(); close() }))
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -237,8 +244,8 @@ private val EditorialColors = lightColorScheme(
         Icon(NativeIcons.Gamepad, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(48.dp))
         Text("Deine Sammlung.\nÜberall dabei.", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
         Text("Verbinde die App mit deinem Games-Collection-Server.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-        OutlinedTextField(address, { address = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Serveradresse") },
-            placeholder = { Text("https://games.example.org") }, singleLine = true, enabled = !state.busy,
+        FormTextField(address, { address = it }, modifier = Modifier.fillMaxWidth(), label = "Serveradresse",
+            placeholder = "https://games.example.org", singleLine = true, enabled = !state.busy,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri))
         Row(verticalAlignment = Alignment.CenterVertically) {
             Checkbox(allowHttp, { allowHttp = it }, enabled = !state.busy)
@@ -265,9 +272,9 @@ private val EditorialColors = lightColorScheme(
             Text("Willkommen zurück", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
             Text(state.server.toUri().authority.orEmpty(), color = MaterialTheme.colorScheme.onSurfaceVariant)
             if (state.connected) {
-                OutlinedTextField(username, { username = it }, label = { Text("Benutzername") }, singleLine = true,
+                FormTextField(username, { username = it }, label = "Benutzername", singleLine = true,
                     enabled = !state.busy, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(password, { password = it }, label = { Text("Passwort") }, singleLine = true,
+                FormTextField(password, { password = it }, label = "Passwort", singleLine = true,
                     enabled = !state.busy, modifier = Modifier.fillMaxWidth(), visualTransformation = PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password))
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -294,14 +301,14 @@ private val EditorialColors = lightColorScheme(
         Text("DEINE BIBLIOTHEK", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelSmall, letterSpacing = 2.sp)
         Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("${visible.size} Titel", modifier = Modifier.weight(1f), style = MaterialTheme.typography.labelLarge)
-            ChoiceField("Sortierung", sort.label, GameSort.entries.map { it.label }, modifier = Modifier.width(200.dp)) { label ->
+            ChoiceField("Sortierung", sort.label, GameSort.entries.map { it.label }, modifier = Modifier.width(200.dp), compact = true) { label ->
                 changeSort(GameSort.entries.first { it.label == label })
             }
         }
         if (visible.isEmpty()) Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Text(if (state.games.isEmpty()) "Deine Sammlung wartet auf das erste Spiel.\nTippe auf +, um einen Titel hinzuzufügen."
                 else "Keine Spiele für diese Filter gefunden.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-        } else LazyVerticalGrid(columns = GridCells.Adaptive(146.dp), horizontalArrangement = Arrangement.spacedBy(12.dp),
+        } else LazyVerticalGrid(columns = GridCells.Adaptive(state.coverSize.dp), horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp), contentPadding = PaddingValues(bottom = 90.dp)) {
             items(visible, key = { it.id }) { game -> GameCard(game, select) }
         }
@@ -318,7 +325,8 @@ private val EditorialColors = lightColorScheme(
 }
 
 @Composable private fun GameCard(game: Game, select: (Game) -> Unit) {
-    Column(Modifier.clip(RoundedCornerShape(16.dp)).clickable { select(game) }) {
+    // Round only the cover. Clipping the entire card also clips the lower text corners.
+    Column(Modifier.clickable { select(game) }) {
         Box(Modifier.fillMaxWidth().aspectRatio(0.72f).clip(RoundedCornerShape(16.dp)).background(MaterialTheme.colorScheme.surfaceVariant)) {
             if (game.cover.isNotEmpty()) AsyncImage(game.cover, "Cover von ${game.title}", Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
             else Icon(NativeIcons.Gamepad, null, Modifier.size(48.dp).align(Alignment.Center))
@@ -328,23 +336,29 @@ private val EditorialColors = lightColorScheme(
             }
             if (game.rating != null) Text("★ ${game.rating}", color = Color.White, modifier = Modifier.align(Alignment.BottomEnd).padding(10.dp), fontSize = 13.sp)
         }
-        Text(game.title, maxLines = 2, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleSmall,
-            modifier = Modifier.padding(top = 8.dp, start = 2.dp))
-        Text(game.platforms.joinToString(" · "), maxLines = 2, overflow = TextOverflow.Ellipsis,
-            color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall,
-            modifier = Modifier.padding(top = 3.dp, start = 2.dp))
+        Column(Modifier.fillMaxWidth().padding(start = 4.dp, end = 4.dp, top = 8.dp, bottom = 4.dp),
+            verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            Text(game.title, maxLines = 2, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleSmall)
+            Text(game.platforms.joinToString(" · "), maxLines = 2, overflow = TextOverflow.Ellipsis,
+                color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
+        }
     }
 }
 
 @Composable private fun ChoiceField(label: String, value: String, options: List<String>, modifier: Modifier = Modifier,
-    enabled: Boolean = true, select: (String) -> Unit) {
+    enabled: Boolean = true, compact: Boolean = false, select: (String) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     Box(modifier) {
-        OutlinedButton(onClick = { expanded = true }, enabled = enabled, shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
-            Column(Modifier.weight(1f), horizontalAlignment = Alignment.Start) {
-                Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(value.ifEmpty { "Alle" }, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyMedium)
-            }
+        OutlinedButton(onClick = { expanded = true }, enabled = enabled, shape = FormFieldShape,
+            contentPadding = if (compact) PaddingValues(horizontal = 12.dp, vertical = 4.dp) else FormFieldPadding,
+            modifier = Modifier.fillMaxWidth().then(if (compact) Modifier.semantics { contentDescription = label }
+                else Modifier.heightIn(min = FormFieldMinHeight))) {
+            if (compact) Text(value.ifEmpty { "Alle" }, modifier = Modifier.weight(1f), maxLines = 1,
+                overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyMedium)
+            else Column(Modifier.weight(1f), horizontalAlignment = Alignment.Start) {
+                    Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(value.ifEmpty { "Alle" }, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyMedium)
+                }
             Icon(Icons.Default.KeyboardArrowDown, null, Modifier.size(20.dp))
         }
         DropdownMenu(expanded, { expanded = false }, modifier = Modifier.heightIn(max = 340.dp)) {
@@ -407,7 +421,7 @@ private val EditorialColors = lightColorScheme(
     }
 }
 
-@Composable private fun ProfileScreen(state: ViewerState, setTheme: (String) -> Unit, server: () -> Unit, logout: () -> Unit) {
+@Composable private fun ProfileScreen(state: ViewerState, settings: () -> Unit, logout: () -> Unit) {
     val context = LocalContext.current
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
         Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primaryContainer, modifier = Modifier.size(64.dp)) {
@@ -416,21 +430,68 @@ private val EditorialColors = lightColorScheme(
         Text(state.username.orEmpty(), style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
         Text("Dein Profil", color = MaterialTheme.colorScheme.onSurfaceVariant)
         HorizontalDivider()
-        Text("Darstellung auf diesem Gerät", style = MaterialTheme.typography.titleMedium)
-        listOf("cinematic" to "Cinematic Dark", "editorial" to "Editorial Shelf").forEach { (key, label) ->
-            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable { setTheme(key) }, verticalAlignment = Alignment.CenterVertically) {
-                RadioButton(state.theme == key, { setTheme(key) })
-                Text(label)
-            }
-        }
-        HorizontalDivider()
         Text("Server", style = MaterialTheme.typography.titleMedium)
         Text(state.server, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        OutlinedButton(onClick = server, enabled = !state.busy) { Text("Serveradresse ändern") }
-        OutlinedButton(onClick = { openBrowser(context, state.server) }, enabled = !state.busy) { Text("Konto im Browser verwalten") }
-        OutlinedButton(onClick = logout, enabled = !state.busy) {
-            Icon(Icons.AutoMirrored.Filled.ExitToApp, null); Spacer(Modifier.width(8.dp)); Text("Abmelden")
+        OutlinedCard(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
+            ProfileAction("Einstellungen", Icons.Default.Settings, true, onClick = settings)
+            HorizontalDivider(Modifier.padding(start = 52.dp, end = 16.dp))
+            ProfileAction("Konto im Browser verwalten", Icons.Default.AccountCircle, !state.busy,
+                onClick = { openBrowser(context, state.server) })
+            HorizontalDivider(Modifier.padding(start = 52.dp, end = 16.dp))
+            ProfileAction("Abmelden", Icons.AutoMirrored.Filled.ExitToApp, !state.busy, emphasize = true, onClick = logout)
         }
+    }
+}
+
+@Composable private fun SettingsDialog(state: ViewerState, setTheme: (String) -> Unit,
+    setCoverSize: (Int) -> Unit, server: () -> Unit, close: () -> Unit) {
+    var coverSize by remember(state.coverSize) { mutableFloatStateOf(state.coverSize.toFloat()) }
+    FullScreenDialog("Einstellungen", true, close) {
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(18.dp)) {
+            Text("Darstellung auf diesem Gerät", style = MaterialTheme.typography.titleMedium)
+            listOf("cinematic" to "Cinematic Dark", "editorial" to "Editorial Shelf").forEach { (key, label) ->
+                Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable { setTheme(key) },
+                    verticalAlignment = Alignment.CenterVertically) {
+                    RadioButton(state.theme == key, { setTheme(key) })
+                    Text(label)
+                }
+            }
+            HorizontalDivider()
+            Text("Covergröße", style = MaterialTheme.typography.titleMedium)
+            Text("Kleinere Cover zeigen mehr Titel nebeneinander. Die Spalten passen sich automatisch an die Bildschirmbreite an.",
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Slider(value = coverSize, onValueChange = { coverSize = it },
+                onValueChangeFinished = { setCoverSize(coverSize.toInt()) }, valueRange = 100f..240f, steps = 13,
+                modifier = Modifier.semantics { contentDescription = "Covergröße" })
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text("Klein", style = MaterialTheme.typography.labelSmall)
+                Text("Groß", style = MaterialTheme.typography.labelSmall)
+            }
+            TextButton(onClick = { setCoverSize(150) }) { Text("Standardgröße wiederherstellen") }
+            HorizontalDivider()
+            Text("Server", style = MaterialTheme.typography.titleMedium)
+            Text(state.server, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            OutlinedCard(Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
+                ProfileAction("Serveradresse ändern", Icons.Default.Settings, !state.busy, onClick = server)
+            }
+        }
+    }
+}
+
+@Composable private fun ProfileAction(label: String, icon: ImageVector, enabled: Boolean,
+    emphasize: Boolean = false, onClick: () -> Unit) {
+    val color = when {
+        !enabled -> MaterialTheme.colorScheme.onSurface.copy(alpha = .38f)
+        emphasize -> MaterialTheme.colorScheme.error
+        else -> MaterialTheme.colorScheme.onSurface
+    }
+    Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+        .padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Icon(icon, null, tint = color, modifier = Modifier.size(24.dp))
+        Text(label, color = color, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+        if (!emphasize) Icon(Icons.AutoMirrored.Filled.ArrowForward, null, tint = color, modifier = Modifier.size(18.dp))
     }
 }
 
@@ -442,8 +503,8 @@ private val EditorialColors = lightColorScheme(
     FullScreenDialog("Spiel hinzufügen", !state.busy, close) {
         Column(Modifier.fillMaxSize().padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("Suche nach einem Titel in IGDB.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-            OutlinedTextField(query, { query = it }, label = { Text("Spieletitel") }, singleLine = true, enabled = !state.busy, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(year, { year = it.filter(Char::isDigit).take(4) }, label = { Text("Release-Jahr (optional)") }, singleLine = true,
+            FormTextField(query, { query = it }, label = "Spieletitel", singleLine = true, enabled = !state.busy, modifier = Modifier.fillMaxWidth())
+            FormTextField(year, { year = it.filter(Char::isDigit).take(4) }, label = "Release-Jahr (optional)", singleLine = true,
                 enabled = !state.busy, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth())
             Button(onClick = { searched = true; search(query, year) }, enabled = !state.busy && query.isNotBlank(), modifier = Modifier.fillMaxWidth()) {
                 Icon(Icons.Default.Search, null); Spacer(Modifier.width(8.dp)); Text("IGDB durchsuchen")
@@ -503,8 +564,9 @@ private val EditorialColors = lightColorScheme(
                 }
             }
             if (edit) {
-                item { OutlinedTextField(draft.title, { draft = draft.copy(title = it) }, label = { Text("Spieletitel") }, enabled = !state.busy, modifier = Modifier.fillMaxWidth()) }
-                item { OutlinedTextField(draft.release, { draft = draft.copy(release = it.filter(Char::isDigit).take(4)) }, label = { Text("Release-Jahr") },
+                item { FormTextField(draft.title, { draft = draft.copy(title = it) }, label = "Spieletitel", singleLine = false,
+                    enabled = !state.busy, modifier = Modifier.fillMaxWidth()) }
+                item { FormTextField(draft.release, { draft = draft.copy(release = it.filter(Char::isDigit).take(4)) }, label = "Release-Jahr",
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), enabled = !state.busy, modifier = Modifier.fillMaxWidth()) }
                 item { ChoiceField("Format", draft.format, listOf("Digital", "Physisch"), enabled = !state.busy) { draft = draft.copy(format = it) } }
                 item { ChoiceField("Status", draft.status, listOf("Nicht gespielt", "Gespielt", "Abgebrochen"), enabled = !state.busy) { draft = draft.copy(status = it) } }

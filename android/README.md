@@ -12,6 +12,7 @@ Die Android-App besitzt eine eigenständige native Oberfläche mit Kotlin, Jetpa
 - Hinzufügen über IGDB mit optionalem Release-Jahr oder manuell
 - Mehrfachauswahl der Besitzplattformen sowie Status, Format und Bewertung
 - Cinematic Dark und Editorial Shelf als lokale App-Designs
+- Einstellungen mit lokal gespeicherter Covergröße und Zurücksetzen auf die Standardgröße
 - Externe Links zu IGDB und Deku Deals im Browser
 
 Kontoerstellung und weitergehende Kontoverwaltung, etwa Passwortänderungen oder Benutzeradministration, erfolgen weiterhin in der Webanwendung. Die Android-App ist online ausgerichtet; eine Offline-Synchronisation ist nicht implementiert.
@@ -33,7 +34,11 @@ Die Datenbank im eingebundenen Verzeichnis `data/` bleibt erhalten. Die neuen AP
 3. Bei HTTP die Option „HTTP für lokale Tests zulassen“ aktivieren. HTTPS ist für den regulären Betrieb empfohlen.
 4. Mit deinem bestehenden Games-Collection-Konto anmelden.
 
-Die Serveradresse kann unter „Profil“ geändert werden. Beim Wechsel werden die bisherigen Anmelde-Cookies gelöscht; melde dich am neuen Server erneut an. Der Knopf `↻` lädt die Sammlung erneut. Die Designauswahl unter „Profil“ gilt für dieses Gerät und ändert nicht die Darstellung im Browser.
+Unter „Profil → Einstellungen“ lassen sich Design, Covergröße und Serveradresse ändern. Kleinere Cover ermöglichen mehr Titel nebeneinander; die Spaltenanzahl passt sich automatisch an die Bildschirmbreite an. Die Covergröße kann auf den Standard zurückgesetzt werden. Design und Covergröße werden lokal auf diesem Gerät gespeichert und ändern nicht die Darstellung im Browser.
+
+Beim Serverwechsel werden die bisherigen Anmelde-Cookies gelöscht; melde dich am neuen Server erneut an. Der Knopf `↻` lädt die Sammlung erneut.
+
+Der Downloadlink oben verweist auf die bestehende Release-APK `android-v0.6`. Neuere Quellcodeänderungen sind darin erst nach einem gesonderten APK-Release enthalten; ein Git-Push allein aktualisiert die APK nicht.
 
 Das Smartphone muss den Server erreichen können, etwa im gleichen WLAN oder über ein VPN. `localhost` verweist auf dem Smartphone auf das Smartphone selbst. Im Android-Emulator ist der Hostrechner normalerweise unter `10.0.2.2` erreichbar. Die Anwendung erwartet die Serveradresse ohne Unterpfad, da die Webanwendung absolute Routen verwendet.
 
