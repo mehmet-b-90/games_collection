@@ -1,5 +1,7 @@
-.env
-data/
+**
+!Dockerfile
+!requirements.txt
+!files/
+!files/**
 **/__pycache__/
 *.py[cod]
-android/

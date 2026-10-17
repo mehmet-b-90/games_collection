@@ -20,15 +20,60 @@ Dank Docker Container ist die Einrichtung einfach.
 
 2. Die Werte in `.env` entsprechend dem Abschnitt [Konfiguration](#konfiguration) eintragen.
 
-3. Anwendung bauen und starten:
+3. Fertiges Image aus der GitHub Container Registry laden und starten:
 
    ```bash
+   docker compose pull
    docker compose up -d
    ```
 
 4. `http://localhost:7000` öffnen. Der zuerst angelegte Benutzer erhält Administratorrechte.
 
 Die SQLite-Datenbank wird im lokalen Verzeichnis `data/` abgelegt und nicht in das Repository übernommen.
+
+## Docker-Image und Updates
+
+Das Server-Image liegt unter `ghcr.io/mehmet-b-90/games_collection`. Es unterstützt `linux/amd64` (übliche PCs/Server) und `linux/arm64` (beispielsweise ARM-NAS und Raspberry Pi mit 64-Bit-System). Docker wählt die passende Architektur automatisch.
+
+```bash
+docker pull ghcr.io/mehmet-b-90/games_collection:latest
+```
+
+`latest` folgt dem zuletzt erfolgreich veröffentlichten Serverstand von `main`. Mit der mitgelieferten Compose-Datei aktualisierst du eine bestehende Installation so:
+
+```bash
+docker compose pull
+docker compose up -d
+```
+
+Die vorhandene `.env` und das eingebundene Verzeichnis `data/` werden weiterverwendet. Vor Updates eine Sicherung der SQLite-Datenbank erstellen; eine laufende SQLite-Datenbank mit WAL nicht durch bloßes Kopieren nur der Datei `database.db` sichern.
+
+Der Container läuft standardmäßig mit UID/GID `1000:1000`. Das eingebundene `data/` muss für diesen Benutzer schreibbar sein. Bei einer Neuinstallation das Verzeichnis vorher anlegen und passende Besitzrechte setzen. Auf SELinux-Systemen wie Fedora kann für den Bind-Mount zusätzlich `./data:/app/data:Z` erforderlich sein.
+
+Für einen bestimmten Quellstand gibt es außerdem `sha-<vollständige-Commit-ID>`. Eine feste Version lässt sich über `GAMES_COLLECTION_IMAGE` auswählen, zum Beispiel mit einem tatsächlich veröffentlichten SHA-Tag:
+
+```bash
+GAMES_COLLECTION_IMAGE=ghcr.io/mehmet-b-90/games_collection:sha-DEINE_COMMIT_ID docker compose up -d
+```
+
+### Automatische Veröffentlichung
+
+Der [GitHub-Actions-Workflow](https://github.com/mehmet-b-90/games_collection/actions/workflows/docker-publish.yml) baut bei relevanten Serveränderungen auf `main` zuerst ein Testimage. Darin laufen die Backend-Tests mit temporärer Datenbank und ein Starttest mit dem Docker-Healthcheck. Erst danach veröffentlicht er das Image für beide Architekturen. Pull Requests werden geprüft, veröffentlichen aber kein Image. Der Workflow lässt sich auf `main` auch manuell über **Actions → Build and publish Docker image → Run workflow** starten.
+
+Tags mit dem Präfix `docker-v` erzeugen zusätzliche Docker-Versionstags: beispielsweise würde `docker-v1.2.3` das Image `:1.2.3` veröffentlichen. `latest` bleibt dem `main`-Branch vorbehalten. Android-Tags wie `android-v0.6` lösen keine Docker-Veröffentlichung aus.
+
+Die Anmeldung an der Registry erfolgt mit dem automatisch bereitgestellten `GITHUB_TOKEN` und der Berechtigung `packages: write`; ein eigenes Registry-Passwort als Repository-Secret ist nicht erforderlich. GitHub legt neue Container-Pakete zunächst **privat** an. Nach der ersten Veröffentlichung muss der Besitzer einmalig unter **Packages → games_collection → Package settings → Change visibility → Public** die öffentliche Sichtbarkeit einstellen, damit `docker pull` ohne Anmeldung funktioniert. Siehe [GitHubs Registry-Dokumentation](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry).
+
+### Lokal aus dem Quellcode bauen
+
+Für eigene Änderungen kannst du weiterhin ein lokales Image bauen und es mit derselben Compose-Datei verwenden:
+
+```bash
+docker build -t games-collection:local .
+GAMES_COLLECTION_IMAGE=games-collection:local docker compose up -d --pull never
+```
+
+Der Docker-Buildkontext enthält ausschließlich Dockerfile, `requirements.txt` und die Anwendung unter `files/`. Lokale Konfiguration, Datenbank, Git-Verlauf und Android-Werkzeuge werden nicht an den Builder übertragen.
 
 ## Konfiguration
 
@@ -102,7 +147,7 @@ Für eine öffentlich oder im Netzwerk erreichbare Installation mit HTTPS sollte
 
 Die APK ist eine vorläufige Testversion für Android 8.0 oder neuer. Bei der Installation muss gegebenenfalls die Installation aus dieser Quelle zugelassen werden. Für die Verbindung benötigt der Server die JSON-API dieser Projektversion.
 
-Im Ordner [`android/`](android/README.md) liegt eine eigenständige native Android-App mit Kotlin und Jetpack Compose. Sammlung, Filter, Statistik, Anmeldung und Spielverwaltung werden direkt in der App dargestellt. Die App kommuniziert per JSON-API mit dem Docker-Server; eine WebView wird nicht verwendet. Die beiden Designs Cinematic Dark und Editorial Shelf stehen auch nativ zur Verfügung. Vor der ersten Verbindung muss der Server mit dieser Projektversion neu gebaut werden. Hinweise zur Installation, zum APK-Build und zu HTTPS stehen in der [Android-Anleitung](android/README.md).
+Im Ordner [`android/`](android/README.md) liegt eine eigenständige native Android-App mit Kotlin und Jetpack Compose. Sammlung, Filter, Statistik, Anmeldung und Spielverwaltung werden direkt in der App dargestellt. Die App kommuniziert per JSON-API mit dem Docker-Server; eine WebView wird nicht verwendet. Die beiden Designs Cinematic Dark und Editorial Shelf stehen auch nativ zur Verfügung. Vor der ersten Verbindung muss der Server auf das Image dieser Projektversion aktualisiert werden. Hinweise zur Installation, zum APK-Build und zu HTTPS stehen in der [Android-Anleitung](android/README.md).
 
 Der aktuelle Android-Quellstand enthält zusätzliche Stabilitätskorrekturen für Entwürfe, HTTP-Abbruch und große Sammlungen. Für sicheres Wiederholen von Spieländerungen muss auch der Server aktualisiert werden; er ergänzt eine Tabelle für Vorgangsbelege. Die oben verlinkte Release-APK `android-v0.6` wird durch einen Quellcode-Push nicht ersetzt und enthält diese Korrekturen erst nach einem separaten APK-Release.
 

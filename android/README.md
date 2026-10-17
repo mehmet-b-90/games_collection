@@ -19,15 +19,18 @@ Kontoerstellung und weitergehende Kontoverwaltung, etwa Passwortänderungen oder
 
 ## Server zuerst aktualisieren
 
-Die native App benötigt die neuen JSON-Endpunkte dieser Projektversion. Baue den Docker-Container nach Übernahme der Änderungen neu:
+Die native App benötigt die neuen JSON-Endpunkte dieser Projektversion. Lade nach der Veröffentlichung das aktuelle Server-Image und starte den Container damit neu:
 
 ```bash
-docker compose up -d --build
+docker compose pull
+docker compose up -d
 ```
 
 Die Datenbank im eingebundenen Verzeichnis `data/` bleibt erhalten. Der aktuelle Server ergänzt beim Start die neue Tabelle `game_write_receipt` für bestätigte Spieländerungen; bestehende Tabellen und Spiele werden nicht umgebaut oder gelöscht. Sichere bestehende Daten vor einem Serverupdate wie üblich. Neue Zugangsdaten sind nicht erforderlich.
 
 Der aktuelle Android-Quellstand benötigt zum Speichern und Löschen die vom Server gemeldete Capability `idempotent_game_writes`. Fehlt sie, fordert die App ein Serverupdate an. Bestehende Browser- und ältere Android-Clients ohne Vorgangskennung bleiben serverseitig kompatibel.
+
+Für lokale Serveränderungen siehe [Lokal aus dem Quellcode bauen](../README.md#lokal-aus-dem-quellcode-bauen).
 
 ## Installation und erster Start
 

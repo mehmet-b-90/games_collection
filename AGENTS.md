@@ -14,6 +14,7 @@ Gilt für das gesamte Repository. Stand: 17.10.2026. Technische Bestandsaufnahme
 ## Projektentscheidungen erhalten
 
 - Selbst gehosteter Docker-Server mit persistentem SQLite-Verzeichnis; Gunicorn statt Flask-Entwicklungsserver im Container.
+- Server-Image: `ghcr.io/mehmet-b-90/games_collection:latest` für AMD64/ARM64. Compose lädt das Image; lokale Builds über `docker build -t games-collection:local .` und `GAMES_COLLECTION_IMAGE=games-collection:local docker compose up -d --pull never`. Workflow `.github/workflows/docker-publish.yml` prüft Backend und Containerstart vor Veröffentlichung. Docker-Versionstags verwenden `docker-v*`, Android-Tags bleiben davon getrennt. Keine feste Docker-Version erfinden.
 - Datenbank heißt `database.db`, nicht mehr `games.db`. Containerstandard: `/app/data/database.db`, Compose-Bind-Mount `./data:/app/data`.
 - Android ist eine **native Kotlin-/Jetpack-Compose-App**, keine WebView und aktuell kein Flutter-Projekt. Server und Benutzerkonten werden mit der Webanwendung geteilt.
 - Beide Designs erhalten; Webdesign ist kontobezogen gespeichert, Androiddesign und Android-Covergröße gelten lokal auf dem Gerät.

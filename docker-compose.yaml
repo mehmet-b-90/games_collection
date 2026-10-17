@@ -1,7 +1,6 @@
 services:
   games_collection:
-    build: .
-    image: mehmet_b_90/games_collection:v0.7
+    image: ${GAMES_COLLECTION_IMAGE:-ghcr.io/mehmet-b-90/games_collection:latest}
     container_name: games_collection
     restart: unless-stopped
     volumes:

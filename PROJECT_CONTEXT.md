@@ -8,7 +8,7 @@ Selbst gehostete Verwaltung persönlicher Videospielesammlungen mit mehreren Ben
 
 - Git-Remote lokal: `origin` → `https://github.com/mehmet-b-90/games_collection.git`.
 - Geprüfter Ausgangscommit der Android-Review: `127619d` – `Improve Android settings and document project handoff`. Zu Beginn war der Arbeitsbaum sauber; lokal meldete `main...origin/main` keinen Abstand (kein erneuter Remote-Fetch). Den aktuellen Commit und Remote-Abgleich mit `git log -1` und `git status -sb` prüfen.
-- Android: Version **0.6**, Code **3**; Compose-Image-Tag unabhängig davon: `mehmet_b_90/games_collection:v0.7`.
+- Android: Version **0.6**, Code **3**; davon unabhängiges Server-Image: `ghcr.io/mehmet-b-90/games_collection:latest`, alternativ ein veröffentlichter `sha-<Commit-ID>`-Tag über `GAMES_COLLECTION_IMAGE`.
 - Der Ausgangscommit `127619d` enthält die bisherigen UI-/Covergrößenänderungen. Der anschließende aktuelle Auftrag umfasst die Umsetzung der fünf Review-Findings sowie Commit und Push nach GitHub. Diese Übergabe enthält Produktfixes, dauerhafte Regressionstests und aktualisierte Dokumentation; kein Tag oder APK-Release. Die tatsächliche Übergabe-Commit-ID mit `git log -1` ermitteln.
 - Ausführungsrechner: **linux-pc-mehmet**; gewünschte Fortsetzung: **linux-laptop-mehmet**. Vor lokalem Weiterarbeiten `git status -sb` prüfen und den übertragenen Stand mit `git pull --ff-only` holen, sofern keine lokalen Änderungen entgegenstehen.
 - Der README-Link verweist weiterhin auf die frühere Release-APK `android-v0.6`. Ein Push des Quellcodes ersetzt diese Datei nicht; sie enthält nicht automatisch die jüngsten UI-Änderungen.
@@ -106,7 +106,7 @@ Android (Kotlin/Compose) ── JSON + Cookies ───┘          │
 1. Richtiges Repository klonen bzw. aktualisieren. Mit `git log -1` und `git status -sb` prüfen, ob der übergebene Stand vorhanden ist. Nicht versionierte Secrets, Daten und Signaturschlüssel separat übertragen; sie werden durch Klonen nicht mitgenommen.
 2. `.env.example` als `.env` übernehmen und eigene Werte setzen. Schlüssel z. B. mit `openssl rand -hex 32` oder `python3 -c "import secrets; print(secrets.token_hex(32))"` erzeugen. Reale Secrets nicht aus dieser Dokumentation erwarten.
 3. Persistentes `data/` separat und sicher übertragen, wenn benötigt. Aktuelle Daten sind nicht als entbehrlich anzusehen. Für konsistente SQLite-Sicherung bei WAL nicht blind nur die laufende `.db` kopieren; SQLite-Backupverfahren oder sauber gestoppten Server verwenden.
-4. Compose: `docker compose up -d --build`; Hostport 7000 → Container 5000. Gunicorn: ein Worker, vier Threads, Timeout 60; nicht-root Benutzer (Build-UID/GID standardmäßig 1000), Healthcheck `/health`.
+4. Compose: `docker compose pull` und `docker compose up -d`; Hostport 7000 → Container 5000. Lokale Builds: `docker build -t games-collection:local .` und `GAMES_COLLECTION_IMAGE=games-collection:local docker compose up -d --pull never`. Gunicorn: ein Worker, vier Threads, Timeout 60; nicht-root Benutzer (Build-UID/GID standardmäßig 1000), Healthcheck `/health`.
 5. Bind-Mount-Schreibrechte passend zum Containerbenutzer sicherstellen. Auf Fedora ggf. SELinux-Kontext prüfen. Caddy-/externes Netzwerk ist aktuell in Compose **auskommentiert**; historische manuelle Netzwerkerstellung ist keine portable Voraussetzung. HTTPS/Reverse Proxy auf dem Zielrechner klären.
 6. Für lokales Backend ohne Docker: Abhängigkeiten aus `requirements.txt` in einer virtuellen Umgebung installieren, `SECRET_KEY` und absoluten `DATABASE_PATH` setzen. `.env` wird durch Compose injiziert; der Python-Code lädt sie nicht selbst via dotenv.
 7. Android mit JDK 17, SDK 36 und akzeptierten SDK-Lizenzen einrichten, dann in `android/`: `./gradlew testDebugUnitTest lintDebug assembleDebug`. `android/local.properties`, `ANDROID_HOME`, `JAVA_HOME` sind rechnerlokal.
@@ -114,6 +114,8 @@ Android (Kotlin/Compose) ── JSON + Cookies ───┘          │
 9. Lokaler ignorierter Werkzeugcache `android/.toolchain/` wurde auf dem bisherigen Laptop genutzt; er ist kein Bestandteil eines frischen Klons und keine allgemeine Buildvoraussetzung. Keine alten absoluten Rechnerpfade voraussetzen.
 
 ## Verifikation und offene Punkte
+
+Docker-Veröffentlichung vom **17.10.2026**: Image lokal mit Podman im Docker-Format gebaut, **25 Backend-Tests im Image bestanden**, Gunicorn gestartet und Healthcheck `/health` erfolgreich. Workflow mit `actionlint` validiert. Der tatsächliche GHCR-Buildstatus ist über GitHub Actions zu prüfen; anonymer Pull setzt die öffentliche Paketsichtbarkeit voraus.
 
 Am **17.10.2026 auf linux-pc-mehmet** nach Umsetzung erfolgreich:
 
@@ -130,14 +132,15 @@ F1–F5 aus [ANDROID_REVIEW.md](ANDROID_REVIEW.md) sind im Quellcode bearbeitet;
 
 Nach regulärer Datensicherung den aktualisierten Server bereitstellen; er ergänzt `game_write_receipt`, ohne bestehende Tabellen umzubauen. Keine Belege ohne vereinbarte Wiederholungsfrist löschen. Aktuelle Android-Builds benötigen die Server-Capability zum Speichern/Löschen. Während dieser Arbeit wurde kein laufender Server/Container ersetzt.
 
-**Noch nicht verifiziert:** echte Activity-Neuerstellung, systemseitige Prozesswiederherstellung, Saved-State-Größenlimits bei sehr großen Metadaten, Android-Keystore-Verhalten, Geräteperformance/Framezeiten, beide Designs auf Smartphone. ADB zeigte kein verbundenes Gerät; kein Emulator vorhanden. Docker ist nicht installiert, daher keine Containerprüfung. Auf `linux-laptop-mehmet` diese Prüfungen nachholen. API-Pagination und harte Antwortlimits wurden nicht ergänzt; sehr große Antworten können weiterhin hohen Speicherbedarf verursachen.
+**Noch nicht verifiziert:** echte Activity-Neuerstellung, systemseitige Prozesswiederherstellung, Saved-State-Größenlimits bei sehr großen Metadaten, Android-Keystore-Verhalten, Geräteperformance/Framezeiten, beide Designs auf Smartphone. ADB zeigte kein verbundenes Gerät; kein Emulator vorhanden. Bei der damaligen Android-Review war Docker nicht installiert, daher erfolgte dort keine Containerprüfung. Auf `linux-laptop-mehmet` diese Prüfungen nachholen. API-Pagination und harte Antwortlimits wurden nicht ergänzt; sehr große Antworten können weiterhin hohen Speicherbedarf verursachen.
 
 Offen bzw. vor Fortsetzung klären:
 
 - Falls die jüngsten UI-Änderungen auch als GitHub-Download angeboten werden sollen, ein neues bzw. aktualisiertes APK-Release separat beauftragen. Der aktuelle Auftrag umfasst Produktfixes sowie Commit/Push des Quellcodes, kein APK-Release.
 - Gerätesichtprüfung: beide Designs, verschiedene Display-/Schriftgrößen, Covergrößen, Textclipping, Dialog-/Zurück-Navigation, Serverwechsel, Login/Persistenz und Fehlerfälle.
 - Dauerhafte Release-Signierung, Schlüsselaufbewahrung und zukünftiges Versions-/Tagverfahren sind nicht verbindlich festgelegt. Aktuelle APK ist eine Debug-/Testversion; keine Play-Store-Veröffentlichung bestätigt.
-- Keine allgemeine DB-Migrationslösung, automatische WAL-Backupstrategie oder CI-Pipeline in der eingesehenen Projektstruktur. Ob und wann diese ergänzt werden sollen, ist nicht entschieden.
+- Docker-CI/CD: `.github/workflows/docker-publish.yml` baut ein AMD64-Testimage, führt die Backend-Tests und einen Container-Healthcheck aus und veröffentlicht anschließend AMD64/ARM64 in GHCR. Relevante Pushes auf `main` aktualisieren `latest` und den SHA-Tag; `docker-v*` veröffentlicht separate Versionstags. Pull Requests prüfen ohne Veröffentlichung; manueller Lauf auf `main` möglich. Neues GHCR-Paket muss einmalig vom Besitzer öffentlich gestellt werden, damit anonyme Pulls möglich sind. Kein zusätzliches Registry-Secret erforderlich. Der Buildkontext beschränkt sich auf Dockerfile, Requirements und `files/`.
+- Keine allgemeine DB-Migrationslösung oder automatische WAL-Backupstrategie vorhanden.
 - Öffentliches Betriebsziel, konkrete Caddy-Konfiguration, DNS/TLS und aktuelle Nutzdaten auf dem Zielrechner sind ungeklärt. Nicht aus früheren Screenshots/private IPs ableiten.
 - Weitere Sicherheits-/Stabilitätsarbeiten nur nach erneuter konkreter Prüfung priorisieren. Historische Punkte „1–5“ bzw. „1, 2, 5, 6, 7 und 8“ nicht als bekannte offene Aufgaben erfinden.
 - Behauptete vollständige Plattformlogoabdeckung, native Kontoverwaltung oder Offline-Synchronisation wären unzutreffend. Fehlende Funktionen nicht als bereits umgesetzt dokumentieren.
