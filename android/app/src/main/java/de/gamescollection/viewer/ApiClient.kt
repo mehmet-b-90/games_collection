@@ -1,5 +1,7 @@
 package de.gamescollection.viewer
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import okhttp3.Cookie
 import okhttp3.CookieJar
 import okhttp3.HttpUrl
@@ -36,8 +38,12 @@ class ServerCookies(private val base: HttpUrl, private val persistence: CookiePe
     @Synchronized fun clear() { entries.clear(); persistence.write(emptyList()) }
 }
 
-/** Called on Dispatchers.IO. A single repository serializes session-changing operations. */
-class ApiClient(val server: String, persistence: CookiePersistence) {
+/** A single ViewModel serializes session-changing operations. */
+class ApiClient private constructor(val server: String, persistence: CookiePersistence) {
+    companion object {
+        suspend fun create(server: String, persistence: CookiePersistence): ApiClient =
+            withContext(Dispatchers.IO) { ApiClient(server, persistence) }
+    }
     private val base = server.toHttpUrl()
     private val cookies = ServerCookies(base, persistence)
     private val client = OkHttpClient.Builder().cookieJar(cookies)
@@ -45,54 +51,69 @@ class ApiClient(val server: String, persistence: CookiePersistence) {
         .callTimeout(40, TimeUnit.SECONDS).followRedirects(false).followSslRedirects(false)
         .retryOnConnectionFailure(false).build()
     private var csrf = ""
+    private var idempotentWrites = false
 
-    fun clearSession() { cookies.clear(); csrf = "" }
-    fun session(): JSONObject {
+    fun clearSession() { cookies.clear(); csrf = ""; idempotentWrites = false }
+    suspend fun session(): JSONObject {
         val value = JSONObject(request("GET", "/api/session"))
         if (value.optInt("api_version") != 1 || value.optString("csrf_token").isEmpty()) {
             throw ApiException(426, "Der Server unterstützt diese App noch nicht. Bitte aktualisiere Games Collection.")
         }
         csrf = value.getString("csrf_token")
+        idempotentWrites = value.optJSONObject("capabilities")?.optBoolean("idempotent_game_writes") == true
         return value
     }
-    fun login(username: String, password: String, remember: Boolean): JSONObject {
+    suspend fun login(username: String, password: String, remember: Boolean): JSONObject {
         if (csrf.isEmpty()) session()
         val result = JSONObject(request("POST", "/api/session", JSONObject()
             .put("username", username).put("password", password).put("remember", remember)))
         csrf = result.getString("csrf_token")
+        idempotentWrites = result.optJSONObject("capabilities")?.optBoolean("idempotent_game_writes") == true
         return result
     }
-    fun logout() {
+    suspend fun logout() {
         try { request("DELETE", "/api/session") } finally { clearSession() }
     }
-    fun collection(): JSONObject = JSONObject(request("GET", "/api/games"))
-    fun save(game: Game) { request(if (game.id == 0) "POST" else "PUT", if (game.id == 0) "/api/games" else "/api/games/${game.id}", game.payload()) }
-    fun delete(game: Game) { request("DELETE", "/api/games/${game.id}") }
-    fun search(query: String, year: String): List<Game> = JSONArray(request("POST", "/api/search",
+    suspend fun collection(): JSONObject = JSONObject(request("GET", "/api/games"))
+    suspend fun save(game: Game, operationKey: String) {
+        requireIdempotency()
+        request(if (game.id == 0) "POST" else "PUT",
+            if (game.id == 0) "/api/games" else "/api/games/${game.id}", game.payload(), operationKey = operationKey)
+    }
+    suspend fun delete(game: Game, operationKey: String) {
+        requireIdempotency()
+        request("DELETE", "/api/games/${game.id}", operationKey = operationKey)
+    }
+    private suspend fun requireIdempotency() {
+        if (!idempotentWrites) session()
+        if (!idempotentWrites) throw ApiException(426,
+            "Bitte aktualisiere den Server, damit Spieländerungen sicher wiederholt werden können.")
+    }
+    suspend fun search(query: String, year: String): List<Game> = JSONArray(request("POST", "/api/search",
         JSONObject().put("query", query).put("release_year", year.ifEmpty { null } ?: JSONObject.NULL))).objects().map(Game::fromIgdb)
 
-    private fun request(method: String, path: String, data: JSONObject? = null, retryCsrf: Boolean = true): String {
+    private suspend fun request(method: String, path: String, data: JSONObject? = null, retryCsrf: Boolean = true, operationKey: String? = null): String {
         val url = base.resolve(path) ?: throw IOException("Ungültige Serveradresse.")
         check(ServerAddress.sameOrigin(server, url.toString()))
         val builder = Request.Builder().url(url).header("Accept", "application/json")
+        if (operationKey != null) builder.header("Idempotency-Key", operationKey)
         if (method != "GET") builder.header("X-CSRFToken", csrf).header("Referer", server)
         builder.method(method, if (method == "GET") null else (data?.toString() ?: "{}").toRequestBody("application/json; charset=utf-8".toMediaType()))
-        client.newCall(builder.build()).execute().use { response ->
-            val body = response.body?.string().orEmpty()
-            if (response.header("X-CSRF-Error") == "1" && retryCsrf && method != "GET") {
-                session()
-                return request(method, path, data, false)
-            }
-            if (response.code in 300..399) throw ApiException(response.code,
-                "Der Server leitet die Anfrage um. Prüfe HTTPS und die vollständige Serveradresse.")
-            if (!response.isSuccessful) {
-                val message = runCatching { JSONObject(body).getString("error") }.getOrNull()
-                throw ApiException(response.code, message ?: if (response.code == 404) "API nicht gefunden. Bitte aktualisiere den Games-Collection-Server." else "Der Server antwortet mit HTTP ${response.code}.")
-            }
-            if (response.header("Content-Type")?.contains("application/json") != true) {
-                throw ApiException(426, "Keine gültige API-Antwort. Bitte aktualisiere den Server und prüfe die Adresse.")
-            }
-            return body
+        val response = client.newCall(builder.build()).readBody()
+        val body = response.body
+        if (response.csrfError && retryCsrf && method != "GET") {
+            session()
+            return request(method, path, data, false, operationKey)
         }
+        if (response.code in 300..399) throw ApiException(response.code,
+            "Der Server leitet die Anfrage um. Prüfe HTTPS und die vollständige Serveradresse.")
+        if (response.code !in 200..299) {
+            val message = runCatching { JSONObject(body).getString("error") }.getOrNull()
+            throw ApiException(response.code, message ?: if (response.code == 404) "API nicht gefunden. Bitte aktualisiere den Games-Collection-Server." else "Der Server antwortet mit HTTP ${response.code}.")
+        }
+        if (response.contentType?.contains("application/json") != true) {
+            throw ApiException(502, "Keine gültige API-Antwort. Der Ausgang der Anfrage ist möglicherweise unklar.")
+        }
+        return body
     }
 }

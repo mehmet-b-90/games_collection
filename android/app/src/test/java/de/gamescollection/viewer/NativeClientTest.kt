@@ -1,5 +1,6 @@
 package de.gamescollection.viewer
 
+import kotlinx.coroutines.runBlocking
 import okhttp3.Cookie
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.mockwebserver.MockResponse
@@ -47,13 +48,13 @@ class NativeClientTest {
         assertTrue(persistence.values.isEmpty())
     }
 
-    @Test fun csrfFailuresRefreshAndRetryOnceWithNewToken() {
+    @Test fun csrfFailuresRefreshAndRetryOnceWithNewToken() = runBlocking {
         MockWebServer().use { server ->
             server.enqueue(json("""{"api_version":1,"csrf_token":"old","authenticated":false}"""))
             server.enqueue(json("""{"error":"CSRF"}""").setResponseCode(400).addHeader("X-CSRF-Error", "1"))
             server.enqueue(json("""{"api_version":1,"csrf_token":"new","authenticated":false}"""))
             server.enqueue(json("""{"csrf_token":"signed-in","authenticated":true}"""))
-            val api = ApiClient(server.url("/").toString(), MemoryCookies())
+            val api = ApiClient.create(server.url("/").toString(), MemoryCookies())
             api.session()
             api.login("Tester", "password", false)
             assertEquals("GET", server.takeRequest().method)
@@ -67,15 +68,17 @@ class NativeClientTest {
         }
     }
 
-    @Test fun redirectsAreNotFollowedAndConflictsRemainVisible() {
+    @Test fun redirectsAreNotFollowedAndConflictsRemainVisible() = runBlocking {
         MockWebServer().use { server ->
-            val api = ApiClient(server.url("/").toString(), MemoryCookies())
+            val api = ApiClient.create(server.url("/").toString(), MemoryCookies())
             server.enqueue(MockResponse().setResponseCode(302).addHeader("Location", "https://example.org/"))
-            val redirect = assertThrows(ApiException::class.java) { api.session() }
+            val redirect = assertThrows(ApiException::class.java) { runBlocking { api.session() } }
             assertEquals(302, redirect.status)
             assertEquals(1, server.requestCount)
+            server.enqueue(json("""{"api_version":1,"csrf_token":"token","capabilities":{"idempotent_game_writes":true}}"""))
+            api.session()
             server.enqueue(json("""{"error":"Zwischenzeitlich geändert"}""").setResponseCode(409))
-            val conflict = assertThrows(ApiException::class.java) { api.save(Game(id = 1, title = "Test", version = 1)) }
+            val conflict = assertThrows(ApiException::class.java) { runBlocking { api.save(Game(id = 1, title = "Test", version = 1), "00000000-0000-4000-8000-000000000001") } }
             assertEquals(409, conflict.status)
             assertEquals("Zwischenzeitlich geändert", conflict.message)
         }

@@ -1,6 +1,9 @@
 import os
 import tempfile
 import unittest
+from concurrent.futures import ThreadPoolExecutor
+from threading import Barrier
+from uuid import uuid4
 from unittest.mock import Mock, patch
 
 
@@ -16,6 +19,9 @@ from files.app import (  # noqa: E402
     db,
     get_preferred_age_rating,
 )
+from sqlalchemy.exc import SQLAlchemyError
+from files.models import GameWriteReceipt
+from files.database import commit_changes as real_commit_changes
 from files.config import PLATFORMS  # noqa: E402
 
 
@@ -366,6 +372,128 @@ class GamesCollectionTestCase(unittest.TestCase):
         self.assertIn('data-ui-theme="editorial"', page.get_data(as_text=True))
         invalid = self.client.put('/api/account/theme', json={'theme': 'unknown'})
         self.assertEqual(invalid.status_code, 400)
+
+    def manual_payload(self, title='Manuell'):
+        return {'title': title, 'owned_platform': 'Steam', 'format': 'Digital',
+                'status': 'Nicht gespielt', 'igdb_id': None}
+
+    def test_idempotent_create_replays_after_lost_response_and_detects_key_reuse(self):
+        self.register()
+        key = {'Idempotency-Key': str(uuid4())}
+        first = self.client.post('/api/games', json=self.manual_payload(), headers=key)
+        retry = self.client.post('/api/games', json=self.manual_payload(), headers=key)
+        self.assertEqual(first.status_code, 201)
+        self.assertEqual(retry.status_code, 201)
+        self.assertEqual(retry.headers.get('Idempotency-Replayed'), '1')
+        self.assertEqual(first.json, retry.json)
+        mismatch = self.client.post('/api/games', json=self.manual_payload('Anders'), headers=key)
+        self.assertEqual(mismatch.status_code, 409)
+        with app.app_context():
+            self.assertEqual(Game.query.count(), 1)
+            self.assertEqual(GameWriteReceipt.query.count(), 1)
+
+    def test_idempotent_updates_and_deletes_replay_without_mutating_twice(self):
+        self.register()
+        self.add_game()
+        game = self.client.get('/api/games').json['games'][0]
+        update = {'version': game['version'], 'title': 'Geändert'}
+        key = {'Idempotency-Key': str(uuid4())}
+        for _ in range(2):
+            self.assertEqual(self.client.put(f"/api/games/{game['id']}", json=update, headers=key).status_code, 200)
+        with app.app_context():
+            self.assertEqual(Game.query.one().version, game['version'] + 1)
+        # A different operation must still honor optimistic version checks.
+        self.assertEqual(self.client.put(f"/api/games/{game['id']}", json=update,
+                         headers={'Idempotency-Key': str(uuid4())}).status_code, 409)
+        key = {'Idempotency-Key': str(uuid4())}
+        for _ in range(2):
+            self.assertEqual(self.client.delete(f"/api/games/{game['id']}", json={}, headers=key).status_code, 200)
+        with app.app_context():
+            self.assertEqual(Game.query.count(), 0)
+            self.assertEqual(GameWriteReceipt.query.count(), 2)
+
+    def test_failed_idempotent_write_rolls_back_receipt_and_can_be_corrected(self):
+        self.register()
+        key = {'Idempotency-Key': str(uuid4())}
+        self.assertEqual(self.client.post('/api/games', json={'title': 'Invalid'}, headers=key).status_code, 400)
+        with app.app_context():
+            self.assertEqual(GameWriteReceipt.query.count(), 0)
+        self.assertEqual(self.client.post('/api/games', json=self.manual_payload(), headers=key).status_code, 201)
+        key = {'Idempotency-Key': str(uuid4())}
+        with self.assertLogs(app.logger, level='ERROR'):
+            with patch('sqlalchemy.orm.Session.commit', side_effect=SQLAlchemyError('test')):
+                response = self.client.post('/api/games', json=self.manual_payload('Rollback'), headers=key)
+        self.assertEqual(response.status_code, 503)
+        with app.app_context():
+            self.assertEqual(Game.query.count(), 1)
+            self.assertEqual(GameWriteReceipt.query.count(), 1)
+        self.assertEqual(self.client.post('/api/games', json=self.manual_payload('Rollback'), headers=key).status_code, 201)
+
+    def test_idempotency_is_user_scoped_and_receipts_follow_account_deletion(self):
+        self.register('First')
+        key = {'Idempotency-Key': str(uuid4())}
+        self.assertEqual(self.client.post('/api/games', json=self.manual_payload(), headers=key).status_code, 201)
+        with app.app_context():
+            first_id = User.query.filter_by(username='First').one().id
+        self.client.post('/logout')
+        self.register('Second')
+        self.assertEqual(self.client.post('/api/games', json=self.manual_payload(), headers=key).status_code, 201)
+        games = self.client.get('/api/games').json['games']
+        self.assertEqual(len(games), 1)
+        with app.app_context():
+            self.assertEqual(GameWriteReceipt.query.count(), 2)
+            db.session.delete(db.session.get(User, first_id))
+            db.session.commit()
+            self.assertEqual(GameWriteReceipt.query.count(), 1)
+            self.assertEqual(Game.query.count(), 1)
+
+    def test_concurrent_idempotent_creates_commit_only_one_game_and_receipt(self):
+        self.register()
+        cookie = self.client.get_cookie('session').value
+        key = {'Idempotency-Key': str(uuid4())}
+        barrier = Barrier(2)
+
+        def synchronized_commit(*args, **kwargs):
+            barrier.wait(timeout=10)
+            return real_commit_changes(*args, **kwargs)
+
+        def create(_):
+            client = app.test_client()
+            client.set_cookie('session', cookie)
+            return client.post('/api/games', json=self.manual_payload(), headers=key).status_code
+
+        with patch('files.routes.games.commit_changes', side_effect=synchronized_commit):
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                self.assertEqual(list(pool.map(create, range(2))), [201, 201])
+        with app.app_context():
+            self.assertEqual(Game.query.count(), 1)
+            self.assertEqual(GameWriteReceipt.query.count(), 1)
+
+    def test_idempotency_header_does_not_bypass_authentication_csrf_or_validation(self):
+        key = {'Idempotency-Key': str(uuid4())}
+        self.assertEqual(self.client.post('/api/games', json=self.manual_payload(), headers=key).status_code, 401)
+        self.register()
+        for invalid in ['', 'not-a-uuid', str(uuid4()).upper()]:
+            self.assertEqual(self.client.post('/api/games', json=self.manual_payload(),
+                             headers={'Idempotency-Key': invalid}).status_code, 400)
+        app.config['WTF_CSRF_ENABLED'] = True
+        self.assertEqual(self.client.post('/api/games', json=self.manual_payload(), headers=key).status_code, 400)
+        token = self.client.get('/api/session').json['csrf_token']
+        self.assertTrue(self.client.get('/api/session').json['capabilities']['idempotent_game_writes'])
+        self.assertEqual(self.client.post('/api/games', json=self.manual_payload(),
+                         headers={**key, 'X-CSRFToken': token}).status_code, 201)
+
+    def test_adding_receipt_table_preserves_existing_collection(self):
+        self.register()
+        self.add_game()
+        with app.app_context():
+            GameWriteReceipt.__table__.drop(db.engine)
+            db.create_all()
+            self.assertEqual(Game.query.one().title, 'Testspiel')
+            self.assertEqual(GameWriteReceipt.query.count(), 0)
+        response = self.client.post('/api/games', json=self.manual_payload(),
+                                    headers={'Idempotency-Key': str(uuid4())})
+        self.assertEqual(response.status_code, 201)
 
 
 if __name__ == '__main__':

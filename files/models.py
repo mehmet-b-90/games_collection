@@ -61,3 +61,15 @@ class GamePlatformOwnership(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     game_id = db.Column(db.Integer, db.ForeignKey('game.id', ondelete='CASCADE'), nullable=False)
     platform = db.Column(db.String(50), nullable=False)
+
+
+class GameWriteReceipt(db.Model):
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'key', name='unique_user_game_write'),
+    )
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
+    key = db.Column(db.String(36), nullable=False)
+    fingerprint = db.Column(db.String(64), nullable=False)
+    response_body = db.Column(db.Text, nullable=False)
+    response_status = db.Column(db.Integer, nullable=False)

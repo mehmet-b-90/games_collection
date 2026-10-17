@@ -97,11 +97,11 @@ private val EditorialColors = lightColorScheme(
             var tab by rememberSaveable(state.server, state.username) { mutableIntStateOf(0) }
             var filtersOpen by rememberSaveable(state.server, state.username) { mutableStateOf(false) }
             var searchOpen by rememberSaveable(state.server, state.username) { mutableStateOf(false) }
-            var filter by remember(state.server, state.username) { mutableStateOf(CollectionFilter()) }
-            var sort by remember(state.server, state.username) { mutableStateOf(GameSort.NEWEST) }
-            var selected by remember(state.server, state.username) { mutableStateOf<Game?>(null) }
-            var edit by remember(state.server, state.username) { mutableStateOf(false) }
-            var adding by remember(state.server, state.username) { mutableStateOf(false) }
+            val filter = model.filter
+            val sort = model.sort
+            val selected = model.editor.game.takeIf { model.editor.open }
+            val edit = model.editor.editing
+            val adding = model.editor.adding && model.editor.open
 
             if (state.server.isEmpty()) {
                 ServerScreen(state, onConnect = { address, http -> model.connect(address, http) })
@@ -137,17 +137,15 @@ private val EditorialColors = lightColorScheme(
                         }
                     },
                     floatingActionButton = {
-                        if (tab == 0) FloatingActionButton(onClick = { model.clearSearch(); adding = true },
+                        if (tab == 0) FloatingActionButton(onClick = model::showSearch,
                             containerColor = MaterialTheme.colorScheme.primaryContainer) { Icon(Icons.Default.Add, "Spiel hinzufügen") }
                     }
                 ) { padding ->
                     Box(Modifier.padding(padding).fillMaxSize()) {
                         when (tab) {
-                            0 -> LibraryScreen(state, filter, sort, { sort = it }) { selected = it; edit = false }
-                            1 -> StatisticsScreen(state.games)
-                            else -> ProfileScreen(state, { settingsOpen = true }, {
-                                selected = null; adding = false; model.logout()
-                            })
+                            0 -> LibraryScreen(state, model.visibleGames, sort, model::changeSort) { model.showGame(it) }
+                            1 -> StatisticsScreen(state.summary)
+                            else -> ProfileScreen(state, { settingsOpen = true }, model::logout)
                         }
                         if (state.busy) LinearProgressIndicator(Modifier.fillMaxWidth().align(Alignment.TopCenter))
                     }
@@ -163,20 +161,19 @@ private val EditorialColors = lightColorScheme(
                 }
             }
             if (filtersOpen && state.username != null) ModalBottomSheet(onDismissRequest = { filtersOpen = false }) {
-                FilterPanel(state, filter, { filter = it }, { filtersOpen = false })
+                FilterPanel(state, filter, model.visibleGames.size, model::changeFilter, { filtersOpen = false })
             }
             if (searchOpen && state.username != null && tab == 0) CollectionSearchPopup(
                 query = filter.query,
-                changeQuery = { filter = filter.copy(query = it) },
-                matches = state.games.count { filter.matches(it) },
+                changeQuery = { model.changeFilter(filter.copy(query = it)) },
+                matches = model.visibleGames.size,
                 close = { searchOpen = false }
             )
             if (adding && state.username != null) SearchDialog(state, model.searchResults, model::search,
-                { adding = false }, { selected = it; edit = true; adding = false })
+                model::dismissEditor, { model.showGame(it, editing = true) })
             selected?.takeIf { state.username != null }?.let { game ->
-                GameDialog(game, state, edit, { edit = true }, { if (!state.busy) selected = null },
-                    { updated -> model.save(updated) { selected = null } },
-                    { model.delete(game) { selected = null } })
+                GameDialog(game, state, edit, model.editor.pending != null, model::startEditing,
+                    model::dismissEditor, model::changeDraft, model::save, { model.delete(game) }, model::retryWrite)
             }
             state.error?.let { message ->
                 AlertDialog(onDismissRequest = model::clearError, title = { Text("Hinweis") },
@@ -294,9 +291,8 @@ private val EditorialColors = lightColorScheme(
     }
 }
 
-@Composable private fun LibraryScreen(state: ViewerState, filter: CollectionFilter,
+@Composable private fun LibraryScreen(state: ViewerState, visible: List<Game>,
     sort: GameSort, changeSort: (GameSort) -> Unit, select: (Game) -> Unit) {
-    val visible = remember(state.games, filter, sort) { state.games.filtered(filter, sort) }
     Column(Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
         Text("DEINE BIBLIOTHEK", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelSmall, letterSpacing = 2.sp)
         Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -367,56 +363,53 @@ private val EditorialColors = lightColorScheme(
     }
 }
 
-@Composable private fun FilterPanel(state: ViewerState, filter: CollectionFilter, change: (CollectionFilter) -> Unit, close: () -> Unit) {
+@Composable private fun FilterPanel(state: ViewerState, filter: CollectionFilter, matches: Int, change: (CollectionFilter) -> Unit, close: () -> Unit) {
     Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp).padding(bottom = 24.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text("Deine Sammlung filtern", style = MaterialTheme.typography.headlineSmall)
         ChoiceField("Plattform", filter.platform, listOf("") + state.platforms) { change(filter.copy(platform = it)) }
         ChoiceField("Status", filter.status, listOf("", "Nicht gespielt", "Gespielt", "Abgebrochen")) { change(filter.copy(status = it)) }
         ChoiceField("Format", filter.format, listOf("", "Digital", "Physisch")) { change(filter.copy(format = it)) }
-        ChoiceField("Engine", filter.engine, listOf("") + state.games.flatMap { it.engine.split(',') }.map { it.trim() }.filter { it.isNotEmpty() }.distinct().sorted()) { change(filter.copy(engine = it)) }
-        ChoiceField("Altersfreigabe", filter.ageRating, listOf("") + state.games.map { it.ageRating }.filter { it.isNotEmpty() }.distinct().sorted()) { change(filter.copy(ageRating = it)) }
+        ChoiceField("Engine", filter.engine, listOf("") + state.summary.engines) { change(filter.copy(engine = it)) }
+        ChoiceField("Altersfreigabe", filter.ageRating, listOf("") + state.summary.ageRatings) { change(filter.copy(ageRating = it)) }
         ChoiceField("Min. Bewertung", filter.minimumRating?.toString().orEmpty(), listOf("") + (0..10).map { it.toString() }) { change(filter.copy(minimumRating = it.toIntOrNull())) }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             TextButton(onClick = { change(CollectionFilter(query = filter.query)) }) { Text("Zurücksetzen") }
-            Button(onClick = close) { Text("${state.games.count { filter.matches(it) }} Titel anzeigen") }
+            Button(onClick = close) { Text("$matches Titel anzeigen") }
         }
     }
 }
 
-@Composable private fun StatisticsScreen(games: List<Game>) {
-    LazyColumn(Modifier.fillMaxSize().padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(16.dp), contentPadding = PaddingValues(bottom = 24.dp)) {
+@Composable private fun StatisticsScreen(summary: CollectionSummary) {
+    LazyColumn(Modifier.fillMaxSize().padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(12.dp), contentPadding = PaddingValues(bottom = 24.dp)) {
         item { Text("Deine Sammlung in Zahlen", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold) }
         item {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                SummaryCard("Spiele", games.size.toString(), Modifier.weight(1f))
-                val ratings = games.mapNotNull { it.rating }
-                SummaryCard("Ø Bewertung", if (ratings.isEmpty()) "–" else String.format(Locale.GERMAN, "%.1f", ratings.average()), Modifier.weight(1f))
-                SummaryCard("Plattformen", games.flatMap { it.platforms }.distinct().size.toString(), Modifier.weight(1f))
+                SummaryCard("Spiele", summary.count.toString(), Modifier.weight(1f))
+                SummaryCard("Ø Bewertung", summary.averageRating?.let { String.format(Locale.GERMAN, "%.1f", it) } ?: "–", Modifier.weight(1f))
+                SummaryCard("Plattformen", summary.platformCount.toString(), Modifier.weight(1f))
             }
         }
-        item { Distribution("Plattformen · Besitzzuordnungen", games.flatMap { it.platforms }.groupingBy { it }.eachCount()) }
-        item { Distribution("Status", games.groupingBy { it.status }.eachCount()) }
-        item { Distribution("Format", games.groupingBy { it.format }.eachCount()) }
-        item { Distribution("Engine", games.map { it.engine.ifEmpty { "Unbekannt" } }.groupingBy { it }.eachCount()) }
+        summary.distributions.forEach { distribution ->
+            item(key = "heading:${distribution.title}") {
+                Text(distribution.title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 12.dp))
+                if (distribution.total == 0) Text("Noch keine Daten", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            items(distribution.rows, key = { "${distribution.title}:${it.first}" }) { (label, count) ->
+                DistributionRow(label, count, distribution.total)
+            }
+        }
     }
 }
 
-@Composable private fun Distribution(title: String, counts: Map<String, Int>) {
-    val total = counts.values.sum()
-    Surface(shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.surface) {
-        Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            Text(title, style = MaterialTheme.typography.titleMedium)
-            if (total == 0) Text("Noch keine Daten", color = MaterialTheme.colorScheme.onSurfaceVariant)
-            counts.entries.sortedByDescending { it.value }.forEach { (label, count) ->
-                Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Text(label, Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
-                        Text("$count (${count * 100 / total} %)", style = MaterialTheme.typography.labelSmall)
-                    }
-                    LinearProgressIndicator(progress = { count.toFloat() / total }, modifier = Modifier.fillMaxWidth().height(7.dp).clip(CircleShape))
-                }
+@Composable private fun DistributionRow(label: String, count: Int, total: Int) {
+    Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surface) {
+        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(label, Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
+                Text("$count (${count.toLong() * 100 / total} %)", style = MaterialTheme.typography.labelSmall)
             }
+            LinearProgressIndicator(progress = { count.toFloat() / total }, modifier = Modifier.fillMaxWidth().height(7.dp).clip(CircleShape))
         }
     }
 }
@@ -542,10 +535,11 @@ private val EditorialColors = lightColorScheme(
     }
 }
 
-@Composable private fun GameDialog(game: Game, state: ViewerState, edit: Boolean, startEditing: () -> Unit,
-    close: () -> Unit, save: (Game) -> Unit, delete: () -> Unit) {
+@Composable private fun GameDialog(game: Game, state: ViewerState, edit: Boolean, pending: Boolean, startEditing: () -> Unit,
+    close: () -> Unit, changeDraft: (Game) -> Unit, save: (Game) -> Unit, delete: () -> Unit, retry: () -> Unit) {
     val context = LocalContext.current
-    var draft by remember(game) { mutableStateOf(game) }
+    val draft = game
+    val editable = !state.busy && !pending
     var platformDialog by rememberSaveable { mutableStateOf(false) }
     var confirmDelete by rememberSaveable { mutableStateOf(false) }
     val valid = draft.title.isNotBlank() && draft.title.length <= 200 && draft.platforms.isNotEmpty()
@@ -563,20 +557,24 @@ private val EditorialColors = lightColorScheme(
                     }
                 }
             }
+            if (pending && !state.busy) item {
+                Text("Der Ausgang der Änderung ist unklar. Prüfe denselben Vorgang erneut, bevor du den Entwurf änderst.")
+                Button(onClick = retry, modifier = Modifier.fillMaxWidth()) { Text("Vorgang erneut prüfen") }
+            }
             if (edit) {
-                item { FormTextField(draft.title, { draft = draft.copy(title = it) }, label = "Spieletitel", singleLine = false,
-                    enabled = !state.busy, modifier = Modifier.fillMaxWidth()) }
-                item { FormTextField(draft.release, { draft = draft.copy(release = it.filter(Char::isDigit).take(4)) }, label = "Release-Jahr",
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), enabled = !state.busy, modifier = Modifier.fillMaxWidth()) }
-                item { ChoiceField("Format", draft.format, listOf("Digital", "Physisch"), enabled = !state.busy) { draft = draft.copy(format = it) } }
-                item { ChoiceField("Status", draft.status, listOf("Nicht gespielt", "Gespielt", "Abgebrochen"), enabled = !state.busy) { draft = draft.copy(status = it) } }
-                item { ChoiceField("Bewertung", draft.rating?.toString() ?: "Nicht bewertet", listOf("Nicht bewertet") + (0..10).map { it.toString() }, enabled = !state.busy) { draft = draft.copy(rating = it.toIntOrNull()) } }
-                item { OutlinedButton(onClick = { platformDialog = true }, enabled = !state.busy, modifier = Modifier.fillMaxWidth()) {
+                item { FormTextField(draft.title, { changeDraft(draft.copy(title = it)) }, label = "Spieletitel", singleLine = false,
+                    enabled = editable, modifier = Modifier.fillMaxWidth()) }
+                item { FormTextField(draft.release, { changeDraft(draft.copy(release = it.filter(Char::isDigit).take(4))) }, label = "Release-Jahr",
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), enabled = editable, modifier = Modifier.fillMaxWidth()) }
+                item { ChoiceField("Format", draft.format, listOf("Digital", "Physisch"), enabled = editable) { changeDraft(draft.copy(format = it)) } }
+                item { ChoiceField("Status", draft.status, listOf("Nicht gespielt", "Gespielt", "Abgebrochen"), enabled = editable) { changeDraft(draft.copy(status = it)) } }
+                item { ChoiceField("Bewertung", draft.rating?.toString() ?: "Nicht bewertet", listOf("Nicht bewertet") + (0..10).map { it.toString() }, enabled = editable) { changeDraft(draft.copy(rating = it.toIntOrNull())) } }
+                item { OutlinedButton(onClick = { platformDialog = true }, enabled = editable, modifier = Modifier.fillMaxWidth()) {
                     Text(if (draft.platforms.isEmpty()) "Besitzplattformen wählen (Pflichtfeld)" else "Besitz: ${draft.platforms.joinToString(", ")}")
                 } }
-                item { Button(onClick = { save(draft.copy(title = draft.title.trim())) }, enabled = valid && !state.busy, modifier = Modifier.fillMaxWidth()) { Text("Speichern") } }
+                item { Button(onClick = { save(draft.copy(title = draft.title.trim())) }, enabled = valid && editable, modifier = Modifier.fillMaxWidth()) { Text("Speichern") } }
             } else {
-                item { Button(onClick = startEditing, enabled = !state.busy, modifier = Modifier.fillMaxWidth()) { Icon(Icons.Default.Edit, null); Spacer(Modifier.width(8.dp)); Text("Bearbeiten") } }
+                item { Button(onClick = startEditing, enabled = editable, modifier = Modifier.fillMaxWidth()) { Icon(Icons.Default.Edit, null); Spacer(Modifier.width(8.dp)); Text("Bearbeiten") } }
                 item { Metadata("Besitz auf Plattform", game.platforms.joinToString(", ")) }
                 item { Metadata("Format", game.format) }
             }
@@ -588,15 +586,15 @@ private val EditorialColors = lightColorScheme(
             if (draft.title.isNotBlank()) item {
                 OutlinedButton(onClick = { openBrowser(context, "https://www.dekudeals.com/search?q=${Uri.encode(draft.title)}") }, modifier = Modifier.fillMaxWidth()) { Text("Zu Deku Deals") }
             }
-            if (game.id != 0) item { TextButton(onClick = { confirmDelete = true }, enabled = !state.busy) { Text("Spiel löschen", color = MaterialTheme.colorScheme.error) } }
+            if (game.id != 0) item { TextButton(onClick = { confirmDelete = true }, enabled = editable) { Text("Spiel löschen", color = MaterialTheme.colorScheme.error) } }
             if (state.busy) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
         }
     }
     if (platformDialog) AlertDialog(onDismissRequest = { platformDialog = false }, title = { Text("Besitz auf Plattform") }, text = {
         LazyColumn(Modifier.heightIn(max = 420.dp)) {
             items(state.platforms) { platform ->
-                Row(Modifier.fillMaxWidth().clickable {
-                    draft = draft.copy(platforms = if (platform in draft.platforms) draft.platforms - platform else draft.platforms + platform)
+                Row(Modifier.fillMaxWidth().clickable(enabled = editable) {
+                    changeDraft(draft.copy(platforms = if (platform in draft.platforms) draft.platforms - platform else draft.platforms + platform))
                 }, verticalAlignment = Alignment.CenterVertically) {
                     Checkbox(platform in draft.platforms, null)
                     Text(platform, modifier = Modifier.padding(vertical = 12.dp))

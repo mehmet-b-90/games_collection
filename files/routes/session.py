@@ -16,6 +16,7 @@ def session_response():
         user = {**current_user.to_dict(), 'ui_theme': current_user.ui_theme}
     response = jsonify({
         'api_version': 1,
+        'capabilities': {'idempotent_game_writes': True},
         'authenticated': user is not None,
         'user': user,
         'csrf_token': generate_csrf(),

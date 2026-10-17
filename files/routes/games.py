@@ -6,6 +6,7 @@ from flask_login import current_user, login_required
 from ..database import api_error, commit_changes
 from ..config import PLATFORMS
 from ..extensions import db
+from ..idempotency import idempotent_game_write
 from ..igdb import get_igdb_token, get_preferred_age_rating
 from ..models import Game, GamePlatformOwnership
 from ..validation import validate_game_payload
@@ -78,6 +79,7 @@ def search_igdb():
 
 @games_bp.route('/games', methods=['POST'])
 @login_required
+@idempotent_game_write
 def add_game():
     data = json_object()
     if data is None:
@@ -95,6 +97,7 @@ def add_game():
 
 @games_bp.route('/games/<int:game_id>', methods=['PUT', 'DELETE'])
 @login_required
+@idempotent_game_write
 def manage_game(game_id):
     game = db.get_or_404(Game, game_id)
     if game.user_id != current_user.id:

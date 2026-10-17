@@ -104,6 +104,8 @@ Die APK ist eine vorläufige Testversion für Android 8.0 oder neuer. Bei der In
 
 Im Ordner [`android/`](android/README.md) liegt eine eigenständige native Android-App mit Kotlin und Jetpack Compose. Sammlung, Filter, Statistik, Anmeldung und Spielverwaltung werden direkt in der App dargestellt. Die App kommuniziert per JSON-API mit dem Docker-Server; eine WebView wird nicht verwendet. Die beiden Designs Cinematic Dark und Editorial Shelf stehen auch nativ zur Verfügung. Vor der ersten Verbindung muss der Server mit dieser Projektversion neu gebaut werden. Hinweise zur Installation, zum APK-Build und zu HTTPS stehen in der [Android-Anleitung](android/README.md).
 
+Der aktuelle Android-Quellstand enthält zusätzliche Stabilitätskorrekturen für Entwürfe, HTTP-Abbruch und große Sammlungen. Für sicheres Wiederholen von Spieländerungen muss auch der Server aktualisiert werden; er ergänzt eine Tabelle für Vorgangsbelege. Die oben verlinkte Release-APK `android-v0.6` wird durch einen Quellcode-Push nicht ersetzt und enthält diese Korrekturen erst nach einem separaten APK-Release.
+
 ## Technischer Aufbau
 
 - Flask und Gunicorn

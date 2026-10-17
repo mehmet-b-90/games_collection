@@ -74,13 +74,21 @@ enum class GameSort(val label: String) {
     NEWEST("Zuletzt hinzugefügt"), TITLE("Titel A–Z"), RELEASE("Release absteigend"), RATING("Beste Bewertung")
 }
 
-fun List<Game>.filtered(filter: CollectionFilter, sort: GameSort): List<Game> {
-    val matching = filter { filter.matches(it) }
-    return when (sort) {
-        GameSort.NEWEST -> matching.sortedByDescending { it.id }
-        GameSort.TITLE -> matching.sortedBy { it.title.lowercase(Locale.GERMAN) }
-        GameSort.RELEASE -> matching.sortedByDescending { it.release.toIntOrNull() ?: 0 }
-        GameSort.RATING -> matching.sortedByDescending { it.rating ?: -1 }
+fun List<Game>.filtered(filter: CollectionFilter, sort: GameSort, checkpoint: () -> Unit = {}): List<Game> {
+    val matching = filterIndexed { index, game ->
+        if (index % 128 == 0) checkpoint()
+        filter.matches(game)
+    }
+    val comparator = when (sort) {
+        GameSort.NEWEST -> compareByDescending<Game> { it.id }
+        GameSort.TITLE -> compareBy { it.title.lowercase(Locale.GERMAN) }
+        GameSort.RELEASE -> compareByDescending { it.release.toIntOrNull() ?: 0 }
+        GameSort.RATING -> compareByDescending { it.rating ?: -1 }
+    }
+    var comparisons = 0
+    return matching.sortedWith { left, right ->
+        if (comparisons++ % 128 == 0) checkpoint()
+        comparator.compare(left, right)
     }
 }
 

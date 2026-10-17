@@ -1,6 +1,6 @@
 # Anweisungen für Games Collection
 
-Gilt für das gesamte Repository. Stand: 16.10.2026. Technische Bestandsaufnahme und offene Punkte stehen in [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md); Einrichtung in [README.md](README.md) und [android/README.md](android/README.md).
+Gilt für das gesamte Repository. Stand: 17.10.2026. Technische Bestandsaufnahme und offene Punkte stehen in [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md); Einrichtung in [README.md](README.md) und [android/README.md](android/README.md). Die Android-Stabilitätsprüfung mit priorisierten Findings und Fortsetzungsschritten steht in [ANDROID_REVIEW.md](ANDROID_REVIEW.md).
 
 ## Zusammenarbeit und belegte Präferenzen
 
@@ -40,6 +40,7 @@ Gilt für das gesamte Repository. Stand: 16.10.2026. Technische Bestandsaufnahme
 - Bewertung ist optional (`null`) oder eine ganze Zahl 0–10. IGDB-ID ist eine positive Ganzzahl, keine URL oder frei formatierter Text.
 - Eigentumsprüfung und Benutzertrennung erhalten. Spiele-Updates benötigen `version`; Konflikte als HTTP 409 behandeln, nicht still überschreiben.
 - Fremdschlüssel, Unique-/Check-Constraints und kaskadierendes Löschen erhalten. Schreibfehler müssen Rollback und passende Fehlermeldung auslösen.
+- Android-Spieländerungen senden eine stabile `Idempotency-Key`-UUID. Vorgangsbeleg und Mutation müssen atomar committen; bei unklarem Ausgang dieselbe Kennung und denselben Payload erneut senden. Belege nicht unabhängig von einer definierten Wiederholungsfrist löschen. Neue Clients verlangen die Server-Capability `idempotent_game_writes`; alte Webclients ohne Header bleiben kompatibel.
 - CSRF-Schutz gilt für Web **und** Android. Nicht durch Ausnahmen „reparieren“; bestehende einmalige Token-Erneuerung nur bei explizitem CSRF-Fehler erhalten.
 - Keine Geheimnisse in Git, Dokumentation, APK oder Logs übernehmen. `.env`, Datenbanken, Keystores, lokale SDK-Pfade und Build-Caches bleiben lokal. `SECRET_KEY` ist nicht das Twitch-Client-Secret.
 - Zertifikatsprüfungen und servergebundene Cookies nicht abschwächen. HTTP bleibt ausdrücklich zugelassener lokaler Testbetrieb.
@@ -57,6 +58,7 @@ Gilt für das gesamte Repository. Stand: 16.10.2026. Technische Bestandsaufnahme
 
 - Backend: `python -m unittest discover -s tests -v` in einer Umgebung mit installierten `requirements.txt`. Die Tests konfigurieren ihre eigene temporäre Datenbank; keine echte Datenbank als Testziel verwenden.
 - Android: in `android/` mit JDK 17 und SDK 36 `./gradlew testDebugUnitTest lintDebug assembleDebug`. Lint behandelt Warnungen als Fehler (Ausnahmen stehen in der Gradle-Konfiguration).
+- Review und Umsetzung vom 17.10.2026: F1–F5 aus `ANDROID_REVIEW.md` sind im Quellcode bearbeitet; Geräte-/Lifecycle- und Performanceprüfung stehen aus. Entwürfe und ausstehende Vorgänge bleiben an Server/Konto gebunden; API-Erstellung ausschließlich über die suspending IO-Factory. Die Prüfungen liefen auf `linux-pc-mehmet`, Fortsetzung auf `linux-laptop-mehmet`.
 - Docker bei Server-/Containeränderungen passend prüfen; einen laufenden Container nicht ohne Bezug zum Auftrag ersetzen. Auf Fedora können Bind-Mount-Rechte und SELinux relevant sein; nicht pauschal deaktivieren.
 - UI-Änderungen möglichst in beiden Designs und relevanten Bildschirmgrößen prüfen. Build/Lint beweisen keine korrekte Darstellung auf einem echten Smartphone. Fehlende Sichtprüfung ausdrücklich nennen.
 - Am Ende Änderungen, tatsächliche Prüfergebnisse und verbleibende Einschränkungen kurz benennen. Bei APK-Builds den erzeugten Dateipfad angeben; lokale APK und GitHub-Release unterscheiden.

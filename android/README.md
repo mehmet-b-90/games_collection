@@ -25,7 +25,9 @@ Die native App benötigt die neuen JSON-Endpunkte dieser Projektversion. Baue de
 docker compose up -d --build
 ```
 
-Die Datenbank im eingebundenen Verzeichnis `data/` bleibt erhalten. Die neuen API-Routen benötigen keine Schemaänderung oder neue Zugangsdaten.
+Die Datenbank im eingebundenen Verzeichnis `data/` bleibt erhalten. Der aktuelle Server ergänzt beim Start die neue Tabelle `game_write_receipt` für bestätigte Spieländerungen; bestehende Tabellen und Spiele werden nicht umgebaut oder gelöscht. Sichere bestehende Daten vor einem Serverupdate wie üblich. Neue Zugangsdaten sind nicht erforderlich.
+
+Der aktuelle Android-Quellstand benötigt zum Speichern und Löschen die vom Server gemeldete Capability `idempotent_game_writes`. Fehlt sie, fordert die App ein Serverupdate an. Bestehende Browser- und ältere Android-Clients ohne Vorgangskennung bleiben serverseitig kompatibel.
 
 ## Installation und erster Start
 
@@ -41,6 +43,12 @@ Beim Serverwechsel werden die bisherigen Anmelde-Cookies gelöscht; melde dich a
 Der Downloadlink oben verweist auf die bestehende Release-APK `android-v0.6`. Neuere Quellcodeänderungen sind darin erst nach einem gesonderten APK-Release enthalten; ein Git-Push allein aktualisiert die APK nicht.
 
 Das Smartphone muss den Server erreichen können, etwa im gleichen WLAN oder über ein VPN. `localhost` verweist auf dem Smartphone auf das Smartphone selbst. Im Android-Emulator ist der Hostrechner normalerweise unter `10.0.2.2` erreichbar. Die Anwendung erwartet die Serveradresse ohne Unterpfad, da die Webanwendung absolute Routen verwendet.
+
+## Entwürfe und unklare Speicherantworten
+
+Spielentwürfe liegen im ViewModel und werden zusätzlich als einzelner Entwurf im Android-Saved-State gesichert. Bei Activity-Neuerstellung bleiben sie erhalten; nach Prozesswiederherstellung werden sie erst nach bestätigter Anmeldung am selben Server/Konto wiederhergestellt. Abmelden und Serverwechsel verwerfen sie ausdrücklich. Dies ist keine dauerhafte Offline-Synchronisation.
+
+Geht eine Speicher- oder Löschantwort verloren, bleibt der Vorgang mit seiner ursprünglichen Kennung erhalten. Im Spieldialog bietet „Vorgang erneut prüfen“ einen erneuten Versuch mit derselben Änderung an. Der aktualisierte Server bestätigt einen bereits gespeicherten Vorgang, statt ihn erneut auszuführen. Bis zur Klärung ist der Entwurf gegen weitere Änderungen gesperrt. Beim Schließen des Dialogs bleibt ein unklarer Vorgang erhalten; + oder die Auswahl eines Spiels öffnet ihn wieder. Nach bloßem Sitzungsablauf ist die Wiederaufnahme nach erneuter Anmeldung am selben Konto möglich.
 
 ## Funktionsweise und Sicherheit
 
@@ -80,7 +88,7 @@ Die Debug-APK ist automatisch für lokale Tests signiert. Für eine langfristige
 
 ## Prüfungen
 
-`testDebugUnitTest` prüft Serveradressen, Filter, Versionsnummern beim Speichern, die Begrenzung der Cookies auf den gewählten Server, Cookie-Persistenz, CSRF-Erneuerung und die Behandlung von Weiterleitungen und Konflikten. `lintDebug` analysiert Android-spezifische Fehler; `assembleDebug` kompiliert und signiert die APK.
+`testDebugUnitTest` prüft Serveradressen, Filter, Versionsnummern beim Speichern, die Begrenzung der Cookies auf den gewählten Server, Cookie-Persistenz, CSRF-Erneuerung, Weiterleitungen und Konflikte. Hinzu kommen Entwurfs-/Vorgangswiederherstellung und Kontotrennung, IO-Initialisierung, tatsächliches HTTP-Cancel bei verzögerten Headern und Body, stabile Vorgangskennungen nach Antwortverlust und CSRF-Erneuerung sowie Berechnungen für 10.000 Spiele. Dies sind JVM-Tests; eine echte Activity-/Prozess-Neuerstellung und Android Keystore sind damit nicht instrumentiert getestet. `lintDebug` analysiert Android-spezifische Fehler; `assembleDebug` kompiliert und signiert die APK.
 
 Serverseitig prüfen `python -m unittest discover -s tests -v` unter anderem JSON-Anmeldung und Abmeldung mit aktivem CSRF-Schutz, die Trennung der Sammlungen und die bestehenden Validierungsregeln.
 
@@ -95,3 +103,5 @@ Serverseitig prüfen `python -m unittest discover -s tests -v` unter anderem JSO
 Ändernde Anfragen senden das CSRF-Token als `X-CSRFToken`, das zugehörige Sitzungs-Cookie und die konfigurierte Serveradresse als `Referer`. Damit bleibt auch die strenge HTTPS-Referrer-Prüfung von Flask-WTF aktiv. Nicht angemeldete Zugriffe auf geschützte API-Routen liefern JSON mit HTTP 401. Sitzung und Sammlung werden mit `Cache-Control: no-store` ausgeliefert. Es gibt keine CSRF-Ausnahme für die native App.
 
 Vor einer Veröffentlichung sollten auf einem echten Smartphone Anmeldung und Abmeldung, „Eingeloggt bleiben“, beide Designs, Filter, Spielbearbeitung, externe Links, Serverwechsel und Verbindungsfehler geprüft werden.
+
+Spieländerungen aus aktuellen Builds senden zusätzlich `Idempotency-Key` als kanonische UUID. Der Server speichert einen benutzergebundenen Beleg mit Request-Hash und Erfolgsantwort in derselben Transaktion wie die Änderung. Dieselbe Kennung mit anderer Methode, Route oder anderem Payload liefert HTTP 409. Die API-Version bleibt 1; `/api/session` meldet die additive Capability. Belege bleiben bis zur Kontolöschung erhalten und gehören in die reguläre Datenbanksicherung. Ohne definiertes Wiederholungsfenster dürfen sie nicht pauschal bereinigt werden.
