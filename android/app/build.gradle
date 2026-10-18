@@ -4,6 +4,14 @@ plugins {
     id 'org.jetbrains.kotlin.plugin.compose'
 }
 
+def releasePropertiesFile = rootProject.file('signing.properties')
+def releaseProperties = new Properties()
+if (releasePropertiesFile.exists()) {
+    releasePropertiesFile.withInputStream { releaseProperties.load(it) }
+}
+def signingFields = ['storeFile', 'storePassword', 'keyAlias', 'keyPassword']
+def releaseSigningReady = signingFields.every { releaseProperties.getProperty(it)?.trim() }
+
 android {
     namespace 'de.gamescollection.viewer'
     compileSdk 36
@@ -12,8 +20,8 @@ android {
         applicationId 'de.gamescollection.viewer'
         minSdk 26
         targetSdk 36
-        versionCode 3
-        versionName '0.6'
+        versionCode 4
+        versionName '0.7'
         testInstrumentationRunner 'android.test.InstrumentationTestRunner'
     }
 
@@ -25,10 +33,56 @@ android {
     buildFeatures { compose true }
     kotlinOptions { jvmTarget = '17' }
 
+    signingConfigs {
+        if (releaseSigningReady) {
+            release {
+                storeFile rootProject.file(releaseProperties.getProperty('storeFile'))
+                storePassword releaseProperties.getProperty('storePassword')
+                keyAlias releaseProperties.getProperty('keyAlias')
+                keyPassword releaseProperties.getProperty('keyPassword')
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            debuggable false
+            // Shrinking is a separate change that needs runtime validation.
+            minifyEnabled false
+            shrinkResources false
+            if (releaseSigningReady) signingConfig signingConfigs.release
+        }
+    }
+
     lint {
         warningsAsErrors true
         // Versions are deliberately pinned; update notices do not indicate a code defect.
         disable 'AndroidGradlePluginVersion', 'GradleDependency', 'NewerVersionAvailable'
+    }
+}
+
+// Never silently distribute an unsigned APK or use the debug key for release.
+def verifyReleaseSigning = tasks.register('verifyReleaseSigning') {
+    doLast {
+        if (!releaseSigningReady) {
+            throw new GradleException('Release-Signierung fehlt. Richte android/signing.properties nach signing.properties.example ein; siehe android/README.md.')
+        }
+        if (!rootProject.file(releaseProperties.getProperty('storeFile')).isFile()) {
+            throw new GradleException('Release-Keystore nicht gefunden. Übertrage den vorhandenen Schlüssel sicher oder richte die erstmalige Signierung ein; siehe android/README.md.')
+        }
+    }
+}
+tasks.configureEach {
+    if (name in ['packageRelease', 'packageReleaseBundle', 'signReleaseBundle']) {
+        dependsOn verifyReleaseSigning
+    }
+}
+
+android.applicationVariants.all { variant ->
+    if (variant.buildType.name == 'release') {
+        variant.outputs.all { output ->
+            output.outputFileName = "Games-Collection-${variant.versionName}-release.apk"
+        }
     }
 }
 

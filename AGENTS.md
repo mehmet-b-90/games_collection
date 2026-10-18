@@ -1,6 +1,6 @@
 # Anweisungen für Games Collection
 
-Gilt für das gesamte Repository. Stand: 17.10.2026. Technische Bestandsaufnahme und offene Punkte stehen in [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md); Einrichtung in [README.md](README.md) und [android/README.md](android/README.md). Die Android-Stabilitätsprüfung mit priorisierten Findings und Fortsetzungsschritten steht in [ANDROID_REVIEW.md](ANDROID_REVIEW.md).
+Gilt für das gesamte Repository. Stand: 18.10.2026. Technische Bestandsaufnahme und offene Punkte stehen in [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md); Einrichtung in [README.md](README.md) und [android/README.md](android/README.md). Die Android-Stabilitätsprüfung mit priorisierten Findings und Fortsetzungsschritten steht in [ANDROID_REVIEW.md](ANDROID_REVIEW.md).
 
 ## Zusammenarbeit und belegte Präferenzen
 
@@ -17,10 +17,11 @@ Gilt für das gesamte Repository. Stand: 17.10.2026. Technische Bestandsaufnahme
 - Server-Image: `ghcr.io/mehmet-b-90/games_collection:latest` für AMD64/ARM64. Compose lädt das Image; lokale Builds über `docker build -t games-collection:local .` und `GAMES_COLLECTION_IMAGE=games-collection:local docker compose up -d --pull never`. Workflow `.github/workflows/docker-publish.yml` prüft Backend und Containerstart vor Veröffentlichung. Docker-Versionstags verwenden `docker-v*`, Android-Tags bleiben davon getrennt. Keine feste Docker-Version erfinden.
 - Datenbank heißt `database.db`, nicht mehr `games.db`. Containerstandard: `/app/data/database.db`, Compose-Bind-Mount `./data:/app/data`.
 - Android ist eine **native Kotlin-/Jetpack-Compose-App**, keine WebView und aktuell kein Flutter-Projekt. Server und Benutzerkonten werden mit der Webanwendung geteilt.
+- Reguläre Android-Weitergabe ab 18.10.2026 als signierter **Release-Build** (`testReleaseUnitTest lintRelease assembleRelease`), Debug bleibt für Entwicklung. Dateiname `Games-Collection-<versionName>-release.apk`. Release ist nicht debuggable; Shrinking ist derzeit bewusst deaktiviert. Private Signierung in ignorierter `android/signing.properties` und `android/keystores/`; keinen Debug-Fallback oder automatische Schlüsselneuerzeugung beim Build ergänzen. Die einmalige Erzeugung via `android/create-release-key.py` verweigert Überschreiben. Vor Verteilung Schlüssel/Konfiguration sicher sichern und auf weitere Rechner übertragen. Neuer Release-Schlüssel ist nicht mit bisherigen Debug-Signaturen updatekompatibel; niemals zur Umstellung ungefragt deinstallieren, insbesondere bei ausstehenden Offline-Änderungen.
 - Beide Designs erhalten; Webdesign ist kontobezogen gespeichert, Androiddesign und Android-Covergröße gelten lokal auf dem Gerät.
 - Altersfreigabe: **USK bevorzugen, sonst PEGI**, andere Systeme nicht als Ersatz speichern.
 - IGDB-Suche über Titel und optionales Release-Jahr erhalten. Besitzplattformen und IGDB-verfügbare Plattformen sind unterschiedliche Informationen.
-- Android befindet sich in einem frühen Stadium. Aktuell `versionName '0.6'`, `versionCode 3`; nicht als 2.0.0 bezeichnen. Versions-/Tagänderungen mit dem konkreten Auftrag abstimmen; bei neuen installierbaren Releases den Android-VersionCode beachten.
+- Android: Aktuell `versionName '0.7'`, `versionCode 4`; nicht als 2.0.0 bezeichnen. Versions-/Tagänderungen mit dem konkreten Auftrag abstimmen; bei neuen installierbaren Releases den Android-VersionCode beachten.
 
 ## UI-Konventionen aus bisherigen Aufträgen
 
@@ -58,9 +59,11 @@ Gilt für das gesamte Repository. Stand: 17.10.2026. Technische Bestandsaufnahme
 ## Verifikation und Übergabe
 
 - Backend: `python -m unittest discover -s tests -v` in einer Umgebung mit installierten `requirements.txt`. Die Tests konfigurieren ihre eigene temporäre Datenbank; keine echte Datenbank als Testziel verwenden.
-- Android: in `android/` mit JDK 17 und SDK 36 `./gradlew testDebugUnitTest lintDebug assembleDebug`. Lint behandelt Warnungen als Fehler (Ausnahmen stehen in der Gradle-Konfiguration).
+- Android: in `android/` mit JDK 17 und SDK 36 regulär `./gradlew testReleaseUnitTest lintRelease assembleRelease` (lokale Release-Signierung erforderlich); ergänzend für Entwicklung `./gradlew testDebugUnitTest lintDebug assembleDebug`. Lint behandelt Warnungen als Fehler (Ausnahmen stehen in der Gradle-Konfiguration).
 - Review und Umsetzung vom 17.10.2026: F1–F5 aus `ANDROID_REVIEW.md` sind im Quellcode bearbeitet; Geräte-/Lifecycle- und Performanceprüfung stehen aus. Entwürfe und ausstehende Vorgänge bleiben an Server/Konto gebunden; API-Erstellung ausschließlich über die suspending IO-Factory. Die Prüfungen liefen auf `linux-pc-mehmet`, Fortsetzung auf `linux-laptop-mehmet`.
 - Docker bei Server-/Containeränderungen passend prüfen; einen laufenden Container nicht ohne Bezug zum Auftrag ersetzen. Auf Fedora können Bind-Mount-Rechte und SELinux relevant sein; nicht pauschal deaktivieren.
 - UI-Änderungen möglichst in beiden Designs und relevanten Bildschirmgrößen prüfen. Build/Lint beweisen keine korrekte Darstellung auf einem echten Smartphone. Fehlende Sichtprüfung ausdrücklich nennen.
 - Am Ende Änderungen, tatsächliche Prüfergebnisse und verbleibende Einschränkungen kurz benennen. Bei APK-Builds den erzeugten Dateipfad angeben; lokale APK und GitHub-Release unterscheiden.
 - Diese Dateien bei wesentlichen Architektur-/Workflowänderungen aktualisieren. Unbestätigte Annahmen als offen kennzeichnen; historische nummerierte Listen nicht rekonstruieren, wenn ihre Inhalte fehlen.
+
+- Ab Version 0.7 bei jeder ausdrücklich beauftragten Veröffentlichung GitHub Release Notes mit Änderungen, Voraussetzungen, Prüfungen und bekannten Einschränkungen erstellen; Android-Tag, README-Link und signierte APK konsistent halten.

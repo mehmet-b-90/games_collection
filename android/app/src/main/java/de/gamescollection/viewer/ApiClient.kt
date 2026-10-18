@@ -74,6 +74,7 @@ class ApiClient private constructor(val server: String, persistence: CookiePersi
     suspend fun logout() {
         try { request("DELETE", "/api/session") } finally { clearSession() }
     }
+    suspend fun igdbCredentials(): JSONObject = JSONObject(request("POST", "/api/igdb-token", JSONObject()))
     suspend fun collection(): JSONObject = JSONObject(request("GET", "/api/games"))
     suspend fun save(game: Game, operationKey: String) {
         requireIdempotency()

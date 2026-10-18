@@ -1,0 +1,6 @@
+# Copy to signing.properties and keep the real file private.
+# storeFile is relative to android/, or an absolute local path.
+storeFile=keystores/games-collection-release.p12
+storePassword=CHANGE_ME
+keyAlias=games-collection-release
+keyPassword=CHANGE_ME

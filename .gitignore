@@ -14,3 +14,5 @@ android/.idea/
 android/*.iml
 android/*.jks
 android/*.keystore
+android/signing.properties
+android/keystores/

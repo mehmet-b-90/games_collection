@@ -10,12 +10,13 @@ Die Android-App besitzt eine eigenständige native Oberfläche mit Kotlin, Jetpa
 - Native Statistik mit Anzahl und Prozentwerten
 - Spieldetails, Bearbeiten und Löschen mit Sicherheitsabfrage
 - Hinzufügen über IGDB mit optionalem Release-Jahr oder manuell
+- Offline-Sammlung mit dauerhaft gespeicherten Änderungen und späterer Synchronisierung
 - Mehrfachauswahl der Besitzplattformen sowie Status, Format und Bewertung
 - Cinematic Dark und Editorial Shelf als lokale App-Designs
 - Einstellungen mit lokal gespeicherter Covergröße und Zurücksetzen auf die Standardgröße
 - Externe Links zu IGDB und Deku Deals im Browser
 
-Kontoerstellung und weitergehende Kontoverwaltung, etwa Passwortänderungen oder Benutzeradministration, erfolgen weiterhin in der Webanwendung. Die Android-App ist online ausgerichtet; eine Offline-Synchronisation ist nicht implementiert.
+Kontoerstellung und weitergehende Kontoverwaltung, etwa Passwortänderungen oder Benutzeradministration, erfolgen weiterhin in der Webanwendung. Nach einmaligem Online-Laden ist die Sammlung auch offline verfügbar. Spiele lassen sich manuell hinzufügen, bearbeiten und löschen; Änderungen werden lokal gespeichert und später synchronisiert.
 
 ## Server zuerst aktualisieren
 
@@ -34,7 +35,7 @@ Für lokale Serveränderungen siehe [Lokal aus dem Quellcode bauen](../README.md
 
 ## Installation und erster Start
 
-1. Die [APK für Android-Version 0.6 herunterladen](https://github.com/mehmet-b-90/games_collection/releases/download/android-v0.6/games-collection-android-0.6.apk) und auf dem Smartphone öffnen. Bei einem eigenen Build verwende `app/build/outputs/apk/debug/app-debug.apk`. Android fragt gegebenenfalls, ob die verwendete Browser- oder Datei-App APKs installieren darf.
+1. Die [APK für Android-Version 0.7 herunterladen](https://github.com/mehmet-b-90/games_collection/releases/download/android-v0.7/Games-Collection-0.7-release.apk) und auf dem Smartphone öffnen. Bei einem aktuellen eigenen Build verwende die signierte Release-APK unter `app/build/outputs/apk/release/Games-Collection-0.7-release.apk`; zum Wechsel von der bisherigen Debug-Signatur siehe unten. Android fragt gegebenenfalls, ob die verwendete Browser- oder Datei-App APKs installieren darf.
 2. Games Collection öffnen und deine Serveradresse eingeben, beispielsweise `https://games.example.org` oder für lokale Tests `http://192.168.178.20:7000`.
 3. Bei HTTP die Option „HTTP für lokale Tests zulassen“ aktivieren. HTTPS ist für den regulären Betrieb empfohlen.
 4. Mit deinem bestehenden Games-Collection-Konto anmelden.
@@ -43,21 +44,31 @@ Unter „Profil → Einstellungen“ lassen sich Design, Covergröße und Server
 
 Beim Serverwechsel werden die bisherigen Anmelde-Cookies gelöscht; melde dich am neuen Server erneut an. Der Knopf `↻` lädt die Sammlung erneut.
 
-Der Downloadlink oben verweist auf die bestehende Release-APK `android-v0.6`. Neuere Quellcodeänderungen sind darin erst nach einem gesonderten APK-Release enthalten; ein Git-Push allein aktualisiert die APK nicht.
+Der Downloadlink verweist auf Version 0.7 (`android-v0.7`, VersionCode 4) mit Offline-Sammlung und direkter IGDB-Suche. Hinweise zum Signaturwechsel beachten. Änderungen und Voraussetzungen stehen in den GitHub Release Notes.
 
 Das Smartphone muss den Server erreichen können, etwa im gleichen WLAN oder über ein VPN. `localhost` verweist auf dem Smartphone auf das Smartphone selbst. Im Android-Emulator ist der Hostrechner normalerweise unter `10.0.2.2` erreichbar. Die Anwendung erwartet die Serveradresse ohne Unterpfad, da die Webanwendung absolute Routen verwendet.
 
-## Entwürfe und unklare Speicherantworten
+## Offline arbeiten und synchronisieren
 
-Spielentwürfe liegen im ViewModel und werden zusätzlich als einzelner Entwurf im Android-Saved-State gesichert. Bei Activity-Neuerstellung bleiben sie erhalten; nach Prozesswiederherstellung werden sie erst nach bestätigter Anmeldung am selben Server/Konto wiederhergestellt. Abmelden und Serverwechsel verwerfen sie ausdrücklich. Dies ist keine dauerhafte Offline-Synchronisation.
+Lade die Sammlung zuerst einmal angemeldet vom Server. Danach stehen die Sammlung und die Besitzplattformen auch ohne Verbindung und nach einem App-Neustart zur Verfügung. Neue Spiele lassen sich offline manuell anlegen; die direkte IGDB-Suche und noch nicht zwischengespeicherte Cover benötigen Internet, aber mit gültigem IGDB-Zugang keine Verbindung zum Sammlungsserver.
 
-Geht eine Speicher- oder Löschantwort verloren, bleibt der Vorgang mit seiner ursprünglichen Kennung erhalten. Im Spieldialog bietet „Vorgang erneut prüfen“ einen erneuten Versuch mit derselben Änderung an. Der aktualisierte Server bestätigt einen bereits gespeicherten Vorgang, statt ihn erneut auszuführen. Bis zur Klärung ist der Entwurf gegen weitere Änderungen gesperrt. Beim Schließen des Dialogs bleibt ein unklarer Vorgang erhalten; + oder die Auswahl eines Spiels öffnet ihn wieder. Nach bloßem Sitzungsablauf ist die Wiederaufnahme nach erneuter Anmeldung am selben Konto möglich.
+Speichern und Löschen werden zuerst dauerhaft im privaten App-Speicher abgelegt und sofort in Sammlung, Filtern und Statistik berücksichtigt. Die Anzeige „Änderungen ausstehend“ öffnet eine Übersicht einschließlich vorgemerkter Löschungen. Noch nicht gesendete Änderungen lassen sich weiter bearbeiten oder nach Rückfrage verwerfen; ein noch nicht gesendetes neues Spiel lässt sich vollständig lokal entfernen.
+
+Sobald der Server wieder erreichbar ist, tippe auf „Synchronisieren“ beziehungsweise den Aktualisieren-Knopf oben. Beim erfolgreichen Verbinden oder Anmelden und beim Speichern mit bestehender Verbindung synchronisiert die App ebenfalls. Es gibt keinen Hintergrunddienst: Bei geschlossener App oder bloßer Netzwerkrückkehr wird keine automatische Übertragung garantiert.
+
+Vor jeder Übertragung prüft die App die Sitzung und das Konto. Ein abgelaufener Login erfordert eine erneute Anmeldung. Sammlung und Warteschlange sind an die genaue Serveradresse und Benutzer-ID gebunden. Abmelden und Serverwechsel blenden sie aus, löschen aber keine ausstehenden Änderungen: Nach erneuter Anmeldung am ursprünglichen Server/Konto werden sie wieder geladen. Das Löschen der App-Daten oder die Deinstallation entfernt auch nicht synchronisierte Änderungen; Android-Backups bleiben deaktiviert.
+
+Nach einem Sendeversuch bleibt der betreffende Titel bis zur Klärung gesperrt. Die App wiederholt exakt dieselbe Anfrage mit derselben UUID; dadurch erzeugt auch eine verlorene Antwort keine doppelte Anlage. Andere Titel können weiter bearbeitet werden. Ein Vorgang wird erst entfernt, wenn die Serverantwort und das anschließende Laden der Sammlung erfolgreich waren und der neue lokale Stand gespeichert wurde.
+
+Versionskonflikte und eindeutige Ablehnungen bleiben mit der Servermeldung in der Übersicht erhalten. Andere vorgemerkte Titel werden weiter synchronisiert. Die App überschreibt keine veralteten Bearbeitungen automatisch. Bei einem Konflikt kannst du die lokale Änderung nach Prüfung verwerfen und den aktualisierten Serverstand neu bearbeiten. Unklare Übertragungen können nicht einfach verworfen werden; synchronisiere sie zuerst erneut.
+
+Noch nicht gespeicherte Editorentwürfe verwenden weiterhin Android-Saved-State. Ausdrückliches Abmelden oder Serverwechsel verwirft diese Entwürfe, aber nicht die dauerhaft gespeicherte Warteschlange. Aus älteren App-Ständen wiederhergestellte unklare Einzelvorgänge werden über „Vorgang erneut prüfen“ in die dauerhafte Warteschlange übernommen.
 
 ## Funktionsweise und Sicherheit
 
 - Die App benötigt Android 8.0 oder neuer.
-- Der Docker-Container bleibt der Server. Die Android-App enthält keine eigene Datenbank und benötigt eine Netzwerkverbindung; eine eigenständige Offline-Synchronisation ist nicht implementiert.
-- Es werden keine IGDB-Zugangsdaten und kein Flask-`SECRET_KEY` in der App hinterlegt. Diese bleiben ausschließlich auf dem Server.
+- Der Docker-Container bleibt der Server. Android speichert Sammlung und Warteschlange gemeinsam in einer atomar ersetzten JSON-Datei pro Server/Konto im privaten App-Verzeichnis; Zugangsdaten gehören nicht in diese Dateien.
+- Twitch-Client-Secret und Flask-`SECRET_KEY` bleiben ausschließlich auf dem Server. Nur Client-ID und befristetes IGDB-Zugriffstoken werden zur Laufzeit verschlüsselt auf dem Gerät gespeichert; sie sind nicht in die APK eingebaut.
 - Die API verwendet die bestehenden Flask-Sitzungs-Cookies und den vorhandenen CSRF-Schutz. Bei einer abgelaufenen Sitzung fordert die App eine erneute Anmeldung an. Ein abgelaufenes CSRF-Token wird einmal erneuert und die abgewiesene Anfrage wiederholt.
 - Sitzungscookies und CSRF-Token bleiben im Arbeitsspeicher. Nur dauerhafte Cookies für „Eingeloggt bleiben“ werden verschlüsselt im privaten App-Speicher abgelegt; der Schlüssel liegt im Android Keystore. Passwörter werden nicht gespeichert. Ohne nutzbaren Keystore bleibt die Sitzung auf den laufenden App-Prozess begrenzt. Android-Backups sind deaktiviert.
 - Die API überträgt Anmelde-Cookies nur an den eingestellten Server einschließlich Protokoll und Port. HTTP-Weiterleitungen werden nicht automatisch verfolgt. Gib daher direkt die endgültige Serveradresse an, etwa die HTTPS-Adresse statt ihrer HTTP-Weiterleitung. Cover werden separat über HTTPS von IGDB geladen.
@@ -68,30 +79,59 @@ Geht eine Speicher- oder Löschantwort verloren, bleibt der Vorgang mit seiner u
 
 Benötigt werden ein JDK 17, das Android SDK mit Plattform 36 und Build-Tools 35.0.0. Am einfachsten öffnest du den Ordner `android/` in Android Studio und installierst die vom Projekt angeforderten SDK-Komponenten. Wähle JDK 17 als Gradle-JDK. Alternativ installiere die offiziellen [Android Command-Line-Tools](https://developer.android.com/studio#command-line-tools-only).
 
+Für die reguläre Weitergabe wird die **Release-Variante** verwendet. Debug bleibt für Entwicklung und Fehlersuche verfügbar. Release ist ausdrücklich nicht debuggable; Code- und Ressourcenverkleinerung bleiben zunächst deaktiviert, damit keine zusätzlichen R8-/Reflection-Änderungen mit der Umstellung vermischt werden.
+
+### Signierung einmalig einrichten
+
+Mit JDK 17 auf dem Pfad bzw. in `JAVA_HOME`:
+
+```bash
+cd android
+python3 create-release-key.py
+```
+
+Nur bei der **erstmaligen** Einrichtung ausführen. Das Skript erzeugt einen separaten RSA-3072-/PKCS12-Schlüssel mit 30 Jahren Laufzeit und zufälligem Passwort. Es überschreibt keine bestehende Signierung. Private Dateien:
+
+- `android/keystores/games-collection-release.p12`
+- `android/signing.properties`
+
+Beide Dateien bleiben lokal und sind von Git ausgeschlossen. Sichere sie dauerhaft in einer geschützten Sicherung, bevor du APKs mit diesem Schlüssel verteilst. Für Updates und Builds auf einem anderen Rechner **dieselben Dateien sicher übertragen**, dort keinen neuen Schlüssel erzeugen. Ohne den privaten Schlüssel sind später keine kompatiblen Updates möglich.
+
+Ein bereits vorhandener eigener Schlüssel kann stattdessen über eine lokale `signing.properties` eingebunden werden; Vorlage: `signing.properties.example`. `storeFile` ist relativ zum Ordner `android/` oder ein absoluter lokaler Pfad. Echte Passwörter gehören ausschließlich in die ignorierte Datei. Die Release-Paketierung bricht bei fehlender Signierung verständlich ab; es gibt keinen automatischen Debug-Schlüssel-Fallback und keine still erzeugte unsignierte Release-APK.
+
+### Release bauen
+
 Mit vorhandenem SDK und akzeptierten SDK-Lizenzen:
 
 ```bash
 cd android
 export ANDROID_HOME=/pfad/zum/Android/Sdk
 export JAVA_HOME=/pfad/zum/jdk-17
-./gradlew testDebugUnitTest lintDebug assembleDebug
+./gradlew testReleaseUnitTest lintRelease assembleRelease
 ```
 
-Alternativ kann der SDK-Pfad in der lokal ignorierten Datei `android/local.properties` als `sdk.dir=/pfad/zum/Android/Sdk` eingetragen werden. Der Gradle-Wrapper lädt die festgelegte Gradle-Version beim ersten Aufruf herunter; weitere Abhängigkeiten werden ebenfalls beim ersten Build heruntergeladen.
+Alternativ kann der SDK-Pfad in der lokal ignorierten Datei `android/local.properties` als `sdk.dir=/pfad/zum/Android/Sdk` eingetragen werden. Der Gradle-Wrapper und Abhängigkeiten werden bei Bedarf heruntergeladen. Lokales `.toolchain/env.sh` nur verwenden, wenn die dazugehörigen Werkzeuge vorhanden sind.
 
-Ergebnis: `android/app/build/outputs/apk/debug/app-debug.apk` (ausgehend vom Repository-Hauptverzeichnis).
+Ergebnis ausgehend vom Repository-Hauptverzeichnis: `android/app/build/outputs/apk/release/Games-Collection-0.7-release.apk`. Der Dateiname folgt automatisch der `versionName`. Aktuell: **Version 0.7 / Code 4**. Neue Veröffentlichungen erhalten einen höheren VersionCode und eigene GitHub Release Notes.
 
-Mit angeschlossenem Gerät und aktiviertem USB-Debugging:
+### Wechsel von den bisherigen APKs
+
+Die bisherigen Debug-APKs und der am 18.10.2026 neu angelegte Release-Schlüssel haben unterschiedliche Signaturen. Android akzeptiert deshalb kein direktes Update darüber. Es wurde keine vorhandene App deinstalliert oder überschrieben. Vor einem bewussten Wechsel **alle lokalen Offline-Änderungen synchronisieren** und nötige Daten sichern; eine Deinstallation löscht private App-Daten einschließlich nicht synchronisierter Änderungen. Auch die lokalen Cookie-/Keystore-Daten gehen dabei verloren. Danach lässt sich die Release-APK neu installieren.
+
+Künftige Updates mit demselben Release-Schlüssel und passender Versionsnummer können mit angeschlossenem Gerät installiert werden:
 
 ```bash
-adb install -r app/build/outputs/apk/debug/app-debug.apk
+cd android
+adb install -r app/build/outputs/apk/release/Games-Collection-0.7-release.apk
 ```
 
-Die Debug-APK ist automatisch für lokale Tests signiert. Für eine langfristige Verteilung oder Play-Store-Veröffentlichung muss eine Release-Version mit einem eigenen, dauerhaft aufbewahrten Signaturschlüssel erstellt werden, beispielsweise über Android Studio → Build → Generate Signed App Bundle / APK. Nur mit demselben Schlüssel signierte Versionen können eine bestehende Installation ohne Neuinstallation aktualisieren. Private Signaturschlüssel gehören nicht ins Repository.
+Für reine Entwicklungsprüfungen bleibt `./gradlew testDebugUnitTest lintDebug assembleDebug` verfügbar; dessen Ergebnis heißt weiterhin `app/build/outputs/apk/debug/app-debug.apk`. Debug und Release haben dieselbe App-ID und können deshalb nicht als zwei getrennte Apps parallel installiert werden.
+
+Grundlage: [Android-Dokumentation zur App-Signierung](https://developer.android.com/studio/publish/app-signing). Ein lokaler Release-Build ist noch keine Veröffentlichung bei GitHub oder Google Play.
 
 ## Prüfungen
 
-`testDebugUnitTest` prüft Serveradressen, Filter, Versionsnummern beim Speichern, die Begrenzung der Cookies auf den gewählten Server, Cookie-Persistenz, CSRF-Erneuerung, Weiterleitungen und Konflikte. Hinzu kommen Entwurfs-/Vorgangswiederherstellung und Kontotrennung, IO-Initialisierung, tatsächliches HTTP-Cancel bei verzögerten Headern und Body, stabile Vorgangskennungen nach Antwortverlust und CSRF-Erneuerung sowie Berechnungen für 10.000 Spiele. Dies sind JVM-Tests; eine echte Activity-/Prozess-Neuerstellung und Android Keystore sind damit nicht instrumentiert getestet. `lintDebug` analysiert Android-spezifische Fehler; `assembleDebug` kompiliert und signiert die APK.
+`testDebugUnitTest` prüft Serveradressen, Filter, Versionsnummern beim Speichern, die Begrenzung der Cookies auf den gewählten Server, Cookie-Persistenz, CSRF-Erneuerung, Weiterleitungen und Konflikte. Hinzu kommen Entwurfs-/Vorgangswiederherstellung und Kontotrennung, IO-Initialisierung, tatsächliches HTTP-Cancel bei verzögerten Headern und Body, stabile Vorgangskennungen nach Antwortverlust und CSRF-Erneuerung sowie Berechnungen für 10.000 Spiele. Zusätzliche Offline-Tests prüfen dauerhafte Serialisierung, stabile UUIDs und Versionen, lokale IDs, Bearbeiten/Löschen ungesendeter Neuanlagen, Löschprojektion und das Sperren bereits versuchter Anfragen. Dies sind JVM-Tests; eine echte Activity-/Prozess-Neuerstellung und Android Keystore sind damit nicht instrumentiert getestet. `testReleaseUnitTest` führt diese JVM-Tests gegen die Release-Variante aus. `lintRelease` analysiert die Release-Variante; `assembleRelease` kompiliert und signiert die APK mit der privaten Release-Konfiguration. Für Debug gelten entsprechend `lintDebug` und `assembleDebug`.
 
 Serverseitig prüfen `python -m unittest discover -s tests -v` unter anderem JSON-Anmeldung und Abmeldung mit aktivem CSRF-Schutz, die Trennung der Sammlungen und die bestehenden Validierungsregeln.
 
@@ -108,3 +148,15 @@ Serverseitig prüfen `python -m unittest discover -s tests -v` unter anderem JSO
 Vor einer Veröffentlichung sollten auf einem echten Smartphone Anmeldung und Abmeldung, „Eingeloggt bleiben“, beide Designs, Filter, Spielbearbeitung, externe Links, Serverwechsel und Verbindungsfehler geprüft werden.
 
 Spieländerungen aus aktuellen Builds senden zusätzlich `Idempotency-Key` als kanonische UUID. Der Server speichert einen benutzergebundenen Beleg mit Request-Hash und Erfolgsantwort in derselben Transaktion wie die Änderung. Dieselbe Kennung mit anderer Methode, Route oder anderem Payload liefert HTTP 409. Die API-Version bleibt 1; `/api/session` meldet die additive Capability. Belege bleiben bis zur Kontolöschung erhalten und gehören in die reguläre Datenbanksicherung. Ohne definiertes Wiederholungsfenster dürfen sie nicht pauschal bereinigt werden.
+
+## Direkte IGDB-Suche mit verschlüsseltem Zugang (19.10.2026)
+
+Zuerst den Server auf diesen Quellstand aktualisieren und die App einmal erfolgreich verbinden/synchronisieren. Der neue, angemeldete und CSRF-geschützte Endpunkt `POST /api/igdb-token` liefert Client-ID, App-Access-Token und die tatsächliche Restlaufzeit. Der Server benötigt weiterhin seine Twitch-Konfiguration. Das Client-Secret bleibt ausschließlich auf dem Server; die Antwort wird mit `Cache-Control: no-store` ausgeliefert. HTTPS verwenden; ausdrücklich erlaubter lokaler HTTP-Testbetrieb verschlüsselt die Übertragung nicht.
+
+Android speichert diese Zugangsdaten zusammen mit Server/Konto und Ablaufzeit AES-GCM-verschlüsselt im privaten App-Speicher. Der Schlüssel liegt im Android Keystore. Ohne erfolgreiche verschlüsselte Speicherung wird kein neuer Zugang übernommen; es gibt keinen Klartext-Fallback. Token landen weder im Sammlungscache noch im Saved-State. Abmelden und Server-/Kontowechsel entfernen den lokalen IGDB-Zugang. App-Backups bleiben deaktiviert.
+
+„Spiel hinzufügen“ sucht anschließend direkt über HTTPS bei IGDB, ohne Sammlungs-Cookies oder CSRF-Token dorthin zu senden. Titel, optionales Jahr, numerische IGDB-ID und USK-vor-PEGI bleiben erhalten. Gefundene Spiele können in die lokale Warteschlange aufgenommen werden. Das Suchfenster zeigt die tatsächliche Ablaufzeit an; eine feste Anzahl Tage wird nicht angenommen.
+
+Bei erfolgreicher Synchronisierung beschafft die App den Zugang, wenn er fehlt oder weniger als einen Tag Restlaufzeit hat. Der Server kann dabei denselben noch gültigen Token liefern; er ersetzt abgelaufene bzw. bei der Ausgabe als widerrufen erkannte Tokens. Bei einem IGDB-401 verwirft Android den Token, ohne den Sammlungs-Login abzumelden. Erneut suchen oder synchronisieren, sobald der Server erreichbar ist. Ohne gültigen Token und ohne Serververbindung bleibt manuelles Anlegen möglich.
+
+Für die neue Funktion müssen Server und Android aktualisiert werden. Kein separater Cloud-Dienst erforderlich. Die lokale APK ist kein GitHub-Release; es erfolgte kein Deployment des laufenden Servers.

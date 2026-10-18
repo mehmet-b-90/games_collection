@@ -59,6 +59,40 @@ class GamesCollectionTestCase(unittest.TestCase):
             'cover_url': 'https://images.igdb.com/igdb/image/upload/test.jpg',
         })
 
+    def test_igdb_token_requires_login_csrf_and_is_not_cached(self):
+        self.assertEqual(self.client.post('/api/igdb-token', json={}).status_code, 401)
+        self.register()
+        app.config['WTF_CSRF_ENABLED'] = True
+        self.assertEqual(self.client.post('/api/igdb-token', json={}).status_code, 400)
+        csrf = self.client.get('/api/session').json['csrf_token']
+        with patch('files.routes.session.get_igdb_credentials', return_value={
+                'client_id': 'test-client', 'access_token': 'test-token', 'expires_in': 3600}):
+            response = self.client.post('/api/igdb-token', json={}, headers={'X-CSRFToken': csrf})
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.headers['Cache-Control'], 'no-store')
+            self.assertEqual(set(response.json), {'client_id', 'access_token', 'expires_in'})
+            self.assertEqual(self.client.post('/api/igdb-token', json={'unexpected': True},
+                headers={'X-CSRFToken': csrf}).status_code, 400)
+
+    def test_igdb_credentials_cache_lifetime_and_secret_transport(self):
+        import files.igdb as igdb
+        with app.app_context(), patch.dict(app.config, TWITCH_CLIENT_ID='test-client', TWITCH_CLIENT_SECRET='test-secret'), \
+                patch.object(igdb, '_token', None), patch.object(igdb, '_token_expires', 0), \
+                patch.object(igdb, '_token_owner', None), patch('files.igdb.time.time', return_value=1000), \
+                patch('files.igdb.requests.post') as post:
+            post.return_value.json.return_value = {'access_token': 'test-token', 'expires_in': 3600}
+            first = igdb.get_igdb_credentials()
+            self.assertEqual(first['expires_in'], 3600)
+            self.assertEqual(first, igdb.get_igdb_credentials())
+            self.assertEqual(post.call_count, 1)
+            self.assertNotIn('test-secret', post.call_args.args[0])
+            self.assertEqual(post.call_args.kwargs['data']['client_secret'], 'test-secret')
+            with patch('files.igdb.requests.get') as get:
+                get.return_value.status_code = 401
+                post.return_value.json.return_value = {'access_token': 'replacement', 'expires_in': 7200}
+                self.assertEqual(igdb.get_igdb_credentials(verify=True)['access_token'], 'replacement')
+                self.assertEqual(post.call_count, 2)
+
     def test_registration_is_case_insensitive_and_first_user_is_admin(self):
         self.assertEqual(self.register('Tester').status_code, 302)
         with app.app_context():

@@ -110,3 +110,7 @@ Kein zusätzlicher dauerhafter Ressourcen-Leak, Main-Thread-Netzwerkaufruf oder 
 4. `python -m unittest discover -s tests -v` mit installierten `requirements.txt`; `cd android && ./gradlew testDebugUnitTest lintDebug assembleDebug`. Die neuen Tests sind dauerhaft im Repository, die ursprünglichen `/tmp`-Review-Proben nicht erforderlich.
 5. Smartphone/Emulator: beide Designs, Rotation mit geändertem/neuem Entwurf, Prozesswiederherstellung nach Anmeldung, erneuter Login nach 401, Dialogschließen mit unklarem Vorgang, Server-/Kontowechsel, abgebrochene HTTP-Requests, 409 und Antwortverlust prüfen. 10.000-Spiele-Testdaten nur in separater Testumgebung; Framezeiten und Heap auf schwächerem Gerät messen.
 6. Saved-State ist an die vom System wiederhergestellte Aufgabe gebunden, kein dauerhafter Offline-Speicher. Für dauerhafte Aufträge über Force-Stop/Task-Löschung hinaus wäre eine gesonderte lokale Persistenz nötig. Größere Metadaten können weiterhin den Speicherbedarf von Antworten und Saved-State erhöhen; eine allgemeine Pagination wurde nicht Teil dieser Korrektur.
+
+## Nachtrag 18.10.2026: dauerhafte Offline-Vorgänge
+
+Die historischen Aussagen oben zum fehlenden Offline-Speicher beschreiben den Reviewstand vom 17.10.2026. Der neue Quellstand ergänzt `OfflineCollection.kt` und einen atomaren privaten Dateispeicher für Sammlung und Warteschlange. Entwürfe verwenden weiterhin Saved-State. Verhalten, Konfliktauflösung und Grenzen der Synchronisierung stehen in `android/README.md` und `PROJECT_CONTEXT.md`. Geräte-/Lifecycle-Prüfungen bleiben erforderlich.

@@ -92,6 +92,7 @@ private val EditorialColors = lightColorScheme(
     MaterialTheme(colorScheme = if (state.theme == "editorial") EditorialColors else DarkColors) {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             var serverDialog by rememberSaveable { mutableStateOf(false) }
+            var queueOpen by rememberSaveable { mutableStateOf(false) }
             var settingsOpen by rememberSaveable(state.server, state.username) { mutableStateOf(false) }
             // Never retain a previous account's detail view or drafts across a login/server change.
             var tab by rememberSaveable(state.server, state.username) { mutableIntStateOf(0) }
@@ -121,7 +122,7 @@ private val EditorialColors = lightColorScheme(
                                 Icon(Icons.Default.Search, "Sammlung durchsuchen",
                                     tint = if (filter.query.isNotEmpty()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
                             }
-                            IconButton(onClick = model::refresh, enabled = !state.busy) { Icon(Icons.Default.Refresh, "Sammlung aktualisieren") }
+                            IconButton(onClick = model::refresh, enabled = !state.busy) { Icon(Icons.Default.Refresh, "Änderungen synchronisieren") }
                         }, colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background))
                     },
                     bottomBar = {
@@ -141,17 +142,28 @@ private val EditorialColors = lightColorScheme(
                             containerColor = MaterialTheme.colorScheme.primaryContainer) { Icon(Icons.Default.Add, "Spiel hinzufügen") }
                     }
                 ) { padding ->
-                    Box(Modifier.padding(padding).fillMaxSize()) {
+                    Column(Modifier.padding(padding).fillMaxSize()) {
+                        if (!state.connected || state.queue.isNotEmpty()) {
+                            Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Text(if (state.queue.isEmpty()) "Offline · lokal gespeicherte Sammlung"
+                                    else "${state.queue.size} Änderungen ausstehend", modifier = Modifier.weight(1f), fontSize = 12.sp)
+                                if (state.queue.isNotEmpty()) TextButton(onClick = { queueOpen = true }) { Text("Details") }
+                                TextButton(onClick = model::refresh, enabled = !state.busy) { Text("Synchronisieren") }
+                            }
+                        }
+                        Box(Modifier.weight(1f)) {
                         when (tab) {
                             0 -> LibraryScreen(state, model.visibleGames, sort, model::changeSort) { model.showGame(it) }
                             1 -> StatisticsScreen(state.summary)
                             else -> ProfileScreen(state, { settingsOpen = true }, model::logout)
                         }
                         if (state.busy) LinearProgressIndicator(Modifier.fillMaxWidth().align(Alignment.TopCenter))
+                        }
                     }
                 }
             }
 
+            if (queueOpen && state.username != null) QueueDialog(state, model::discardQueued, { queueOpen = false })
             if (settingsOpen && state.username != null) SettingsDialog(state, model::setTheme, model::setCoverSize,
                 { serverDialog = true }, { settingsOpen = false })
             if (serverDialog) Dialog(onDismissRequest = { if (!state.busy) serverDialog = false }) {
@@ -502,8 +514,9 @@ private val EditorialColors = lightColorScheme(
             Button(onClick = { searched = true; search(query, year) }, enabled = !state.busy && query.isNotBlank(), modifier = Modifier.fillMaxWidth()) {
                 Icon(Icons.Default.Search, null); Spacer(Modifier.width(8.dp)); Text("IGDB durchsuchen")
             }
+            Text(state.igdbStatus, style = MaterialTheme.typography.bodySmall)
             if (state.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
-            if (searched && results.isEmpty() && !state.busy) Text("Keine Treffer. Ändere die Suche oder lege den Titel manuell an.")
+            if (searched && results.isEmpty() && !state.busy && state.error == null) Text("Keine Treffer. Ändere die Suche oder lege den Titel manuell an.")
             TextButton(onClick = { select(Game(title = query.trim())) }, enabled = !state.busy) { Text("Spiel manuell anlegen") }
             LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(results, key = { it.igdbId ?: it.title }) { game ->
@@ -572,7 +585,7 @@ private val EditorialColors = lightColorScheme(
                 item { OutlinedButton(onClick = { platformDialog = true }, enabled = editable, modifier = Modifier.fillMaxWidth()) {
                     Text(if (draft.platforms.isEmpty()) "Besitzplattformen wählen (Pflichtfeld)" else "Besitz: ${draft.platforms.joinToString(", ")}")
                 } }
-                item { Button(onClick = { save(draft.copy(title = draft.title.trim())) }, enabled = valid && editable, modifier = Modifier.fillMaxWidth()) { Text("Speichern") } }
+                item { Button(onClick = { save(draft.copy(title = draft.title.trim())) }, enabled = valid && editable, modifier = Modifier.fillMaxWidth()) { Text(if (state.connected) "Speichern" else "Lokal speichern") } }
             } else {
                 item { Button(onClick = startEditing, enabled = editable, modifier = Modifier.fillMaxWidth()) { Icon(Icons.Default.Edit, null); Spacer(Modifier.width(8.dp)); Text("Bearbeiten") } }
                 item { Metadata("Besitz auf Plattform", game.platforms.joinToString(", ")) }
@@ -620,4 +633,30 @@ private fun openBrowser(context: android.content.Context, url: String) {
     if (uri.scheme != "https" && uri.scheme != "http") return
     try { context.startActivity(Intent(Intent.ACTION_VIEW, uri).addCategory(Intent.CATEGORY_BROWSABLE)) }
     catch (_: ActivityNotFoundException) { Toast.makeText(context, "Kein Browser gefunden.", Toast.LENGTH_LONG).show() }
+}
+
+@Composable private fun QueueDialog(state: ViewerState, discard: (String) -> Unit, close: () -> Unit) {
+    var removing by remember { mutableStateOf<QueuedWrite?>(null) }
+    FullScreenDialog("Ausstehende Änderungen", !state.busy, close) {
+        LazyColumn(Modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            item { Text("Änderungen bleiben auf diesem Gerät gespeichert. Bei unklarem Ausgang wird derselbe Vorgang sicher erneut geprüft. Abgelehnte Änderungen kannst du verwerfen und vom aktuellen Serverstand aus neu bearbeiten.") }
+            items(state.queue, key = { it.write.key }) { entry ->
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(entry.write.game.title, style = MaterialTheme.typography.titleMedium)
+                    Text(if (entry.write.deleting) "Löschen" else if (entry.write.game.id == 0) "Hinzufügen" else "Bearbeiten")
+                    Text(entry.rejection ?: if (entry.attempted) "Übertragung noch nicht bestätigt" else "Lokal gespeichert")
+                    if (!entry.attempted || entry.rejection != null) TextButton(onClick = { removing = entry }, enabled = !state.busy) {
+                        Text("Lokale Änderung verwerfen")
+                    }
+                }
+            }
+            if (state.queue.isEmpty()) item { Text("Alle Änderungen sind synchronisiert.") }
+        }
+    }
+    removing?.let { entry ->
+        AlertDialog(onDismissRequest = { removing = null }, title = { Text("Lokale Änderung verwerfen?") },
+            text = { Text("Die lokale Änderung für „${entry.write.game.title}“ wird entfernt. Anschließend gilt wieder der zuletzt geladene Serverstand.") },
+            confirmButton = { TextButton(onClick = { discard(entry.write.key); removing = null }) { Text("Verwerfen") } },
+            dismissButton = { TextButton(onClick = { removing = null }) { Text("Abbrechen") } })
+    }
 }

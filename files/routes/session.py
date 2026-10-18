@@ -1,8 +1,9 @@
 """JSON session API for native clients; shares Flask-Login and CSRF with the web UI."""
 from flask import Blueprint, jsonify, request, session
-from flask_login import current_user, login_user, logout_user
+from flask_login import current_user, login_user, logout_user, login_required
 from flask_wtf.csrf import generate_csrf
 from werkzeug.security import check_password_hash
+from ..igdb import get_igdb_credentials
 from ..database import api_error
 from ..models import User
 from ..validation import normalize_username
@@ -51,3 +52,18 @@ def manage_session():
     logout_user()
     login_user(user, remember=remember)
     return session_response()
+
+
+@session_bp.route('/igdb-token', methods=['POST'])
+@login_required
+def igdb_token():
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict) or data:
+        return api_error('Es wird ein leeres JSON-Objekt erwartet.')
+    credentials = get_igdb_credentials(verify=True)
+    if credentials is None:
+        return api_error('IGDB-Zugang nicht verfügbar. Prüfe die Twitch-Konfiguration des Servers.', 503)
+    response = jsonify(credentials)
+    response.headers['Cache-Control'] = 'no-store'
+    response.headers['Pragma'] = 'no-cache'
+    return response
