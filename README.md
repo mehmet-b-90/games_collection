@@ -1,6 +1,6 @@
 # Games Collection
 
-Games Collection ist eine selbst gehostete Webanwendung zur Verwaltung einer persönlichen Videospielesammlung. Spieldaten und Cover können über IGDB gesucht werden. Die Anwendung bietet zwei Designs, Filter, Statistiken, Benutzerkonten und eine installierbare PWA-Oberfläche.
+Games Collection ist eine selbst gehostete Webanwendung zur Verwaltung einer persönlichen Videospielesammlung. Spieldaten und Cover erfolgen über die Suche von IGDB. Die Anwendung bietet zwei Designs, Filter, Statistiken, Benutzerkonten und eine installierbare PWA-Oberfläche.
 
 Dank Docker Container ist die Einrichtung einfach.
 
@@ -29,11 +29,11 @@ Dank Docker Container ist die Einrichtung einfach.
 
 4. `http://localhost:7000` öffnen. Der zuerst angelegte Benutzer erhält Administratorrechte.
 
-Die SQLite-Datenbank wird im lokalen Verzeichnis `data/` abgelegt und nicht in das Repository übernommen.
+Die SQLite-Datenbank wird im lokalen Verzeichnis `data/` abgelegt.
 
 ## Docker-Image und Updates
 
-**Aktuelle Server-Version: [0.7](https://github.com/mehmet-b-90/games_collection/releases/tag/docker-v0.7).** Änderungen, Updatevoraussetzungen und bekannte Einschränkungen stehen in den [Release Notes](release-notes/server-0.7.md). Für diese Veröffentlichung sind `:0.7` und `:latest` verfügbar; `latest` folgt danach weiterhin dem aktuellen Serverstand.
+**Aktuelle Server-Version: [0.7](https://github.com/mehmet-b-90/games_collection/releases/tag/docker-v0.7).** Änderungen und Updatevoraussetzungen stehen in den [Release Notes](release-notes/server-0.7.md). Für diese Veröffentlichung sind `:0.7` und `:latest` verfügbar; `latest` folgt danach weiterhin dem aktuellen Serverstand.
 
 Das Server-Image liegt unter `ghcr.io/mehmet-b-90/games_collection`. Es unterstützt `linux/amd64` (übliche PCs/Server) und `linux/arm64` (beispielsweise ARM-NAS und Raspberry Pi mit 64-Bit-System). Docker wählt die passende Architektur automatisch.
 
@@ -41,15 +41,11 @@ Das Server-Image liegt unter `ghcr.io/mehmet-b-90/games_collection`. Es unterst�
 docker pull ghcr.io/mehmet-b-90/games_collection:latest
 ```
 
-Für eine feste Server-Version:
+Für eine feste Server-Version den Eintrag `image:` direkt in `docker-compose.yaml` auf `ghcr.io/mehmet-b-90/games_collection:0.7` setzen. Das Image lässt sich auch separat herunterladen:
 
 ```bash
 docker pull ghcr.io/mehmet-b-90/games_collection:0.7
 ```
-
-Optional in `.env` `GAMES_COLLECTION_IMAGE=ghcr.io/mehmet-b-90/games_collection:0.7` setzen, damit Compose ebenfalls diese Version verwendet.
-
-**Vor dem Update:** Die frühere automatische Ergänzung von `user.ui_theme` ist entfernt. Bestehende Alt-Datenbanken ohne die erforderlichen Modellspalten müssen separat migriert werden; der Container-Healthcheck prüft nur die Datenbankverbindung. Vor jedem Update ein konsistentes Backup erstellen.
 
 `latest` folgt dem zuletzt erfolgreich veröffentlichten Serverstand von `main`. Mit der mitgelieferten Compose-Datei aktualisierst du eine bestehende Installation so:
 
@@ -62,29 +58,13 @@ Die vorhandene `.env` und das eingebundene Verzeichnis `data/` werden weiterverw
 
 Der Container läuft standardmäßig mit UID/GID `1000:1000`. Das eingebundene `data/` muss für diesen Benutzer schreibbar sein. Bei einer Neuinstallation das Verzeichnis vorher anlegen und passende Besitzrechte setzen. Auf SELinux-Systemen wie Fedora kann für den Bind-Mount zusätzlich `./data:/app/data:Z` erforderlich sein.
 
-Für einen bestimmten Quellstand gibt es außerdem `sha-<vollständige-Commit-ID>`. Eine feste Version lässt sich über `GAMES_COLLECTION_IMAGE` auswählen, zum Beispiel mit einem tatsächlich veröffentlichten SHA-Tag:
-
-```bash
-GAMES_COLLECTION_IMAGE=ghcr.io/mehmet-b-90/games_collection:sha-DEINE_COMMIT_ID docker compose up -d
-```
-
-### Automatische Veröffentlichung
-
-Der [GitHub-Actions-Workflow](https://github.com/mehmet-b-90/games_collection/actions/workflows/docker-publish.yml) baut bei relevanten Serveränderungen auf `main` zuerst ein Testimage. Darin laufen die Backend-Tests mit temporärer Datenbank und ein Starttest mit dem Docker-Healthcheck. Erst danach veröffentlicht er das Image für beide Architekturen. Pull Requests werden geprüft, veröffentlichen aber kein Image. Der Workflow lässt sich auf `main` auch manuell über **Actions → Build and publish Docker image → Run workflow** starten.
-
-Tags mit dem Präfix `docker-v` erzeugen zusätzliche Docker-Versionstags: beispielsweise würde `docker-v1.2.3` das Image `:1.2.3` veröffentlichen. `latest` bleibt dem `main`-Branch vorbehalten. Android-Tags wie `android-v0.6` lösen keine Docker-Veröffentlichung aus.
-
-Eine ausdrücklich geplante Server-Veröffentlichung wird durch eine neue Datei `release-notes/server-<Version>.md` im jeweiligen `main`-Commit angefordert. Der Workflow baut und prüft den Stand, veröffentlicht zusätzlich das Versionstag und erstellt danach `docker-v<Version>` samt GitHub Release aus diesen Notizen. Bereits bestehende Versionstags dürfen keinem anderen Commit zugeordnet werden. Normale Serveränderungen ohne neue Release-Notes-Datei aktualisieren nur `latest` und den SHA-Tag. Die vom Workflow erzeugten Tags benötigen keinen zweiten Buildlauf.
-
-Die Anmeldung an der Registry erfolgt mit dem automatisch bereitgestellten `GITHUB_TOKEN` und der Berechtigung `packages: write`; ein eigenes Registry-Passwort als Repository-Secret ist nicht erforderlich. GitHub legt neue Container-Pakete zunächst **privat** an. Nach der ersten Veröffentlichung muss der Besitzer einmalig unter **Packages → games_collection → Package settings → Change visibility → Public** die öffentliche Sichtbarkeit einstellen, damit `docker pull` ohne Anmeldung funktioniert. Siehe [GitHubs Registry-Dokumentation](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry).
-
 ### Lokal aus dem Quellcode bauen
 
-Für eigene Änderungen kannst du weiterhin ein lokales Image bauen und es mit derselben Compose-Datei verwenden:
+Für eigene Änderungen zuerst den Eintrag `image:` in `docker-compose.yaml` auf `games-collection:local` setzen und anschließend das lokale Image bauen und starten:
 
 ```bash
 docker build -t games-collection:local .
-GAMES_COLLECTION_IMAGE=games-collection:local docker compose up -d --pull never
+docker compose up -d --pull never
 ```
 
 Der Docker-Buildkontext enthält ausschließlich Dockerfile, `requirements.txt` und die Anwendung unter `files/`. Lokale Konfiguration, Datenbank, Git-Verlauf und Android-Werkzeuge werden nicht an den Builder übertragen.
@@ -169,7 +149,7 @@ Im Log nach der gemeldeten ID suchen. Datenbankfehler liefern HTTP 503; Schreibk
 
 [Android-App 0.7 direkt als APK herunterladen](https://github.com/mehmet-b-90/games_collection/releases/download/android-v0.7/Games-Collection-0.7-release.apk)
 
-Die APK ist eine vorläufige Testversion für Android 8.0 oder neuer. Bei der Installation muss gegebenenfalls die Installation aus dieser Quelle zugelassen werden. Für die Verbindung benötigt der Server die JSON-API dieser Projektversion.
+Die Android-App wird als signierte Release-APK bereitgestellt und unterstützt Android 8.0 oder neuer. Bei der Installation muss gegebenenfalls die Installation aus dieser Quelle zugelassen werden. Für die Verbindung benötigt der Server die JSON-API dieser Projektversion.
 
 Im Ordner [`android/`](android/README.md) liegt eine eigenständige native Android-App mit Kotlin und Jetpack Compose. Sammlung, Filter, Statistik, Anmeldung und Spielverwaltung werden direkt in der App dargestellt. Die App kommuniziert per JSON-API mit dem Docker-Server; eine WebView wird nicht verwendet. Die beiden Designs Cinematic Dark und Editorial Shelf stehen auch nativ zur Verfügung. Vor der ersten Verbindung muss der Server auf das Image dieser Projektversion aktualisiert werden. Hinweise zur Installation, zum APK-Build und zu HTTPS stehen in der [Android-Anleitung](android/README.md).
 
