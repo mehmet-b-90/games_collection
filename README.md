@@ -4,6 +4,20 @@ Games Collection ist eine selbst gehostete Webanwendung zur Verwaltung einer per
 
 Dank Docker Container ist die Einrichtung einfach.
 
+## Einblicke in die Webanwendung
+
+Die Sammlung im Browser mit den Designs **Cinematic Dark** und **Editorial Shelf**:
+
+![Desktop-Sammlung im Design Cinematic Dark](docs/screenshots/desktop-cinematic-dark.png)
+
+![Desktop-Sammlung im Design Editorial Shelf](docs/screenshots/desktop-editorial-shelf.png)
+
+Anmeldung, Spielverwaltung mit IGDB-Daten und Sammlungsstatistik:
+
+| Anmeldung | Spiel hinzufügen | Statistik |
+| --- | --- | --- |
+| <img src="docs/screenshots/desktop-login.png" alt="Anmeldung im Browser" width="280"> | <img src="docs/screenshots/desktop-spiel-hinzufuegen.png" alt="Spiel im Browser mit IGDB-Daten hinzufügen" width="280"> | <img src="docs/screenshots/desktop-statistik.png" alt="Sammlungsstatistik im Browser" width="280"> |
+
 ## Voraussetzungen
 
 - Docker Engine
@@ -154,6 +168,18 @@ Die Android-App wird als signierte Release-APK bereitgestellt und unterstützt A
 Im Ordner [`android/`](android/README.md) liegt eine eigenständige native Android-App mit Kotlin und Jetpack Compose. Sammlung, Filter, Statistik, Anmeldung und Spielverwaltung werden direkt in der App dargestellt. Die App kommuniziert per JSON-API mit dem Docker-Server; eine WebView wird nicht verwendet. Die beiden Designs Cinematic Dark und Editorial Shelf stehen auch nativ zur Verfügung. Vor der ersten Verbindung muss der Server auf das Image dieser Projektversion aktualisiert werden. Hinweise zur Installation, zum APK-Build und zu HTTPS stehen in der [Android-Anleitung](android/README.md).
 
 Der aktuelle Android-Quellstand enthält zusätzliche Stabilitätskorrekturen für Entwürfe, HTTP-Abbruch und große Sammlungen. Für sicheres Wiederholen von Spieländerungen muss auch der Server aktualisiert werden; er ergänzt eine Tabelle für Vorgangsbelege. Version 0.7 enthält diese Korrekturen, die Offline-Sammlung und direkte IGDB-Suche. Für die Tokenbereitstellung den Server auf diesen Quellstand aktualisieren. Beim Wechsel von einer Debug-APK den Signaturhinweis in der Android-Anleitung beachten.
+
+### Einblicke in die Android-App
+
+Anmeldung, Sammlung, IGDB-Suche, Spielverwaltung und Statistik auf dem Smartphone. Die Vorschaubilder lassen sich für die vollständige Ansicht öffnen.
+
+| Anmeldung | Sammlung | IGDB-Suche |
+| --- | --- | --- |
+| <a href="docs/screenshots/android-login.jpg"><img src="docs/screenshots/android-login.jpg" alt="Android-App: Anmeldung" width="240"></a> | <a href="docs/screenshots/android-sammlung.jpg"><img src="docs/screenshots/android-sammlung.jpg" alt="Android-App: Sammlung" width="240"></a> | <a href="docs/screenshots/android-igdb-suche.jpg"><img src="docs/screenshots/android-igdb-suche.jpg" alt="Android-App: IGDB-Suche" width="240"></a> |
+
+| Spiel hinzufügen | Statistik |
+| --- | --- |
+| <a href="docs/screenshots/android-spiel-hinzufuegen.jpg"><img src="docs/screenshots/android-spiel-hinzufuegen.jpg" alt="Android-App: Spiel hinzufügen" width="240"></a> | <a href="docs/screenshots/android-statistik.jpg"><img src="docs/screenshots/android-statistik.jpg" alt="Android-App: Statistik" width="240"></a> |
 
 ## Technischer Aufbau
 
