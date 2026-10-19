@@ -6,6 +6,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from ..config import PLATFORMS
 from ..extensions import db
 from ..models import Game
+from ..database import log_exception
 
 main_bp = Blueprint('main', __name__)
 
@@ -16,6 +17,7 @@ def health():
         return jsonify({'status': 'ok'})
     except SQLAlchemyError:
         db.session.rollback()
+        log_exception('Healthcheck: Datenbank nicht verfügbar')
         return jsonify({'status': 'unhealthy'}), 503
 
 @main_bp.route('/api/csrf-token')

@@ -7,9 +7,9 @@ from ..database import api_error, commit_changes
 from ..config import PLATFORMS
 from ..extensions import db
 from ..idempotency import idempotent_game_write
-from ..igdb import get_igdb_token, get_preferred_age_rating
+from ..igdb import get_igdb_token, get_preferred_age_rating, log_upstream_failure
 from ..models import Game, GamePlatformOwnership
-from ..validation import validate_game_payload
+from ..validation import validate_game_payload, validate_integer
 
 games_bp = Blueprint('games', __name__, url_prefix='/api')
 
@@ -41,12 +41,11 @@ def search_igdb():
     release_year = data.get('release_year')
     if release_year in (None, ''):
         release_year = None
-    elif isinstance(release_year, bool) or not str(release_year).isdigit():
-        return api_error('"release_year" muss ein gültiges Jahr sein.')
     else:
-        release_year = int(release_year)
-        if not 1900 <= release_year <= 2100:
-            return api_error('"release_year" muss zwischen 1900 und 2100 liegen.')
+        try:
+            release_year = validate_integer(release_year, 'release_year', 1900, 2100)
+        except ValueError as error:
+            return api_error(str(error))
     client_id = current_app.config['TWITCH_CLIENT_ID']
     if not client_id or not current_app.config['TWITCH_CLIENT_SECRET']:
         return api_error('Die IGDB-Zugangsdaten sind nicht konfiguriert.', 503)
@@ -56,7 +55,11 @@ def search_igdb():
     headers = {'Client-ID': client_id, 'Authorization': f'Bearer {token}'}
     fields = 'fields id, name, cover.image_id, first_release_date, platforms.name, involved_companies.company.name, involved_companies.developer, involved_companies.publisher, url, game_engines.name, age_ratings.organization.name, age_ratings.rating_category.rating;'
     if query.isdigit() and release_year is None:
-        body = f'where id = {query}; {fields} limit 1;'
+        try:
+            igdb_id = validate_integer(query, 'query', 1, 2**63 - 1)
+        except ValueError as error:
+            return api_error(str(error))
+        body = f'where id = {igdb_id}; {fields} limit 1;'
     else:
         escaped_query = query.replace('\\', '\\\\').replace('"', '\\"')
         year_filter = ''
@@ -69,9 +72,11 @@ def search_igdb():
         response = requests.post('https://api.igdb.com/v4/games', headers=headers, data=body, timeout=15)
         response.raise_for_status()
         results = response.json()
-    except (requests.RequestException, ValueError):
+    except (requests.RequestException, ValueError) as error:
+        log_upstream_failure('IGDB-Suche fehlgeschlagen', error)
         return api_error('IGDB-Suche ist derzeit nicht verfügbar.', 502)
-    if not isinstance(results, list):
+    if not isinstance(results, list) or any(not isinstance(game, dict) for game in results):
+        log_upstream_failure('IGDB-Suche: ungültige Antwortstruktur')
         return api_error('IGDB hat eine ungültige Antwort geliefert.', 502)
     for game in results:
         game['mapped_age_rating'] = get_preferred_age_rating(game.get('age_ratings', []))
@@ -99,9 +104,11 @@ def add_game():
 @login_required
 @idempotent_game_write
 def manage_game(game_id):
+    if game_id > 2**63 - 1:
+        return api_error('Das Spiel wurde nicht gefunden.', 404)
     game = db.get_or_404(Game, game_id)
     if game.user_id != current_user.id:
-        return api_error('Unauthorized', 403)
+        return api_error('Du hast keine Berechtigung für diese Aktion.', 403)
     if request.method == 'DELETE':
         db.session.delete(game)
         return commit_changes() or {'status': 'deleted'}
@@ -129,4 +136,6 @@ def manage_game(game_id):
                 game.owned_platforms.remove(ownership)
         existing = {ownership.platform for ownership in game.owned_platforms}
         game.owned_platforms.extend(GamePlatformOwnership(platform=p) for p in platforms if p not in existing)
+    # Relationship-only changes must also participate in optimistic locking.
+    game.version = expected_version + 1
     return commit_changes('Dieses IGDB-Spiel ist bereits in deiner Sammlung.') or {'status': 'updated'}

@@ -102,6 +102,27 @@ class GamesCollectionTestCase(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn('Benutzername existiert bereits', response.get_data(as_text=True))
 
+    def test_concurrent_first_registrations_create_exactly_one_admin(self):
+        from werkzeug.security import generate_password_hash
+        barrier = Barrier(2)
+
+        def synchronized_hash(password):
+            result = generate_password_hash(password)
+            barrier.wait(timeout=10)
+            return result
+
+        def register(username):
+            return app.test_client().post('/register', data={
+                'username': username, 'password': 'password1', 'password_confirm': 'password1',
+            }).status_code
+
+        with patch('files.routes.auth.generate_password_hash', side_effect=synchronized_hash):
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                self.assertEqual(list(pool.map(register, ['First', 'Second'])), [302, 302])
+        with app.app_context():
+            self.assertEqual(User.query.count(), 2)
+            self.assertEqual(User.query.filter_by(is_admin=True).count(), 1)
+
     def test_login_remember_me_is_a_checkbox(self):
         response = self.client.get('/login')
         self.assertEqual(response.status_code, 200)
@@ -528,6 +549,159 @@ class GamesCollectionTestCase(unittest.TestCase):
         response = self.client.post('/api/games', json=self.manual_payload(),
                                     headers={'Idempotency-Key': str(uuid4())})
         self.assertEqual(response.status_code, 201)
+
+    def test_invalid_json_values_are_rejected_without_mutation(self):
+        self.register()
+        invalid_fields = [('format', []), ('status', {}), ('igdb_id', 2**63),
+                          ('igdb_id', '²'), ('igdb_id', '9' * 5000),
+                          ('rating', '²'), ('rating', False), ('rating', 2.5),
+                          ('cover_url', 'https://[broken'),
+                          ('cover_url', 'https://images.igdb.com:broken/a')]
+        for field, value in invalid_fields:
+            with self.subTest(field=field, value=str(value)[:60]):
+                response = self.client.post('/api/games', json={**self.manual_payload(), field: value})
+                self.assertEqual(response.status_code, 400, response.get_json())
+        for theme in ([], {}, None, True):
+            self.assertEqual(self.client.put('/api/account/theme', json={'theme': theme}).status_code, 400)
+        with app.app_context():
+            user_id = User.query.one().id
+            self.assertEqual(Game.query.count(), 0)
+        for username in ([], {}, False, None, ''):
+            self.assertEqual(self.client.put(f'/api/users/{user_id}', json={'username': username}).status_code, 400)
+        self.assertEqual(self.client.put('/api/account', json={
+            'username': 'Changed', 'current_password': 'password1', 'new_password': False,
+        }).status_code, 400)
+        self.assertEqual(self.client.get('/api/games').status_code, 200)
+
+    def test_platform_only_update_advances_version_and_rejects_stale_write(self):
+        self.register()
+        self.add_game()
+        game = self.client.get('/api/games').json['games'][0]
+        url = f"/api/games/{game['id']}"
+        payload = {'version': game['version'], 'owned_platform': 'GOG.com'}
+        key = {'Idempotency-Key': str(uuid4())}
+        self.assertEqual(self.client.put(url, json=payload, headers=key).status_code, 200)
+        self.assertEqual(self.client.put(url, json=payload, headers=key).status_code, 200)
+        self.assertEqual(self.client.put(url, json={**payload, 'owned_platform': 'Steam'}).status_code, 409)
+        updated = self.client.get('/api/games').json['games'][0]
+        self.assertEqual(updated['version'], game['version'] + 1)
+        self.assertEqual(updated['owned_platform'], 'GOG.com')
+
+    def test_concurrent_platform_only_updates_do_not_overwrite_each_other(self):
+        self.register()
+        self.add_game()
+        game = self.client.get('/api/games').json['games'][0]
+        cookie = self.client.get_cookie('session').value
+        barrier = Barrier(2)
+
+        def synchronized_commit(*args, **kwargs):
+            barrier.wait(timeout=10)
+            return real_commit_changes(*args, **kwargs)
+
+        def update(platform):
+            client = app.test_client()
+            client.set_cookie('session', cookie)
+            return client.put(f"/api/games/{game['id']}", json={
+                'version': game['version'], 'owned_platform': platform,
+            }).status_code
+
+        with patch('files.routes.games.commit_changes', side_effect=synchronized_commit):
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                self.assertEqual(sorted(pool.map(update, ['GOG.com', 'Switch'])), [200, 409])
+        updated = self.client.get('/api/games').json['games'][0]
+        self.assertEqual(updated['version'], game['version'] + 1)
+        self.assertIn(updated['owned_platform'], ['GOG.com', 'Switch'])
+
+    def test_database_and_unexpected_errors_are_safe_and_traceable(self):
+        self.register()
+        for error, status in [(SQLAlchemyError('internal-detail'), 503), (RuntimeError('internal-detail'), 500)]:
+            for endpoint, url in [('games.list_games', '/api/games'), ('main.index', '/')]:
+                with self.subTest(endpoint=endpoint, status=status):
+                    with patch.dict(app.view_functions, {endpoint: Mock(side_effect=error)}):
+                        with self.assertLogs(app.logger, level='ERROR') as logs:
+                            response = self.client.get(url + '?private-query=hidden')
+                    self.assertEqual(response.status_code, status)
+                    request_id = response.headers['X-Request-ID']
+                    self.assertIn(request_id, response.get_data(as_text=True))
+                    self.assertIn(request_id, '\n'.join(logs.output))
+                    self.assertNotIn('private-query', '\n'.join(logs.output))
+                    self.assertNotIn('internal-detail', response.get_data(as_text=True))
+                    self.assertEqual(response.headers['Cache-Control'], 'no-store')
+                    if url.startswith('/api/'):
+                        self.assertEqual(response.json['request_id'], request_id)
+        self.assertEqual(self.client.get('/api/games').status_code, 200)
+
+    def test_protocol_errors_and_oversized_resource_ids(self):
+        self.register()
+        response = self.client.patch('/api/games', json={})
+        self.assertEqual(response.status_code, 405)
+        self.assertIn('GET', response.headers['Allow'])
+        response = self.client.post('/api/games', data='x' * (65 * 1024), content_type='application/json')
+        self.assertEqual(response.status_code, 413)
+        self.assertIn('64 KiB', response.json['error'])
+        self.assertEqual(self.client.delete(f'/api/games/{2**100}').status_code, 404)
+        self.assertEqual(self.client.delete(f'/api/users/{2**100}').status_code, 404)
+        with self.client.session_transaction() as session:
+            session['_user_id'] = 'invalid'
+            session['_fresh'] = True
+        self.assertEqual(self.client.get('/api/games').status_code, 401)
+
+    def test_healthcheck_failure_is_logged_and_sql_parameters_are_hidden(self):
+        from sqlalchemy import text
+        with patch('sqlalchemy.orm.Session.execute', side_effect=SQLAlchemyError('test')):
+            with self.assertLogs(app.logger, level='ERROR') as logs:
+                response = self.client.get('/health')
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.json, {'status': 'unhealthy'})
+        self.assertIn(response.headers['X-Request-ID'], '\n'.join(logs.output))
+        with app.app_context():
+            self.assertTrue(db.engine.hide_parameters)
+            try:
+                db.session.execute(text('SELECT missing_function(:value)'), {'value': 'sensitive-sentinel'})
+            except SQLAlchemyError as error:
+                self.assertNotIn('sensitive-sentinel', str(error))
+                self.assertIn('parameters hidden', str(error))
+            else:
+                self.fail('Die ungültige SQL-Abfrage muss fehlschlagen.')
+            finally:
+                db.session.rollback()
+        self.assertEqual(self.client.get('/health').status_code, 200)
+
+    def test_password_write_limits_are_consistent(self):
+        with patch('files.routes.auth.generate_password_hash') as generate:
+            response = self.register(password='x' * 4097)
+            self.assertIn('4096', response.get_data(as_text=True))
+            generate.assert_not_called()
+        self.register()
+        with app.app_context():
+            user_id = User.query.one().id
+        self.assertEqual(self.client.put(f'/api/users/{user_id}', json={'password': 'x' * 4097}).status_code, 400)
+        self.assertEqual(self.client.put('/api/account', json={
+            'username': 'Tester', 'current_password': 'password1', 'new_password': 'x' * 4097,
+        }).status_code, 400)
+        self.assertEqual(self.client.post('/api/session', json={
+            'username': 'Tester', 'password': 'password1',
+        }).status_code, 200)
+
+    @patch('files.routes.games.get_igdb_token', return_value='private-token')
+    @patch('files.routes.games.requests.post')
+    def test_igdb_failures_and_malformed_results(self, post, _):
+        import requests
+        self.register()
+        app.config.update(TWITCH_CLIENT_ID='test-client', TWITCH_CLIENT_SECRET='test-secret')
+        for payload in ({}, [None], ['invalid']):
+            post.return_value.json.return_value = payload
+            with self.assertLogs(app.logger, level='WARNING'):
+                response = self.client.post('/api/search', json={'query': 'Zelda'})
+            self.assertEqual(response.status_code, 502)
+        post.side_effect = requests.Timeout('private-token')
+        with self.assertLogs(app.logger, level='WARNING') as logs:
+            response = self.client.post('/api/search', json={'query': 'Zelda'})
+        self.assertEqual(response.status_code, 502)
+        self.assertNotIn('private-token', '\n'.join(logs.output))
+        self.assertIn('Timeout', '\n'.join(logs.output))
+        for malformed in (True, 5, {'organization': []}, [{'organization': [], 'rating_category': {}}]):
+            self.assertEqual(get_preferred_age_rating(malformed), '')
 
 
 if __name__ == '__main__':

@@ -17,14 +17,16 @@ def json_object():
 @login_required
 def get_users():
     if not current_user.is_admin:
-        return api_error('Unauthorized', 403)
+        return api_error('Du hast keine Berechtigung für diese Aktion.', 403)
     return [user.to_dict() for user in User.query.all()]
 
 @users_bp.route('/users/<int:user_id>', methods=['PUT', 'DELETE'])
 @login_required
 def manage_user(user_id):
     if not current_user.is_admin:
-        return api_error('Unauthorized', 403)
+        return api_error('Du hast keine Berechtigung für diese Aktion.', 403)
+    if user_id > 2**63 - 1:
+        return api_error('Das Konto wurde nicht gefunden.', 404)
     user = db.get_or_404(User, user_id)
     if request.method == 'DELETE':
         if user.id == current_user.id:
@@ -37,7 +39,7 @@ def manage_user(user_id):
     unexpected = set(data) - {'username', 'password'}
     if unexpected:
         return api_error(f'Unbekannte Felder: {", ".join(sorted(unexpected))}.')
-    if data.get('username'):
+    if 'username' in data:
         username = data['username'].strip() if isinstance(data['username'], str) else ''
         if not 3 <= len(username) <= 150:
             return api_error('Der Benutzername muss 3 bis 150 Zeichen lang sein.')
@@ -46,8 +48,8 @@ def manage_user(user_id):
         user.username = username
         user.username_key = normalize_username(username)
     if data.get('password') != '' and 'password' in data:
-        if not isinstance(data['password'], str) or len(data['password']) < 8:
-            return api_error('Das Passwort muss mindestens 8 Zeichen lang sein.')
+        if not isinstance(data['password'], str) or not 8 <= len(data['password']) <= 4096:
+            return api_error('Das Passwort muss 8 bis 4096 Zeichen lang sein.')
         user.password = generate_password_hash(data['password'])
     return commit_changes('Benutzername existiert bereits.') or {'status': 'updated'}
 
@@ -84,12 +86,12 @@ def manage_account():
     username_key = normalize_username(username)
     if User.query.filter(User.username_key == username_key, User.id != user.id).first():
         return api_error('Benutzername existiert bereits.')
-    new_password = data.get('new_password') or ''
-    confirmation = data.get('new_password_confirm') or ''
+    new_password = data.get('new_password', '')
+    confirmation = data.get('new_password_confirm', '')
     if not isinstance(new_password, str) or not isinstance(confirmation, str):
         return api_error('Die Passwortfelder müssen Text enthalten.')
-    if new_password and len(new_password) < 8:
-        return api_error('Das neue Passwort muss mindestens 8 Zeichen lang sein.')
+    if new_password and not 8 <= len(new_password) <= 4096:
+        return api_error('Das neue Passwort muss 8 bis 4096 Zeichen lang sein.')
     if new_password and new_password != confirmation:
         return api_error('Die neuen Passwörter stimmen nicht überein.')
     user.username = username
@@ -107,7 +109,7 @@ def update_theme():
     if data is None or set(data) != {'theme'}:
         return api_error('Es wird ausschließlich das Feld "theme" erwartet.')
     theme = data['theme']
-    if theme not in UI_THEMES:
+    if not isinstance(theme, str) or theme not in UI_THEMES:
         return api_error('Unbekannter Darstellungsmodus.')
     current_user.ui_theme = theme
     error = commit_changes()

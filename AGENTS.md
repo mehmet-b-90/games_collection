@@ -1,6 +1,6 @@
 # Anweisungen für Games Collection
 
-Gilt für das gesamte Repository. Stand: 18.10.2026. Technische Bestandsaufnahme und offene Punkte stehen in [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md); Einrichtung in [README.md](README.md) und [android/README.md](android/README.md). Die Android-Stabilitätsprüfung mit priorisierten Findings und Fortsetzungsschritten steht in [ANDROID_REVIEW.md](ANDROID_REVIEW.md).
+Gilt für das gesamte Repository. Stand: 19.10.2026. Technische Bestandsaufnahme und offene Punkte stehen in [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md); Einrichtung in [README.md](README.md) und [android/README.md](android/README.md). Die Android-Stabilitätsprüfung mit priorisierten Findings und Fortsetzungsschritten steht in [ANDROID_REVIEW.md](ANDROID_REVIEW.md).
 
 ## Zusammenarbeit und belegte Präferenzen
 
@@ -15,6 +15,7 @@ Gilt für das gesamte Repository. Stand: 18.10.2026. Technische Bestandsaufnahme
 
 - Selbst gehosteter Docker-Server mit persistentem SQLite-Verzeichnis; Gunicorn statt Flask-Entwicklungsserver im Container.
 - Server-Image: `ghcr.io/mehmet-b-90/games_collection:latest` für AMD64/ARM64. Compose lädt das Image; lokale Builds über `docker build -t games-collection:local .` und `GAMES_COLLECTION_IMAGE=games-collection:local docker compose up -d --pull never`. Workflow `.github/workflows/docker-publish.yml` prüft Backend und Containerstart vor Veröffentlichung. Docker-Versionstags verwenden `docker-v*`, Android-Tags bleiben davon getrennt. Keine feste Docker-Version erfinden.
+- Server-Version 0.7: Release-Tag `docker-v0.7`, Image `:0.7`. Eine neue `release-notes/server-<Version>.md` im Release-Commit auf `main` fordert nach erfolgreicher Image-Veröffentlichung Tag und GitHub Release an; für normale Änderungen keine neue Release-Notes-Datei anlegen. Vorhandene Versionstags nicht verschieben.
 - Datenbank heißt `database.db`, nicht mehr `games.db`. Containerstandard: `/app/data/database.db`, Compose-Bind-Mount `./data:/app/data`.
 - Android ist eine **native Kotlin-/Jetpack-Compose-App**, keine WebView und aktuell kein Flutter-Projekt. Server und Benutzerkonten werden mit der Webanwendung geteilt.
 - Reguläre Android-Weitergabe ab 18.10.2026 als signierter **Release-Build** (`testReleaseUnitTest lintRelease assembleRelease`), Debug bleibt für Entwicklung. Dateiname `Games-Collection-<versionName>-release.apk`. Release ist nicht debuggable; Shrinking ist derzeit bewusst deaktiviert. Private Signierung in ignorierter `android/signing.properties` und `android/keystores/`; keinen Debug-Fallback oder automatische Schlüsselneuerzeugung beim Build ergänzen. Die einmalige Erzeugung via `android/create-release-key.py` verweigert Überschreiben. Vor Verteilung Schlüssel/Konfiguration sicher sichern und auf weitere Rechner übertragen. Neuer Release-Schlüssel ist nicht mit bisherigen Debug-Signaturen updatekompatibel; niemals zur Umstellung ungefragt deinstallieren, insbesondere bei ausstehenden Offline-Änderungen.

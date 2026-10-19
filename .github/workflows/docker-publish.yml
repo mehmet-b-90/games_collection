@@ -10,6 +10,7 @@ on:
       - 'requirements.txt'
       - 'files/**'
       - 'tests/**'
+      - 'release-notes/server-*.md'
       - '.github/workflows/docker-publish.yml'
   pull_request:
     paths:
@@ -18,6 +19,7 @@ on:
       - 'requirements.txt'
       - 'files/**'
       - 'tests/**'
+      - 'release-notes/server-*.md'
       - '.github/workflows/docker-publish.yml'
   workflow_dispatch:
 
@@ -35,6 +37,9 @@ jobs:
   build:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    outputs:
+      release_version: ${{ steps.release.outputs.version }}
+      image_digest: ${{ steps.publish.outputs.digest }}
     permissions:
       contents: read
       packages: write
@@ -43,6 +48,36 @@ jobs:
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           persist-credentials: false
+          fetch-depth: 2
+
+      - name: Determine requested server release
+        id: release
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          version=''
+          if [[ "$REF" == refs/tags/docker-v* ]]; then
+            version="${REF_NAME#docker-v}"
+          elif [[ "$EVENT_NAME" != pull_request && "$REF" == refs/heads/main ]]; then
+            notes=$(git diff --diff-filter=A --name-only HEAD^ HEAD -- 'release-notes/server-*.md')
+            if [[ -n "$notes" ]]; then
+              [[ $(printf '%s\n' "$notes" | wc -l) -eq 1 ]] || { echo 'Only one server release per commit is supported.'; exit 1; }
+              version="${notes#release-notes/server-}"
+              version="${version%.md}"
+            fi
+          fi
+          if [[ -n "$version" ]]; then
+            [[ "$version" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]] || { echo 'Invalid server version.'; exit 1; }
+            test -f "release-notes/server-$version.md"
+            existing=$(git ls-remote origin "refs/tags/docker-v$version" "refs/tags/docker-v$version^{}")
+            if [[ -n "$existing" ]]; then
+              target=$(printf '%s\n' "$existing" | awk 'NR == 1 {sha=$1} /\^\{\}$/ {sha=$1} END {print sha}')
+              test "$target" = "$GITHUB_SHA" || { echo 'Server version already belongs to another commit.'; exit 1; }
+            fi
+            echo "version=$version" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Set up QEMU for ARM64 builds
         uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4
@@ -97,6 +132,7 @@ jobs:
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
             type=sha,format=long
             type=match,pattern=docker-v(.*),group=1
+            type=raw,value=${{ steps.release.outputs.version }},enable=${{ steps.release.outputs.version != '' }}
 
       - name: Sign in to GitHub Container Registry
         if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/docker-v'))
@@ -107,6 +143,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish AMD64 and ARM64 images
+        id: publish
         if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/docker-v'))
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
         with:
@@ -117,3 +154,40 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  release:
+    name: Publish server release notes
+    needs: build
+    if: needs.build.outputs.release_version != ''
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - name: Check out release notes
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Create tag and GitHub release after image publication
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_VERSION: ${{ needs.build.outputs.release_version }}
+          IMAGE_DIGEST: ${{ needs.build.outputs.image_digest }}
+        run: |
+          tag="docker-v$RELEASE_VERSION"
+          if git rev-parse --verify "refs/tags/$tag" >/dev/null 2>&1; then
+            test "$(git rev-parse "$tag^{commit}")" = "$GITHUB_SHA" || { echo 'Release tag points to another commit.'; exit 1; }
+          fi
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "Release $tag already exists; keeping the published notes."
+            exit 0
+          fi
+          notes="$RUNNER_TEMP/server-release-notes.md"
+          cat "release-notes/server-$RELEASE_VERSION.md" > "$notes"
+          printf '\n## Veröffentlichtes Image\n\n`%s@%s`\n' "$IMAGE_NAME" "$IMAGE_DIGEST" >> "$notes"
+          gh release create "$tag" --target "$GITHUB_SHA" \
+            --title "Games Collection Server $RELEASE_VERSION" \
+            --notes-file "$notes" --latest=false

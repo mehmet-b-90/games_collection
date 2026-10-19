@@ -33,11 +33,23 @@ Die SQLite-Datenbank wird im lokalen Verzeichnis `data/` abgelegt und nicht in d
 
 ## Docker-Image und Updates
 
+**Aktuelle Server-Version: [0.7](https://github.com/mehmet-b-90/games_collection/releases/tag/docker-v0.7).** Änderungen, Updatevoraussetzungen und bekannte Einschränkungen stehen in den [Release Notes](release-notes/server-0.7.md). Für diese Veröffentlichung sind `:0.7` und `:latest` verfügbar; `latest` folgt danach weiterhin dem aktuellen Serverstand.
+
 Das Server-Image liegt unter `ghcr.io/mehmet-b-90/games_collection`. Es unterstützt `linux/amd64` (übliche PCs/Server) und `linux/arm64` (beispielsweise ARM-NAS und Raspberry Pi mit 64-Bit-System). Docker wählt die passende Architektur automatisch.
 
 ```bash
 docker pull ghcr.io/mehmet-b-90/games_collection:latest
 ```
+
+Für eine feste Server-Version:
+
+```bash
+docker pull ghcr.io/mehmet-b-90/games_collection:0.7
+```
+
+Optional in `.env` `GAMES_COLLECTION_IMAGE=ghcr.io/mehmet-b-90/games_collection:0.7` setzen, damit Compose ebenfalls diese Version verwendet.
+
+**Vor dem Update:** Die frühere automatische Ergänzung von `user.ui_theme` ist entfernt. Bestehende Alt-Datenbanken ohne die erforderlichen Modellspalten müssen separat migriert werden; der Container-Healthcheck prüft nur die Datenbankverbindung. Vor jedem Update ein konsistentes Backup erstellen.
 
 `latest` folgt dem zuletzt erfolgreich veröffentlichten Serverstand von `main`. Mit der mitgelieferten Compose-Datei aktualisierst du eine bestehende Installation so:
 
@@ -61,6 +73,8 @@ GAMES_COLLECTION_IMAGE=ghcr.io/mehmet-b-90/games_collection:sha-DEINE_COMMIT_ID 
 Der [GitHub-Actions-Workflow](https://github.com/mehmet-b-90/games_collection/actions/workflows/docker-publish.yml) baut bei relevanten Serveränderungen auf `main` zuerst ein Testimage. Darin laufen die Backend-Tests mit temporärer Datenbank und ein Starttest mit dem Docker-Healthcheck. Erst danach veröffentlicht er das Image für beide Architekturen. Pull Requests werden geprüft, veröffentlichen aber kein Image. Der Workflow lässt sich auf `main` auch manuell über **Actions → Build and publish Docker image → Run workflow** starten.
 
 Tags mit dem Präfix `docker-v` erzeugen zusätzliche Docker-Versionstags: beispielsweise würde `docker-v1.2.3` das Image `:1.2.3` veröffentlichen. `latest` bleibt dem `main`-Branch vorbehalten. Android-Tags wie `android-v0.6` lösen keine Docker-Veröffentlichung aus.
+
+Eine ausdrücklich geplante Server-Veröffentlichung wird durch eine neue Datei `release-notes/server-<Version>.md` im jeweiligen `main`-Commit angefordert. Der Workflow baut und prüft den Stand, veröffentlicht zusätzlich das Versionstag und erstellt danach `docker-v<Version>` samt GitHub Release aus diesen Notizen. Bereits bestehende Versionstags dürfen keinem anderen Commit zugeordnet werden. Normale Serveränderungen ohne neue Release-Notes-Datei aktualisieren nur `latest` und den SHA-Tag. Die vom Workflow erzeugten Tags benötigen keinen zweiten Buildlauf.
 
 Die Anmeldung an der Registry erfolgt mit dem automatisch bereitgestellten `GITHUB_TOKEN` und der Berechtigung `packages: write`; ein eigenes Registry-Passwort als Repository-Secret ist nicht erforderlich. GitHub legt neue Container-Pakete zunächst **privat** an. Nach der ersten Veröffentlichung muss der Besitzer einmalig unter **Packages → games_collection → Package settings → Change visibility → Public** die öffentliche Sichtbarkeit einstellen, damit `docker pull` ohne Anmeldung funktioniert. Siehe [GitHubs Registry-Dokumentation](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry).
 
@@ -140,6 +154,16 @@ Die Client-ID und das Client-Secret können nach der Registrierung einer Anwendu
 - `true`: für den produktiven Betrieb über HTTPS, beispielsweise hinter Caddy
 
 Für eine öffentlich oder im Netzwerk erreichbare Installation mit HTTPS sollte der Wert auf `true` gesetzt werden.
+
+## Fehlerdiagnose im Serverbetrieb
+
+Bei Datenbank- oder unerwarteten Serverfehlern zeigt die Anwendung eine deutsche Meldung mit Fehler-ID. Dieselbe ID steht im Betreiber-Log; API-Antworten enthalten zusätzlich `request_id` und den Header `X-Request-ID`.
+
+```bash
+docker compose logs --since=30m games_collection
+```
+
+Im Log nach der gemeldeten ID suchen. Datenbankfehler liefern HTTP 503; Schreibkonflikte liefern 409 und erfordern einen erneuten Abruf des Datensatzes. SQL-Parameter werden in Datenbank-Tracebacks ausgeblendet. Die Ergebnisse und Grenzen der aktuellen Prüfung stehen in [SERVER_REVIEW.md](SERVER_REVIEW.md).
 
 ## Android-App
 

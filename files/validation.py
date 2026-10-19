@@ -32,10 +32,29 @@ def validate_text(value, field, maximum, required=False):
 def validate_https_url(value, field, allowed_hosts):
     if value is None:
         return None
-    parsed = urlparse(value)
-    if parsed.scheme != 'https' or parsed.hostname not in allowed_hosts:
+    try:
+        parsed = urlparse(value)
+        hostname = parsed.hostname
+        port = parsed.port
+    except ValueError:
+        raise ValueError(f'"{field}" enthält keine gültige HTTPS-Adresse.') from None
+    if parsed.scheme != 'https' or hostname not in allowed_hosts or parsed.username is not None or parsed.password is not None or port not in (None, 443):
         raise ValueError(f'"{field}" enthält keine erlaubte HTTPS-Adresse.')
     return value
+
+
+def validate_integer(value, field, minimum, maximum):
+    # Keep numeric strings compatible with existing web clients; reject floats,
+    # booleans, Unicode digits and values SQLite cannot bind as INTEGER.
+    if type(value) is int:
+        number = value
+    elif isinstance(value, str) and value.isascii() and value.isdigit() and len(value) <= 19:
+        number = int(value)
+    else:
+        raise ValueError(f'"{field}" muss eine ganze Zahl zwischen {minimum} und {maximum} sein.')
+    if not minimum <= number <= maximum:
+        raise ValueError(f'"{field}" muss eine ganze Zahl zwischen {minimum} und {maximum} sein.')
+    return number
 
 def validate_game_payload(data, creating=False):
     allowed_fields = GAME_ALLOWED_FIELDS - {'version'} if creating else GAME_ALLOWED_FIELDS
@@ -60,11 +79,11 @@ def validate_game_payload(data, creating=False):
     if 'igdb_url' in cleaned:
         cleaned['igdb_url'] = validate_https_url(cleaned['igdb_url'], 'igdb_url', {'igdb.com', 'www.igdb.com'})
     if 'format' in data:
-        if data['format'] not in {'Physisch', 'Digital'}:
+        if not isinstance(data['format'], str) or data['format'] not in {'Physisch', 'Digital'}:
             raise ValueError('"format" muss "Physisch" oder "Digital" sein.')
         cleaned['format'] = data['format']
     if 'status' in data:
-        if data['status'] not in {'Nicht gespielt', 'Gespielt', 'Abgebrochen'}:
+        if not isinstance(data['status'], str) or data['status'] not in {'Nicht gespielt', 'Gespielt', 'Abgebrochen'}:
             raise ValueError('Ungültiger Spielstatus.')
         cleaned['status'] = data['status']
     if 'owned_platform' in data:
@@ -84,21 +103,15 @@ def validate_game_payload(data, creating=False):
         rating = data['rating']
         if rating in (None, ''):
             cleaned['rating'] = None
-        elif isinstance(rating, bool) or not str(rating).isdigit() or not 0 <= int(rating) <= 10:
-            raise ValueError('"rating" muss eine ganze Zahl zwischen 0 und 10 sein.')
         else:
-            cleaned['rating'] = int(rating)
+            cleaned['rating'] = validate_integer(rating, 'rating', 0, 10)
     if 'igdb_id' in data:
         igdb_id = data['igdb_id']
         if igdb_id in (None, ''):
             cleaned['igdb_id'] = None
-        elif isinstance(igdb_id, bool) or not str(igdb_id).isdigit() or int(igdb_id) <= 0:
-            raise ValueError('"igdb_id" muss eine positive ganze Zahl sein.')
         else:
-            cleaned['igdb_id'] = int(igdb_id)
+            cleaned['igdb_id'] = validate_integer(igdb_id, 'igdb_id', 1, 2**63 - 1)
     if not creating and 'version' in data:
         version = data['version']
-        if isinstance(version, bool) or not str(version).isdigit() or int(version) < 1:
-            raise ValueError('"version" muss eine positive ganze Zahl sein.')
-        cleaned['version'] = int(version)
+        cleaned['version'] = validate_integer(version, 'version', 1, 2**63 - 2)
     return cleaned

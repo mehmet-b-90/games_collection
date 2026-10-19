@@ -15,13 +15,13 @@ def configure_app(app):
     secret_key = os.environ.get('SECRET_KEY')
     if not secret_key:
         raise RuntimeError('SECRET_KEY muss als Umgebungsvariable gesetzt sein.')
-    database_path = os.environ.get('DATABASE_PATH', '/app/data/database.db')
+    database_path = os.path.abspath(os.environ.get('DATABASE_PATH', '/app/data/database.db'))
     os.makedirs(os.path.dirname(database_path), exist_ok=True)
     app.config.update(
         SECRET_KEY=secret_key,
         SQLALCHEMY_DATABASE_URI=f'sqlite:///{database_path}',
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
-        SQLALCHEMY_ENGINE_OPTIONS={'connect_args': {'timeout': 15}},
+        SQLALCHEMY_ENGINE_OPTIONS={'connect_args': {'timeout': 15}, 'hide_parameters': True},
         MAX_CONTENT_LENGTH=64 * 1024,
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE='Lax',

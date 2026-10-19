@@ -2,26 +2,44 @@ import time
 import threading
 import requests
 from flask import current_app
+from .database import request_id
+from .validation import VALID_AGE_RATINGS
 
 _token = None
 _token_expires = 0
 _token_owner = None
 _token_lock = threading.Lock()
 
+
+def log_upstream_failure(operation, error=None):
+    # Requests exceptions can contain token-bearing URLs or response bodies.
+    status = getattr(getattr(error, 'response', None), 'status_code', None)
+    current_app.logger.warning('%s [Fehler-ID: %s; Typ: %s; HTTP: %s]', operation,
+                               request_id(), type(error).__name__ if error else 'Antwortformat',
+                               status if type(status) is int else 'unbekannt')
+
 def get_preferred_age_rating(age_ratings):
     """Liefert bevorzugt USK, andernfalls PEGI; andere Systeme werden ignoriert."""
+    if not isinstance(age_ratings, list):
+        return ''
     for preferred_organization in ('USK', 'PEGI'):
         for age_rating in age_ratings or []:
             if not isinstance(age_rating, dict):
                 continue
             organization = age_rating.get('organization')
-            organization_name = organization.get('name') if isinstance(organization, dict) else {4: 'USK', 2: 'PEGI'}.get(organization)
+            if isinstance(organization, dict):
+                organization_name = organization.get('name')
+            elif type(organization) is int:
+                organization_name = {4: 'USK', 2: 'PEGI'}.get(organization)
+            else:
+                continue
             if organization_name != preferred_organization:
                 continue
             category = age_rating.get('rating_category')
             rating = category.get('rating') if isinstance(category, dict) else None
-            if rating is not None and str(rating).strip():
-                return f'{preferred_organization} {str(rating).strip()}'
+            mapped = f'{preferred_organization} {str(rating).strip()}'
+            if mapped in VALID_AGE_RATINGS:
+                return mapped
     return ''
 
 def get_igdb_credentials(verify=False):
@@ -46,7 +64,8 @@ def get_igdb_credentials(verify=False):
                         _token_expires = 0
                     else:
                         _token_expires = min(_token_expires, time.time() + remaining)
-            except (requests.RequestException, ValueError, AttributeError):
+            except (requests.RequestException, ValueError, AttributeError) as error:
+                log_upstream_failure('Twitch-Tokenprüfung fehlgeschlagen', error)
                 return None
         if _token_owner != identity or time.time() >= _token_expires - 60:
             try:
@@ -58,8 +77,10 @@ def get_igdb_credentials(verify=False):
                 token = payload.get('access_token')
                 lifetime = payload.get('expires_in')
                 if not isinstance(token, str) or not token or type(lifetime) is not int or lifetime <= 60:
+                    log_upstream_failure('Twitch-Tokenanforderung: ungültige Antwortstruktur')
                     return None
-            except (requests.RequestException, ValueError, AttributeError):
+            except (requests.RequestException, ValueError, AttributeError) as error:
+                log_upstream_failure('Twitch-Tokenanforderung fehlgeschlagen', error)
                 return None
             _token, _token_expires, _token_owner = token, time.time() + lifetime, identity
         return {'client_id': client_id, 'access_token': _token,

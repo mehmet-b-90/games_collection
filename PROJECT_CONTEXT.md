@@ -1,5 +1,11 @@
 # Games Collection – Projektkontext
 
+## Ergänzung 19.10.2026: erneute Serverprüfung
+
+- Befunde, Korrekturen, Diagnose und Grenzen stehen in [SERVER_REVIEW.md](SERVER_REVIEW.md). Spiel-Updates versionieren jetzt auch reine Plattformänderungen; die Adminvergabe bei paralleler Erstregistrierung erfolgt atomar im INSERT.
+- Zentrale DB-/Exceptionbehandlung mit Rollback, deutschen API-/HTML-Fehlern, Fehler-ID und Betreiber-Traceback. SQL-Parameter werden in DB-Exceptions verborgen; externe Fehlerlogs enthalten Typ/HTTP-Status statt potenziell vertraulicher Exceptiontexte. Strengere Typ-/Zahl-/URL-Prüfung, robuste IGDB-Antwortverarbeitung und `no-store` für APIs/Fehler/persönliche HTML-Seiten.
+- **36 Backend-Tests bestanden**, zusätzlich lokaler Gunicorn-Smoke-Test mit temporärer DB. Live-IGDB-/Last- und visuelle Prüfungen offen. Der Container wurde anschließend für die Server-Veröffentlichung 0.7 geprüft. Vorbestehende lokale Änderungen einschließlich entfernter Schema-Kompatibilität bleiben erhalten; keine Migration oder Änderung von Nutzdaten während der Prüfung; anschließende Server-Veröffentlichung siehe unten.
+
 Stand: **18.10.2026**. Grundlage sind der lokal eingesehene Quellcode und die zugänglichen Konversationen. Die systematische Android-Stabilitätsprüfung einschließlich anschließender Umsetzung steht in [ANDROID_REVIEW.md](ANDROID_REVIEW.md); sie ist keine vollständige Sicherheitsprüfung. Frühere Assistentenantworten sind nur teilweise verfügbar; insbesondere lässt sich der Inhalt früherer nummerierter Optimierungslisten nicht vollständig rekonstruieren.
 
 ## Ziel und aktueller Arbeitsstand
@@ -8,7 +14,7 @@ Selbst gehostete Verwaltung persönlicher Videospielesammlungen mit mehreren Ben
 
 - Git-Remote lokal: `origin` → `https://github.com/mehmet-b-90/games_collection.git`.
 - Geprüfter Ausgangscommit der Android-Review: `127619d` – `Improve Android settings and document project handoff`. Zu Beginn war der Arbeitsbaum sauber; lokal meldete `main...origin/main` keinen Abstand (kein erneuter Remote-Fetch). Den aktuellen Commit und Remote-Abgleich mit `git log -1` und `git status -sb` prüfen.
-- Android: Version **0.6**, Code **3**; davon unabhängiges Server-Image: `ghcr.io/mehmet-b-90/games_collection:latest`, alternativ ein veröffentlichter `sha-<Commit-ID>`-Tag über `GAMES_COLLECTION_IMAGE`.
+- Android: Version **0.7**, Code **4**; davon unabhängiges Server-Image: `ghcr.io/mehmet-b-90/games_collection:latest`, alternativ ein veröffentlichter `sha-<Commit-ID>`-Tag über `GAMES_COLLECTION_IMAGE`.
 - Der Ausgangscommit `127619d` enthält die bisherigen UI-/Covergrößenänderungen. Der anschließende aktuelle Auftrag umfasst die Umsetzung der fünf Review-Findings sowie Commit und Push nach GitHub. Diese Übergabe enthält Produktfixes, dauerhafte Regressionstests und aktualisierte Dokumentation; kein Tag oder APK-Release. Die tatsächliche Übergabe-Commit-ID mit `git log -1` ermitteln.
 - Ausführungsrechner: **linux-pc-mehmet**; gewünschte Fortsetzung: **linux-laptop-mehmet**. Vor lokalem Weiterarbeiten `git status -sb` prüfen und den übertragenen Stand mit `git pull --ff-only` holen, sofern keine lokalen Änderungen entgegenstehen.
 - Der README-Link verweist weiterhin auf die frühere Release-APK `android-v0.6`. Ein Push des Quellcodes ersetzt diese Datei nicht; sie enthält nicht automatisch die jüngsten UI-Änderungen.
@@ -29,7 +35,6 @@ Android (Kotlin/Compose) ── JSON + Cookies ───┘          │
 - `files/validation.py`: Benutzernamennormalisierung, Payload-/URL-/Wertevalidierung.
 - `files/database.py`: Commit-/Rollback-Helfer und JSON-Fehler.
 - `files/idempotency.py`: benutzergebundene Wiederholung bestätigter Spieländerungen über `Idempotency-Key`, atomarer Commit des Belegs zusammen mit der Mutation.
-- `files/schema.py`: kleine bestehende Kompatibilitätsergänzung für `user.ui_theme`, kein allgemeines Migrationstool.
 - `files/igdb.py`: OAuth-Token-Cache und USK-/PEGI-Auswahl.
 - `files/routes/`: `auth` (HTML-Anmeldung/Registrierung), `main` (Seite/Health/PWA/CSRF), `games`, `users`, `session` (native JSON-Anmeldung).
 - `files/templates/`: Jinja-Templates `index.html`, `auth.html`.
@@ -59,7 +64,7 @@ Android (Kotlin/Compose) ── JSON + Cookies ───┘          │
 - Updates verlangen die gelesene `version`; SQLAlchemy-Versionierung und HTTP 409 schützen gegen veraltete Schreibzugriffe. Dies nicht pauschal als Versionsprüfung aller DELETE-/Benutzeroperationen verstehen.
 - Zentraler Commit-Helfer rollt bei Konflikten/DB-Fehlern zurück; Fehlerstatus u. a. 409 und 503.
 - SQLite: `foreign_keys=ON`, `journal_mode=WAL`, `synchronous=NORMAL`, `busy_timeout=15000`; Connect-Timeout 15 Sekunden. WAL verbessert Leser-/Schreiberparallelität, macht SQLite aber nicht zu einer Multi-Writer-Serverdatenbank.
-- `db.create_all()` plus eng begrenzte `ui_theme`-Ergänzung beim Start. Keine vollständige Migration bestehender Alt-Schemas vorhanden.
+- `db.create_all()` legt beim Start fehlende Tabellen einschließlich `user.ui_theme` aus den Modellen an. Die separate Kompatibilitätsergänzung für `ui_theme` wurde am 19.10.2026 entfernt. Bestehende Tabellen werden nicht migriert; Alt-Datenbanken ohne diese Spalte benötigen eine gesonderte Migration.
 
 ## Authentifizierung, API und externe Dienste
 
@@ -183,3 +188,10 @@ Offen bzw. vor Fortsetzung klären:
 - Ab jetzt bei beauftragten Veröffentlichungen GitHub Release Notes pflegen. APK-Link in beiden READMEs aktualisiert. Historische Angaben zu 0.6 oben beschreiben den damaligen Stand; aktuellen Commit mit `git log -1` ermitteln.
 - Vorbestehende lokale Anpassungen an `.env.example` und `docker-compose.yaml` sind nicht Teil der Übergabe. Private Signierungsdateien bleiben ignoriert.
 - Geräte-/Keystore-/Live-IGDB-Prüfung weiterhin offen; die Release-Signatur ist nicht mit früheren Debug-APKs kompatibel. Vor einem bewussten Installationswechsel ausstehende Änderungen synchronisieren.
+
+## Server-Veröffentlichung 0.7 (19.10.2026)
+
+- Auftrag: geprüfte Serveränderungen committen/pushen und als `docker-v0.7` mit GitHub Release Notes veröffentlichen; Docker `:0.7` und `:latest` für AMD64/ARM64 bereitstellen. Notizen: `release-notes/server-0.7.md`. Android-Version, vorhandener Android-Tag und APK bleiben unverändert. Lokale Android-Änderungen und Zugangswerte gehören nicht zum Server-Commit.
+- Enthält die Serverkorrekturen aus `SERVER_REVIEW.md`, die neue HTML-Fehlerseite und 36 Backend-Tests. Entfernung der alten `ui_theme`-Kompatibilitätsergänzung übernommen und dokumentiert; alte Datenbanken benötigen ggf. eine separate Migration. Keine Nutzdaten verändert.
+- Lokale Verifikation: Docker-Image mit Podman im Docker-Format gebaut, 36 Tests darin bestanden, Gunicorn-Container gestartet und Healthcheck erfolgreich. GitHub Actions wiederholt Tests und Healthcheck vor der Veröffentlichung. Live-IGDB-, Geräte-, Last- und visuelle Prüfungen weiterhin offen.
+- Neue Release-Notes-Datei auf `main` aktiviert die zusätzliche Versionstag-Veröffentlichung. Erst nach erfolgreichem Upload erstellt ein separater Job mit `contents: write` Tag und GitHub Release. Bestehende Versionstags dürfen keinem anderen Commit zugeordnet werden. Normale Serveränderungen veröffentlichen weiterhin nur `latest`/SHA.
