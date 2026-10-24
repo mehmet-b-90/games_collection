@@ -1,5 +1,13 @@
 # Android-Codeprüfung vom 17.10.2026
 
+## Android-Veröffentlichung 0.8 – 25.10.2026
+
+- Expliziter Auftrag: Android auf 0.8 erhöhen, signierte APK bauen und auf GitHub veröffentlichen. VersionCode auf 5 erhöht; bestehender Release-Schlüssel unverändert. Tag `android-v0.8`, Titel `Games Collection v0.8`, Label Latest; Notes `release-notes/android-v0.8.md`, Downloadlinks in beiden READMEs aktualisiert. Google Play bleibt beim internen Test 0.7 / Code 4; kein AAB-/Play-Upload.
+- Enthalten: Entdecken mit PopScore, Projekt-Icon, Posteranzahl, Material-3-Navigation, GET-Verbindungswiederholungen und HTTP-Protokollauswahl. Entdecken benötigt Server 0.8 mit `/api/discover`; persönliche Bewertung/Besitz nicht aus IGDB übernehmen.
+- Verifikation: `testReleaseUnitTest lintRelease assembleRelease --offline --no-daemon` mit lokaler JDK-17-/SDK-36-Toolchain erfolgreich (63 Tasks, 17 ausgeführt / 46 aktuell). Vorhandene Unit-Testberichte: 34 Tests ohne Fehler, kein erzwungener Neulauf. Frisches Release-Lint: 0 Befunde. APK-v2-Signatur gültig, Zertifikat stimmt mit bestehendem Release-Schlüssel überein; `aapt` bestätigt 0.8 / Code 5, minSdk 26 / targetSdk 36. SDK-XML-/Gradle-9-Hinweise bleiben. Kein neuer Geräte-/Lifecycle-/Keystore-Test.
+- APK: `android/app/build/outputs/apk/release/Games-Collection-0.8-release.apk`. Keine Installation/Deinstallation oder Nutzdatenänderung. Die zuvor vorbereitete Umstellung auf `server-v*` und künftige Release-Gestaltung wird mit diesem Quellstand übertragen; bestehende Server-/Android-Tags bleiben unverändert. Commit-ID mit `git log -1` ermitteln.
+
+
 ## Entdecken / PopScore – Umsetzung und Prüfung 24.10.2026
 
 - Native `DiscoveryScreen` unter eigenem Bottom-Bar-Reiter **Entdecken**; die Sammlung enthält keine beliebten Titel. Beide Themes, lokale Posteranzahl, Rang, Genre, getrennte IGDB-Bewertung, Besitzmarkierung und vorausgefüllter vorhandener Editor. Die Filteraktion wechselt zur Sammlung; Seiten-Scrollzustände bleiben erhalten.

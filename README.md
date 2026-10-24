@@ -168,7 +168,7 @@ Im Log nach der gemeldeten ID suchen. Datenbankfehler liefern HTTP 503; Schreibk
 
 ## Android-App
 
-[Android-App 0.7 direkt als APK herunterladen](https://github.com/mehmet-b-90/games_collection/releases/download/android-v0.7/Games-Collection-0.7-release.apk)
+[Android-App 0.8 direkt als APK herunterladen](https://github.com/mehmet-b-90/games_collection/releases/download/android-v0.8/Games-Collection-0.8-release.apk)
 
 Die Android-App wird als signierte Release-APK bereitgestellt und unterstützt Android 8.0 oder neuer. Bei der Installation muss gegebenenfalls die Installation aus dieser Quelle zugelassen werden. Für die Verbindung benötigt der Server die JSON-API dieser Projektversion.
 
@@ -199,3 +199,7 @@ Anmeldung, Sammlung, IGDB-Suche, Spielverwaltung und Statistik auf dem Smartphon
 - Bootstrap sowie modulares JavaScript
 - Docker Compose
 - PWA mit Service Worker und Web-App-Manifest
+
+### Künftige Server-Releases
+
+Seit 25.10.2026 lösen Tags nach `server-v<VERSION>` (z. B. `server-v0.9`) die Server-Veröffentlichung aus. Bestehende `docker-v*`-Tags bleiben unverändert. Release Notes werden aus [der Vorlage](release-notes/TEMPLATE.md) als `release-notes/server-<VERSION>.md` angelegt: Titel „Games Collection v<VERSION>“, Abschnitt „Neue Funktion“; das veröffentlichte Image mit Digest ergänzt der Workflow. Neue GitHub Releases erhalten das Label **Latest**. Dieses Label ändert nicht das Docker-Image-Tag `latest`, das weiterhin `main` folgt.

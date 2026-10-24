@@ -1,5 +1,7 @@
 # Games Collection auf Google Play
 
+**25.10.2026 – separate GitHub-Veröffentlichung:** Android 0.8 / Code 5 wird als direkt signierte APK unter `android-v0.8` bereitgestellt. Kein Upload an Play; die folgenden Play-Angaben zu 0.7 / Code 4 bleiben der zuletzt bestätigte Stand.
+
 Stand: **20.10.2026**. Der interne Test ist aktiv. Eine öffentliche Produktionsveröffentlichung und ein geschlossener Test sind noch nicht bestätigt.
 
 **Betreiberbestätigung vom 23.10.2026:** Die Android-App wurde bereits über Play Console als interner Test veröffentlicht. Dies bestätigt den dokumentierten Teststand; keine erneute Console-Prüfung, kein neuer Upload und keine Bestätigung einer öffentlichen Produktion in dieser Sitzung.

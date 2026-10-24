@@ -1,5 +1,21 @@
 # Games Collection – Projektkontext
 
+## Android-Veröffentlichung 0.8 – 25.10.2026
+
+- Expliziter Auftrag: Android auf 0.8 erhöhen, signierte APK bauen und auf GitHub veröffentlichen. VersionCode auf 5 erhöht; bestehender Release-Schlüssel unverändert. Tag `android-v0.8`, Titel `Games Collection v0.8`, Label Latest; Notes `release-notes/android-v0.8.md`, Downloadlinks in beiden READMEs aktualisiert. Google Play bleibt beim internen Test 0.7 / Code 4; kein AAB-/Play-Upload.
+- Enthalten: Entdecken mit PopScore, Projekt-Icon, Posteranzahl, Material-3-Navigation, GET-Verbindungswiederholungen und HTTP-Protokollauswahl. Entdecken benötigt Server 0.8 mit `/api/discover`; persönliche Bewertung/Besitz nicht aus IGDB übernehmen.
+- Verifikation: `testReleaseUnitTest lintRelease assembleRelease --offline --no-daemon` mit lokaler JDK-17-/SDK-36-Toolchain erfolgreich (63 Tasks, 17 ausgeführt / 46 aktuell). Vorhandene Unit-Testberichte: 34 Tests ohne Fehler, kein erzwungener Neulauf. Frisches Release-Lint: 0 Befunde. APK-v2-Signatur gültig, Zertifikat stimmt mit bestehendem Release-Schlüssel überein; `aapt` bestätigt 0.8 / Code 5, minSdk 26 / targetSdk 36. SDK-XML-/Gradle-9-Hinweise bleiben. Kein neuer Geräte-/Lifecycle-/Keystore-Test.
+- APK: `android/app/build/outputs/apk/release/Games-Collection-0.8-release.apk`. Keine Installation/Deinstallation oder Nutzdatenänderung. Die zuvor vorbereitete Umstellung auf `server-v*` und künftige Release-Gestaltung wird mit diesem Quellstand übertragen; bestehende Server-/Android-Tags bleiben unverändert. Commit-ID mit `git log -1` ermitteln.
+
+
+## Server-Release-Konvention – 25.10.2026
+
+- Auftrag anhand des Screenshots: künftige Docker-Builds über `server-v*`, Release-Titel/H1 `Games Collection v<VERSION>`, Abschnitt `Neue Funktion`, anschließend automatisch `Veröffentlichtes Image` mit Digest; GitHub-Release-Label ausdrücklich `Latest`.
+- Workflow umgestellt: Trigger, Versionsableitung, Tagprüfung/-erzeugung, Image-Metadaten und Publish-Bedingungen verwenden `server-v`. Release-Erstellung nutzt `--latest`; Container-Tag `latest` bleibt an `main` gebunden. Vorlage: `release-notes/TEMPLATE.md`. Voraussetzungen/Prüfungen/Einschränkungen bei Relevanz knapp aufnehmen, Details in den Fachdateien erhalten.
+- Verifikation: alle vier Workflow-Shellblöcke mit `bash -n` erfolgreich geprüft, Tagpräfix im Workflow konsistent, `git diff --check` ohne Befunde. `actionlint` lokal nicht vorhanden; kein GitHub-Actions-Probelauf oder neuer Containerbuild (Produktcode unverändert).
+- Bestehende Tags und veröffentlichte Releases unverändert; keine neue Version, kein Containerdeployment, Commit oder Push im Rahmen dieser Änderung. Arbeitsbaum war zu Beginn sauber auf `feature/popscore` mit Upstream. Die früheren Push-Blocker-Einträge sind historische Versuche; aktueller Remote-Veröffentlichungsstatus wurde hier nicht erneut online geprüft.
+
+
 ## Übergabe und Server-Release 0.8 – 24.10.2026
 
 - Expliziter Auftrag: aktuellen Stand auf `feature/popscore` committen/pushen und Docker-Server 0.8 veröffentlichen. `origin` auf `https://github.com/mehmet-b-90/games_collection.git` geprüft und frisch gefetcht; Remote-Branch und Tag `docker-v0.8` existierten vor der Übergabe nicht.
