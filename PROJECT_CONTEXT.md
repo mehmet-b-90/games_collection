@@ -286,3 +286,7 @@ Offen bzw. vor Fortsetzung klären:
 ## Ergebnis des Push-Versuchs am 24.10.2026
 
 Der lokale Commit für PopScore/Server 0.8 wurde erstellt (aktuelle ID mit `git log` ermitteln). `git push -u origin feature/popscore` scheiterte an GitHub-HTTPS-Authentifizierung: „Invalid username or token“. Anschließendes `git ls-remote` bestätigte, dass der Remote-Feature-Branch weiterhin fehlt. Kein Tag angelegt/gepusht, kein GitHub Release und kein GHCR-0.8-Upload gestartet. Lokales geprüftes Image: `localhost/games-collection:0.8`. Git-Anmeldung erneuern, danach Feature-Branch pushen und `docker-v0.8` am Feature-Release-Commit anlegen/pushen; CI-Erfolg bestätigen. `.env.example` bleibt als unabhängige lokale Kommentaränderung uncommittet. Die vorläufige automatische Freigabeablehnung wegen vermuteten unvollständigen Stagings wurde durch Prüfung aller 59 Dateien geklärt; anschließend wurde der Commit freigegeben.
+
+## Ergänzung zur Übergabe – `.env.example`
+
+Auf ausdrücklichen Folgeauftrag wird auch die vorbestehende Entfernung des Kommentars in `.env.example` committet; die Datei enthält ausschließlich Platzhalter, keine realen Zugangswerte. SSH-Einrichtung für GitHub wird dem Betreiber als Anleitung übergeben; noch keine Schlüssel erzeugt oder Remote-Adresse geändert. Push und Docker-Veröffentlichung bleiben bis erfolgreicher Git-Authentifizierung offen.
