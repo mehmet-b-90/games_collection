@@ -159,3 +159,7 @@ Kein zusätzlicher dauerhafter Ressourcen-Leak, Main-Thread-Netzwerkaufruf oder 
 ## Nachtrag 18.10.2026: dauerhafte Offline-Vorgänge
 
 Die historischen Aussagen oben zum fehlenden Offline-Speicher beschreiben den Reviewstand vom 17.10.2026. Der neue Quellstand ergänzt `OfflineCollection.kt` und einen atomaren privaten Dateispeicher für Sammlung und Warteschlange. Entwürfe verwenden weiterhin Saved-State. Verhalten, Konfliktauflösung und Grenzen der Synchronisierung stehen in `android/README.md` und `PROJECT_CONTEXT.md`. Geräte-/Lifecycle-Prüfungen bleiben erforderlich.
+
+### Veröffentlichung bestätigt – 25.10.2026
+
+Branch `feature/popscore` und Tag `android-v0.8` erfolgreich gepusht. GitHub Release unter https://github.com/mehmet-b-90/games_collection/releases/tag/android-v0.8 veröffentlicht: Titel `Games Collection v0.8`, Label `Latest`, APK `Games-Collection-0.8-release.apk` (7,83 MB). Der auf der Release-Seite angezeigte SHA-256 `851979af53265d0812e0ae8ca27db725ab3ea68c24942b370d17f81a5d255d4f` stimmt mit der lokal gebauten und signaturgeprüften APK überein. Beide README-Downloadlinks zeigen auf dieses Asset. Release-Tag bleibt am geprüften Quellcommit; spätere Dokumentationscommits verschieben ihn nicht. Kein Play-Upload.

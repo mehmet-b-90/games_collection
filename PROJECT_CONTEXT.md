@@ -306,3 +306,7 @@ Der lokale Commit für PopScore/Server 0.8 wurde erstellt (aktuelle ID mit `git 
 ## Ergänzung zur Übergabe – `.env.example`
 
 Auf ausdrücklichen Folgeauftrag wird auch die vorbestehende Entfernung des Kommentars in `.env.example` committet; die Datei enthält ausschließlich Platzhalter, keine realen Zugangswerte. SSH-Einrichtung für GitHub wird dem Betreiber als Anleitung übergeben; noch keine Schlüssel erzeugt oder Remote-Adresse geändert. Push und Docker-Veröffentlichung bleiben bis erfolgreicher Git-Authentifizierung offen.
+
+### Veröffentlichung bestätigt – 25.10.2026
+
+Branch `feature/popscore` und Tag `android-v0.8` erfolgreich gepusht. GitHub Release unter https://github.com/mehmet-b-90/games_collection/releases/tag/android-v0.8 veröffentlicht: Titel `Games Collection v0.8`, Label `Latest`, APK `Games-Collection-0.8-release.apk` (7,83 MB). Der auf der Release-Seite angezeigte SHA-256 `851979af53265d0812e0ae8ca27db725ab3ea68c24942b370d17f81a5d255d4f` stimmt mit der lokal gebauten und signaturgeprüften APK überein. Beide README-Downloadlinks zeigen auf dieses Asset. Release-Tag bleibt am geprüften Quellcommit; spätere Dokumentationscommits verschieben ihn nicht. Kein Play-Upload.
