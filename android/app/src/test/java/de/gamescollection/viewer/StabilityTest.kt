@@ -85,6 +85,7 @@ class StabilityTest {
                 .setBody("""{"status":"success"}"""))
             val pending = PendingGameWrite(Game(title = "Manuell", platforms = listOf("Steam")))
             try { api.save(pending.game, pending.key); fail("Expected lost response") } catch (_: IOException) {}
+            assertEquals("Writes must wait for explicit reconciliation", 2, server.requestCount)
             val restored = PendingGameWrite.restore(JSONObject(pending.json().toString()))
             api.save(restored.game, restored.key)
             val first = server.takeRequest(3, TimeUnit.SECONDS)!!
@@ -92,6 +93,59 @@ class StabilityTest {
             assertEquals(pending.key, first.getHeader("Idempotency-Key"))
             assertEquals(first.getHeader("Idempotency-Key"), retry.getHeader("Idempotency-Key"))
             assertEquals(first.body.readUtf8(), retry.body.readUtf8())
+        }
+    }
+
+    @Test fun sessionRecoversFromTemporaryConnectionFailure() = runBlocking {
+        MockWebServer().use { server ->
+            server.enqueue(MockResponse().setSocketPolicy(SocketPolicy.DISCONNECT_AFTER_REQUEST))
+            server.enqueue(session())
+            assertEquals("token", server.api().session().getString("csrf_token"))
+            assertEquals(2, server.requestCount)
+            repeat(2) { assertEquals("/api/session", server.takeRequest().path) }
+        }
+    }
+
+    @Test fun collectionRecoversFromTruncatedResponseBody() = runBlocking {
+        MockWebServer().use { server ->
+            val body = """{"games":[],"platforms":["Steam"]}"""
+            server.enqueue(MockResponse().setHeader("Content-Type", "application/json")
+                .setBody(body).setSocketPolicy(SocketPolicy.DISCONNECT_DURING_RESPONSE_BODY))
+            server.enqueue(MockResponse().setHeader("Content-Type", "application/json").setBody(body))
+            assertEquals("Steam", server.api().collection().getJSONArray("platforms").getString(0))
+            assertEquals(2, server.requestCount)
+        }
+    }
+
+    @Test fun persistentConnectionFailureStopsAfterThreeAttempts() = runBlocking {
+        MockWebServer().use { server ->
+            repeat(3) { server.enqueue(MockResponse().setSocketPolicy(SocketPolicy.DISCONNECT_AFTER_REQUEST)) }
+            try { server.api().session(); fail("Expected connection failure") } catch (_: IOException) {}
+            assertEquals(3, server.requestCount)
+        }
+    }
+
+    @Test fun serverErrorsAreNotRetriedAsConnectionFailures() = runBlocking {
+        MockWebServer().use { server ->
+            server.enqueue(MockResponse().setResponseCode(503).setHeader("Content-Type", "application/json")
+                .setBody("""{"error":"Wartung"}"""))
+            try { server.api().session(); fail("Expected API error") }
+            catch (error: ApiException) { assertEquals(503, error.status) }
+            assertEquals(1, server.requestCount)
+        }
+    }
+
+    @Test fun cancellationDuringRetryDelayDoesNotSendAnotherRequest() = runBlocking {
+        MockWebServer().use { server ->
+            server.enqueue(MockResponse().setSocketPolicy(SocketPolicy.DISCONNECT_AFTER_REQUEST))
+            val api = server.api()
+            val job = launch { api.session() }
+            // Yield to the request and its failure; cancellation must also interrupt retry backoff.
+            kotlinx.coroutines.delay(200)
+            assertNotNull(server.takeRequest(3, TimeUnit.SECONDS))
+            withTimeout(1000) { job.cancelAndJoin() }
+            assertTrue(job.isCancelled)
+            assertEquals(1, server.requestCount)
         }
     }
 

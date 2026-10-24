@@ -59,6 +59,25 @@ class GamesCollectionTestCase(unittest.TestCase):
             'cover_url': 'https://images.igdb.com/igdb/image/upload/test.jpg',
         })
 
+    def test_discovery_requires_login_and_never_changes_collection(self):
+        self.assertEqual(self.client.get('/api/discover').status_code, 401)
+        self.register()
+        self.add_game()
+        before = self.client.get('/api/games').json
+        feed = {'games': [{'id': 123, 'name': 'Popular', 'popularity_rank': 1}],
+                'updated_at': '2026-10-24T12:00:00+00:00', 'stale': False, 'source': 'igdb_visits'}
+        with patch('files.routes.games.popular_games', return_value=feed) as upstream:
+            response = self.client.get('/api/discover')
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.json, feed)
+            self.assertEqual(response.headers['Cache-Control'], 'no-store')
+            self.assertEqual(self.client.get('/api/discover?unexpected=1').status_code, 400)
+            self.assertEqual(upstream.call_count, 1)
+        self.assertEqual(self.client.get('/api/games').json, before)
+        page = self.client.get('/').text
+        self.assertIn('id="discover" hidden', page)
+        self.assertIn('data-view="discover"', page)
+
     def test_igdb_token_requires_login_csrf_and_is_not_cached(self):
         self.assertEqual(self.client.post('/api/igdb-token', json={}).status_code, 401)
         self.register()
@@ -134,6 +153,37 @@ class GamesCollectionTestCase(unittest.TestCase):
         self.assertIn(':not([type="checkbox"])', css)
         self.assertIn('.form-check-input:checked', css)
         stylesheet.close()
+
+    def test_login_ignores_username_case_for_web_and_native_clients(self):
+        self.assertEqual(self.register('StraßeÄ', 'CaseSensitive1').status_code, 302)
+        self.client.post('/logout')
+        for username in ('StraßeÄ', 'straßeä', 'STRASSEÄ', ' sTrAsSeä '):
+            for native in (False, True):
+                with self.subTest(username=username, native=native):
+                    if native:
+                        response = self.client.post('/api/session', json={
+                            'username': username, 'password': 'CaseSensitive1',
+                        })
+                        self.assertEqual(response.status_code, 200)
+                    else:
+                        response = self.client.post('/login', data={
+                            'username': username, 'password': 'CaseSensitive1',
+                        })
+                        self.assertEqual(response.status_code, 302)
+                    session = self.client.get('/api/session').json
+                    self.assertTrue(session['authenticated'])
+                    self.assertEqual(session['user']['username'], 'StraßeÄ')
+                    self.client.post('/logout')
+
+        for native in (False, True):
+            with self.subTest(wrong_password_case=True, native=native):
+                credentials = {'username': 'STRASSEÄ', 'password': 'casesensitive1'}
+                if native:
+                    self.assertEqual(self.client.post('/api/session', json=credentials).status_code, 401)
+                else:
+                    response = self.client.post('/login', data=credentials)
+                    self.assertIn('Falscher Benutzername oder Passwort.', response.get_data(as_text=True))
+                self.assertFalse(self.client.get('/api/session').json['authenticated'])
 
     def test_native_session_login_logout_and_csrf_rotation(self):
         self.register()

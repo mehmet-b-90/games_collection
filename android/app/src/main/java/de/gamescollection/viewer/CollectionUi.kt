@@ -7,6 +7,7 @@ import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -29,6 +30,7 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -39,6 +41,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.semantics.Role
@@ -50,6 +53,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -98,6 +102,10 @@ private val EditorialColors = lightColorScheme(
             var tab by rememberSaveable(state.server, state.username) { mutableIntStateOf(0) }
             var filtersOpen by rememberSaveable(state.server, state.username) { mutableStateOf(false) }
             var searchOpen by rememberSaveable(state.server, state.username) { mutableStateOf(false) }
+            val pageState = rememberSaveableStateHolder()
+            LaunchedEffect(tab, state.busy, state.server, state.username) {
+                if (tab == 3 && state.username != null && !state.busy) model.loadDiscovery()
+            }
             val filter = model.filter
             val sort = model.sort
             val selected = model.editor.game.takeIf { model.editor.open }
@@ -122,19 +130,18 @@ private val EditorialColors = lightColorScheme(
                                 Icon(Icons.Default.Search, "Sammlung durchsuchen",
                                     tint = if (filter.query.isNotEmpty()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
                             }
-                            IconButton(onClick = model::refresh, enabled = !state.busy) { Icon(Icons.Default.Refresh, "Änderungen synchronisieren") }
+                            if (tab == 3) IconButton(onClick = { model.loadDiscovery(force = true) }, enabled = !state.busy && !model.discovery.loading) {
+                                Icon(Icons.Default.Refresh, "Beliebte Spiele aktualisieren")
+                            } else IconButton(onClick = model::refresh, enabled = !state.busy) { Icon(Icons.Default.Refresh, "Änderungen synchronisieren") }
                         }, colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background))
                     },
                     bottomBar = {
-                        Surface(modifier = Modifier.navigationBarsPadding().padding(horizontal = 20.dp, vertical = 6.dp)
-                            .widthIn(max = 560.dp).fillMaxWidth(), shape = RoundedCornerShape(24.dp),
-                            color = MaterialTheme.colorScheme.surface, tonalElevation = 6.dp, shadowElevation = 8.dp) {
-                            Row(horizontalArrangement = Arrangement.SpaceEvenly) {
-                                NavItem("Sammlung", NativeIcons.Library, tab == 0, Modifier.weight(1f)) { tab = 0 }
-                                NavItem("Filter", NativeIcons.Filters, filter.active, Modifier.weight(1f)) { filtersOpen = true }
-                                NavItem("Statistik", NativeIcons.Statistics, tab == 1, Modifier.weight(1f)) { tab = 1 }
-                                NavItem("Profil", Icons.Default.Person, tab == 2, Modifier.weight(1f)) { tab = 2 }
-                            }
+                        NavigationBar(containerColor = MaterialTheme.colorScheme.surface, tonalElevation = 0.dp) {
+                            NavItem("Sammlung", NativeIcons.Library, tab == 0) { tab = 0 }
+                            NavItem("Entdecken", NativeIcons.Discover, tab == 3) { tab = 3; searchOpen = false }
+                            NavItem("Filter", NativeIcons.Filters, tab == 0 && filter.active) { tab = 0; filtersOpen = true }
+                            NavItem("Statistik", NativeIcons.Statistics, tab == 1) { tab = 1 }
+                            NavItem("Profil", Icons.Default.Person, tab == 2) { tab = 2 }
                         }
                     },
                     floatingActionButton = {
@@ -152,10 +159,13 @@ private val EditorialColors = lightColorScheme(
                             }
                         }
                         Box(Modifier.weight(1f)) {
+                        pageState.SaveableStateProvider("${state.server}|${state.username}|$tab") {
                         when (tab) {
                             0 -> LibraryScreen(state, model.visibleGames, sort, model::changeSort) { model.showGame(it) }
+                            3 -> DiscoveryScreen(model.discovery, state, { model.loadDiscovery(force = true) }, model::addDiscovered)
                             1 -> StatisticsScreen(state.summary)
                             else -> ProfileScreen(state, { settingsOpen = true }, model::logout)
+                        }
                         }
                         if (state.busy) LinearProgressIndicator(Modifier.fillMaxWidth().align(Alignment.TopCenter))
                         }
@@ -164,7 +174,7 @@ private val EditorialColors = lightColorScheme(
             }
 
             if (queueOpen && state.username != null) QueueDialog(state, model::discardQueued, { queueOpen = false })
-            if (settingsOpen && state.username != null) SettingsDialog(state, model::setTheme, model::setCoverSize,
+            if (settingsOpen && state.username != null) SettingsDialog(state, model::setTheme, model::setPostersPerRow,
                 { serverDialog = true }, { settingsOpen = false })
             if (serverDialog) Dialog(onDismissRequest = { if (!state.busy) serverDialog = false }) {
                 Surface(shape = RoundedCornerShape(24.dp)) {
@@ -196,14 +206,20 @@ private val EditorialColors = lightColorScheme(
     }
 }
 
-@Composable private fun NavItem(label: String, icon: ImageVector, active: Boolean, modifier: Modifier, onClick: () -> Unit) {
-    val color = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-    Column(modifier.heightIn(min = 48.dp).clip(RoundedCornerShape(24.dp)).clickable(onClick = onClick).padding(vertical = 2.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(1.dp, Alignment.CenterVertically)) {
-        Icon(icon, null, tint = color, modifier = Modifier.size(20.dp))
-        Text(label, color = color, fontSize = 11.sp, lineHeight = 12.sp)
-    }
+@Composable private fun RowScope.NavItem(label: String, icon: ImageVector, active: Boolean, onClick: () -> Unit) {
+    NavigationBarItem(
+        selected = active,
+        onClick = onClick,
+        icon = { Icon(icon, null, modifier = Modifier.size(24.dp)) },
+        label = { Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+        colors = NavigationBarItemDefaults.colors(
+            selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+            selectedTextColor = MaterialTheme.colorScheme.primary,
+            indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    )
 }
 
 @Composable private fun CollectionSearchPopup(query: String, changeQuery: (String) -> Unit, matches: Int, close: () -> Unit) {
@@ -244,13 +260,18 @@ private val EditorialColors = lightColorScheme(
     }
 }
 
+@Composable private fun BrandIcon(size: Dp) {
+    Image(painterResource(R.drawable.brand_icon), contentDescription = null,
+        modifier = Modifier.size(size).clip(RoundedCornerShape(12.dp)))
+}
+
 @Composable private fun ServerScreen(state: ViewerState, onConnect: (String, Boolean) -> Unit, onCancel: (() -> Unit)? = null) {
     var address by rememberSaveable { mutableStateOf(state.server) }
     var allowHttp by rememberSaveable { mutableStateOf(state.server.startsWith("http://")) }
     Column(Modifier.safeDrawingPadding().imePadding().verticalScroll(rememberScrollState()).padding(24.dp)
         .widthIn(max = 560.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
         Spacer(Modifier.height(20.dp))
-        Icon(NativeIcons.Gamepad, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(48.dp))
+        BrandIcon(48.dp)
         Text("Deine Sammlung.\nÜberall dabei.", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
         Text("Verbinde die App mit deinem Games-Collection-Server.", color = MaterialTheme.colorScheme.onSurfaceVariant)
         FormTextField(address, { address = it }, modifier = Modifier.fillMaxWidth(), label = "Serveradresse",
@@ -277,7 +298,7 @@ private val EditorialColors = lightColorScheme(
     Box(Modifier.fillMaxSize().safeDrawingPadding().imePadding(), contentAlignment = Alignment.Center) {
         Column(Modifier.widthIn(max = 480.dp).fillMaxWidth().verticalScroll(rememberScrollState()).padding(28.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            Icon(NativeIcons.Gamepad, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(52.dp))
+            BrandIcon(52.dp)
             Text("Willkommen zurück", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
             Text(state.server.toUri().authority.orEmpty(), color = MaterialTheme.colorScheme.onSurfaceVariant)
             if (state.connected) {
@@ -316,7 +337,7 @@ private val EditorialColors = lightColorScheme(
         if (visible.isEmpty()) Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Text(if (state.games.isEmpty()) "Deine Sammlung wartet auf das erste Spiel.\nTippe auf +, um einen Titel hinzuzufügen."
                 else "Keine Spiele für diese Filter gefunden.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-        } else LazyVerticalGrid(columns = GridCells.Adaptive(state.coverSize.dp), horizontalArrangement = Arrangement.spacedBy(12.dp),
+        } else LazyVerticalGrid(columns = GridCells.Fixed(state.postersPerRow), horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp), contentPadding = PaddingValues(bottom = 90.dp)) {
             items(visible, key = { it.id }) { game -> GameCard(game, select) }
         }
@@ -449,8 +470,7 @@ private val EditorialColors = lightColorScheme(
 }
 
 @Composable private fun SettingsDialog(state: ViewerState, setTheme: (String) -> Unit,
-    setCoverSize: (Int) -> Unit, server: () -> Unit, close: () -> Unit) {
-    var coverSize by remember(state.coverSize) { mutableFloatStateOf(state.coverSize.toFloat()) }
+    setPostersPerRow: (Int) -> Unit, server: () -> Unit, close: () -> Unit) {
     FullScreenDialog("Einstellungen", true, close) {
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(18.dp)) {
@@ -463,17 +483,13 @@ private val EditorialColors = lightColorScheme(
                 }
             }
             HorizontalDivider()
-            Text("Covergröße", style = MaterialTheme.typography.titleMedium)
-            Text("Kleinere Cover zeigen mehr Titel nebeneinander. Die Spalten passen sich automatisch an die Bildschirmbreite an.",
+            Text("Poster pro Reihe", style = MaterialTheme.typography.titleMedium)
+            Text("Wähle, wie viele Titel nebeneinander angezeigt werden. Die Postergröße passt sich an die Bildschirmbreite an.",
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Slider(value = coverSize, onValueChange = { coverSize = it },
-                onValueChangeFinished = { setCoverSize(coverSize.toInt()) }, valueRange = 100f..240f, steps = 13,
-                modifier = Modifier.semantics { contentDescription = "Covergröße" })
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("Klein", style = MaterialTheme.typography.labelSmall)
-                Text("Groß", style = MaterialTheme.typography.labelSmall)
+            ChoiceField("Anzahl pro Reihe", state.postersPerRow.toString(), (1..3).map { it.toString() }) {
+                setPostersPerRow(it.toInt())
             }
-            TextButton(onClick = { setCoverSize(150) }) { Text("Standardgröße wiederherstellen") }
+            TextButton(onClick = { setPostersPerRow(2) }) { Text("Standard wiederherstellen (2 pro Reihe)") }
             HorizontalDivider()
             Text("Server", style = MaterialTheme.typography.titleMedium)
             Text(state.server, color = MaterialTheme.colorScheme.onSurfaceVariant)

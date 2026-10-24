@@ -17,3 +17,6 @@ initializeIgdbSearch();
 initializeGameModal();
 initializeThemePicker();
 initializePwa();
+
+import {initializeDiscovery} from './discover.js';
+initializeDiscovery();

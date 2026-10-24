@@ -1,5 +1,42 @@
 # Android-Codeprüfung vom 17.10.2026
 
+## Entdecken / PopScore – Umsetzung und Prüfung 24.10.2026
+
+- Native `DiscoveryScreen` unter eigenem Bottom-Bar-Reiter **Entdecken**; die Sammlung enthält keine beliebten Titel. Beide Themes, lokale Posteranzahl, Rang, Genre, getrennte IGDB-Bewertung, Besitzmarkierung und vorausgefüllter vorhandener Editor. Die Filteraktion wechselt zur Sammlung; Seiten-Scrollzustände bleiben erhalten.
+- `ApiClient.discover()` liest den neuen authentifizierten Serverendpunkt. Eigener ViewModel-Job/Zustand, kein globaler Offlinewechsel bei PopScorefehlern. Jobabbruch/Reset und Ergebnisprüfung bei Konto-/Serverwechsel; optionaler erneuter Abruf bei Fehlern, manuelle Aktualisierung, ansonsten bis zu 24 Stunden im RAM. Server-Fallback wird sichtbar gekennzeichnet. Kein persistenter Feed nach Prozessneustart, kein direkter IGDB-Fallback für alte Server.
+- JDK 17 / SDK 36 aus vorhandener Toolchain: `testReleaseUnitTest lintRelease assembleRelease --offline --no-daemon` erfolgreich. **34 JVM-Tests, 0 Fehler**, einschließlich zwei neuer Parsing-/Editor-Datentrennungstests; Lint **No issues found**. APK mit `apksigner verify --verbose` erfolgreich, Scheme v2 gültig. Vorbestehende SDK-XML-/Gradle-9-Hinweise bleiben.
+- APK: `android/app/build/outputs/apk/release/Games-Collection-0.7-release.apk`; Version 0.7 / Code 4 unverändert, keine Veröffentlichung oder Installation. Für neuen Play-Upload ist weiterhin ein höherer Code nötig.
+- Noch offen: echte Geräteprüfung beider Designs, kleine Display-/große Schriftgrößen, Entdecken bei Offline-/Sitzungsfehlern und Konto-/Serverwechsel während Abruf. Build/JVM-Tests ersetzen keine Compose-Gerätesichtprüfung. Kein Produktionsserver geändert; neuer Endpunkt muss für Nutzung deployt sein.
+
+
+## Aktueller Nachtrag: Verbindungswiederholung am 23.10.2026
+
+- Untersucht nach Betreiber-Screenshot mit sofortiger Offline-Meldung. Bestätigter Codepfad: ein einzelner Transportfehler bei Sitzung/Sammlung beendet den Lauf, setzt `connected=false` und verlangt danach manuelle Synchronisierung. OkHttp-Retry war ausdrücklich deaktiviert; kein automatischer Netzwerkrückkehr-Trigger. Welcher Transportfehler am Gerät ursprünglich auftrat (z. B. DNS, Verbindungsabbruch, Timeout), ist ohne Gerätedaten offen. Eine vorhandene WLAN-/Internetverbindung garantiert keine erfolgreiche einzelne Serveranfrage.
+- Zentral in `ApiClient.readResponse` begrenzte Wiederholung nur für GET bei `IOException`: maximal drei Versuche insgesamt, 500/1500 ms Abstand, abbrechbar. TLS-Fehler werden sofort weitergereicht; HTTP-Fehler, Redirects und JSON-Verarbeitung werden außerhalb dieser Schleife behandelt. Bestehende Timeouts gelten je Versuch, daher dauert die endgültige Fehlermeldung bei dauerhaftem Ausfall gegebenenfalls länger. Keine automatische Wiederholung von POST/PUT/DELETE, keine Änderung an Auth-/CSRF-/Idempotenzschutz oder Offline-Speicher.
+- Fünf neue JVM-Regressionstests simulieren Verbindungsabbruch mit Erholung, abgeschnittenen Sammlungsbody, dreimaligen Ausfall, HTTP 503 ohne Retry und Abbruch während der Wiederholungswartezeit. Bestehender Antwortverlust-Test prüft zusätzlich ausdrücklich, dass ein Write nicht automatisch erneut gesendet wird. Erster Prüflauf erkannte den abgeschnittenen Body als `ProtocolException`; die zunächst zu breite Ausnahme wurde korrigiert, damit auch dieser Transportabbruch wiederholt wird.
+- Abschließende Verifikation: `testReleaseUnitTest lintRelease assembleRelease --offline --no-daemon` mit lokalem JDK 17/SDK 36 und bestehender Signierung erfolgreich; **32 JVM-Tests**, keine Fehler oder übersprungenen Tests, Lint erfolgreich. 63 Tasks, 16 ausgeführt, 47 up-to-date. Gradle benötigte wegen des bekannten Socket-Fehlers einen Lauf außerhalb der Sandbox. SDK-XML-/Gradle-9-Hinweise bestehen fort. `git diff --check` ohne Befunde.
+- Lokale Release-APK: `android/app/build/outputs/apk/release/Games-Collection-0.7-release.apk`, Version 0.7 / Code 4 unverändert; `apksigner verify --verbose` bestätigt gültige v2-Signatur. Geräteprüfung des konkreten Fehlers, WLAN-/VPN-Wechsel und Start nach Standby bleiben offen. Keine Live-Serverabfrage, Installation, Veröffentlichung oder Versionsänderung.
+
+## Aktueller Nachtrag: Bottom-Bar am 23.10.2026
+
+- Nach Screenshot des Betreibers in `CollectionUi.kt` auf Material-3-`NavigationBar`/`NavigationBarItem` umgestellt: durchgehende Fläche einschließlich Systemnavigationsbereich statt schwebendem Container, pillenförmiger aktiver Symbolhintergrund, 24-dp-Symbole und sichtbare Beschriftungen. Beide Designs verwenden ihre eigenen Theme-Farben. Aktionen und Hervorhebung aktiver Filter erhalten; Material-Komponenten übernehmen Auswahlsemantik und Systemabstände.
+- Mit bestehendem JDK 17/SDK 36 und privater Signierung `testReleaseUnitTest lintRelease assembleRelease --offline --no-daemon` erfolgreich: 63 Tasks, 18 ausgeführt, 45 up-to-date; **27 JVM-Tests**, keine Fehler oder übersprungenen Tests, Lint erfolgreich. Gradle lief nach dem bekannten Socket-Fehler außerhalb der Sandbox. SDK-XML-/Gradle-9-Hinweise bleiben bestehen. `git diff --check` ohne Befunde.
+- Lokale APK: `android/app/build/outputs/apk/release/Games-Collection-0.7-release.apk`, unverändert Version 0.7 / Code 4. Signatur mit `apksigner verify --verbose` geprüft: gültig, v2. Kein Commit, Push, Upload oder Release. Keine Geräte-/Sichtprüfung beider Designs und Schrift-/Displaygrößen; ADB konnte innerhalb der Sandbox seinen Socket nicht öffnen, im lokalen SDK kein Emulator/Systemimage gefunden. Visuelle Abnahme bleibt offen.
+
+## Aktueller Nachtrag: Serverprotokoll am 23.10.2026
+
+- Fehlendes Protokoll wird beim Verbinden abhängig von „HTTP für lokale Tests zulassen“ ergänzt: mit Haken `http://`, sonst `https://`. Explizites HTTPS wird nicht umgeschrieben; explizites HTTP ohne Freigabe wird weiterhin abgewiesen. Zentrale Änderung in `ServerAddress.normalize`, zusätzlicher Regressionstest in `ServerAddressTest`.
+- Mit vorhandenem JDK 17/SDK 36 und bestehender privater Signierung `testReleaseUnitTest lintRelease assembleRelease --offline --no-daemon` erfolgreich: 63 Tasks, davon 19 ausgeführt; **27 JVM-Tests bestanden**, keine Fehler/übersprungenen Tests, **Lint ohne Befunde**. Gradle musste wegen blockierter lokaler Socket-Erkennung außerhalb der Sandbox laufen. Bestehende SDK-XML-/Gradle-9-Kompatibilitätshinweise bleiben bestehen.
+- Lokale Release-APK: `android/app/build/outputs/apk/release/Games-Collection-0.7-release.apk`. Version 0.7 / Code 4 unverändert, kein Upload oder Play-Release. Keine neue Geräte-/Sichtprüfung; Backend und Container unverändert. Einrichtung und Entscheidung in `android/README.md` und `PROJECT_CONTEXT.md` dokumentiert.
+
+## Aktueller Nachtrag: Play-Test am 20.10.2026
+
+Android 0.7 / Code 4 ist im internen Google-Play-Test aktiv. Der Release-Build mit `testReleaseUnitTest lintRelease assembleRelease bundleRelease` war erfolgreich; Test-/Analyseaufgaben wurden überwiegend aus dem aktuellen Cache wiederverwendet, vorhandene Berichte enthalten 26 bestandene Release-JVM-Tests. Keine neue Geräte-, Lifecycle-, Keystore- oder Live-IGDB-Prüfung; die verbleibenden Geräteprüfungen unten bleiben offen.
+
+Play zeigte Warnungen zu fehlenden Testern, fehlender R8-Zuordnungsdatei und fehlenden nativen Debug-Symbolen, keine als Fehler ausgewiesenen Meldungen. Inzwischen ist die Testerliste mit drei Konten ausgewählt. R8 ist bewusst deaktiviert; die geprüfte native AndroidX-arm64-Bibliothek liegt bereits ohne vollständige Debug-Symbole vor. Diese Hinweise sind keine neuen Stabilitäts-Findings und kein Anlass für einen ungeprüften R8-Umbau. Erfolgreicher Testdownload über Google Play inzwischen vom Betreiber bestätigt; die anfängliche Meldung „Nicht gefunden“ ist behoben. Geräte-/Funktionsprüfungen bleiben offen. Ausführlicher Stand und Signaturentscheidung: [android/PLAY_STORE.md](android/PLAY_STORE.md).
+
+## Historische Grundlage der Review
+
 Geprüfter Quellstand: `127619d` (`Improve Android settings and document project handoff`), Android 0.6 / versionCode 3. Der Arbeitsbaum war zu Beginn sauber. Ausgeführt auf **linux-pc-mehmet**, vorbereitet zur Fortsetzung auf **linux-laptop-mehmet**. Die ursprüngliche Prüfung änderte nur Dokumentation. Anschließend hat der Benutzer die Umsetzung aller fünf Findings einschließlich Commit und Push beauftragt; deren Stand ist im nächsten Abschnitt dokumentiert. Version, Signaturkonfiguration und bestehendes GitHub-Release bleiben unverändert.
 
 ## Umsetzung nach der Review

@@ -11,7 +11,7 @@ final class ServerAddress {
     static String normalize(String input, boolean allowHttp) {
         String value = input.trim();
         if (value.isEmpty()) throw new IllegalArgumentException("Bitte gib eine Serveradresse ein.");
-        if (!value.contains("://")) value = "https://" + value;
+        if (!value.contains("://")) value = (allowHttp ? "http://" : "https://") + value;
         try {
             URI uri = new URI(value);
             String scheme = uri.getScheme().toLowerCase(Locale.ROOT);

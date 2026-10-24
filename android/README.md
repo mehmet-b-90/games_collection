@@ -1,5 +1,10 @@
 # Games Collection für Android
 
+
+### Lokaler Entwicklungsstand: Entdecken
+
+Der Branch `feature/popscore` ergänzt **Entdecken → Aktuell beliebt**. Dafür muss der Server ebenfalls diesen Stand mit `/api/discover` enthalten; bei einem älteren Server erscheint ein Aktualisierungshinweis. Die native Sammlung bleibt getrennt. Hinzufügen übernimmt IGDB-Metadaten in den vorhandenen Editor, während eigene Bewertung und Besitzplattformen von dir gewählt werden. Die Rangliste wird nur im Arbeitsspeicher gehalten; ein neuer Abruf benötigt die Serververbindung. Version 0.7 / Code 4 bleibt beim lokalen Prüfbuild unverändert, kein neuer Play-/GitHub-Release.
+
 Die Android-App besitzt eine eigenständige native Oberfläche mit Kotlin, Jetpack Compose und Material 3. Es wird keine WebView verwendet. Über eine JSON-API verbindet sie sich mit deiner selbst gehosteten Games Collection und nutzt dieselben Benutzerkonten und dieselbe Datenbank wie die Webanwendung.
 
 ## Funktionen
@@ -13,7 +18,7 @@ Die Android-App besitzt eine eigenständige native Oberfläche mit Kotlin, Jetpa
 - Offline-Sammlung mit dauerhaft gespeicherten Änderungen und späterer Synchronisierung
 - Mehrfachauswahl der Besitzplattformen sowie Status, Format und Bewertung
 - Cinematic Dark und Editorial Shelf als lokale App-Designs
-- Einstellungen mit lokal gespeicherter Covergröße und Zurücksetzen auf die Standardgröße
+- Einstellungen mit lokal gespeicherter Auswahl von 1–3 Postern pro Reihe (Standard: 2)
 - Externe Links zu IGDB und Deku Deals im Browser
 
 Kontoerstellung und weitergehende Kontoverwaltung, etwa Passwortänderungen oder Benutzeradministration, erfolgen weiterhin in der Webanwendung. Nach einmaligem Online-Laden ist die Sammlung auch offline verfügbar. Spiele lassen sich manuell hinzufügen, bearbeiten und löschen; Änderungen werden lokal gespeichert und später synchronisiert.
@@ -35,12 +40,16 @@ Für lokale Serveränderungen siehe [Lokal aus dem Quellcode bauen](../README.md
 
 ## Installation und erster Start
 
+Die folgenden Schritte betreffen die direkte APK-Installation. Zusätzlich läuft seit **20.10.2026** ein interner Google-Play-Test für Version **0.7 / Code 4**. Die App ist damit noch nicht öffentlich im Store. Ausgewählte Tester treten über den [Teilnahme-Link](https://play.google.com/apps/internaltest/4701398512557136843) mit ihrem eingetragenen Google-Konto bei und öffnen danach den angebotenen Store-Link. Bei der ersten Veröffentlichung kann die Verfügbarkeit mehrere Stunden dauern. Status, Fehlerdiagnose und nächste Schritte: [PLAY_STORE.md](PLAY_STORE.md).
+
+Play- und bisherige Release-APKs haben unterschiedliche Signaturen; vor einem Wechsel den [Hinweis unten](#google-play-und-bisherige-release-apks) lesen.
+
 1. Die [APK für Android-Version 0.7 herunterladen](https://github.com/mehmet-b-90/games_collection/releases/download/android-v0.7/Games-Collection-0.7-release.apk) und auf dem Smartphone öffnen. Bei einem aktuellen eigenen Build verwende die signierte Release-APK unter `app/build/outputs/apk/release/Games-Collection-0.7-release.apk`; zum Wechsel von der bisherigen Debug-Signatur siehe unten. Android fragt gegebenenfalls, ob die verwendete Browser- oder Datei-App APKs installieren darf.
 2. Games Collection öffnen und deine Serveradresse eingeben, beispielsweise `https://games.example.org` oder für lokale Tests `http://192.168.178.20:7000`.
-3. Bei HTTP die Option „HTTP für lokale Tests zulassen“ aktivieren. HTTPS ist für den regulären Betrieb empfohlen.
+3. Bei HTTP die Option „HTTP für lokale Tests zulassen“ aktivieren. Ohne Protokollangabe ergänzt die App beim Verbinden automatisch `http://`, wenn die Option aktiviert ist, andernfalls `https://`. Ein ausdrücklich eingegebenes Protokoll bleibt erhalten; `http://` benötigt weiterhin die Freigabe. HTTPS ist für den regulären Betrieb empfohlen.
 4. Mit deinem bestehenden Games-Collection-Konto anmelden.
 
-Unter „Profil → Einstellungen“ lassen sich Design, Covergröße und Serveradresse ändern. Kleinere Cover ermöglichen mehr Titel nebeneinander; die Spaltenanzahl passt sich automatisch an die Bildschirmbreite an. Die Covergröße kann auf den Standard zurückgesetzt werden. Design und Covergröße werden lokal auf diesem Gerät gespeichert und ändern nicht die Darstellung im Browser.
+Unter „Profil → Einstellungen“ lassen sich Design, Posteranzahl pro Reihe und Serveradresse ändern. Das Dropdown bietet 1, 2 oder 3 Poster pro Reihe; die Postergröße passt sich an die Bildschirmbreite an. Standard sind 2 Poster pro Reihe; darauf lässt sich die Auswahl zurücksetzen. Die bisherige Slider-Einstellung wird durch diesen Standard ersetzt. Design und Posteranzahl werden lokal auf diesem Gerät gespeichert, bleiben bei Serverwechsel erhalten und ändern nicht die Darstellung im Browser.
 
 Beim Serverwechsel werden die bisherigen Anmelde-Cookies gelöscht; melde dich am neuen Server erneut an. Der Knopf `↻` lädt die Sammlung erneut.
 
@@ -55,6 +64,8 @@ Lade die Sammlung zuerst einmal angemeldet vom Server. Danach stehen die Sammlun
 Speichern und Löschen werden zuerst dauerhaft im privaten App-Speicher abgelegt und sofort in Sammlung, Filtern und Statistik berücksichtigt. Die Anzeige „Änderungen ausstehend“ öffnet eine Übersicht einschließlich vorgemerkter Löschungen. Noch nicht gesendete Änderungen lassen sich weiter bearbeiten oder nach Rückfrage verwerfen; ein noch nicht gesendetes neues Spiel lässt sich vollständig lokal entfernen.
 
 Sobald der Server wieder erreichbar ist, tippe auf „Synchronisieren“ beziehungsweise den Aktualisieren-Knopf oben. Beim erfolgreichen Verbinden oder Anmelden und beim Speichern mit bestehender Verbindung synchronisiert die App ebenfalls. Es gibt keinen Hintergrunddienst: Bei geschlossener App oder bloßer Netzwerkrückkehr wird keine automatische Übertragung garantiert.
+
+Im aktuellen lokalen Quellstand werden Leseanfragen für Sitzung und Sammlung bei kurzzeitigen Netzwerkfehlern automatisch bis zu zweimal nach 0,5 und 1,5 Sekunden wiederholt. Erst nach erfolglosen Versuchen erscheint die Offline-Meldung; bestehende Zeitlimits gelten pro Versuch. Zertifikatsfehler und HTTP-Fehlerantworten werden direkt angezeigt. Schreibvorgänge behalten die oben beschriebene sichere Warteschlange. Diese Anpassung ist noch nicht Bestandteil der verlinkten GitHub-/Play-Version.
 
 Vor jeder Übertragung prüft die App die Sitzung und das Konto. Ein abgelaufener Login erfordert eine erneute Anmeldung. Sammlung und Warteschlange sind an die genaue Serveradresse und Benutzer-ID gebunden. Abmelden und Serverwechsel blenden sie aus, löschen aber keine ausstehenden Änderungen: Nach erneuter Anmeldung am ursprünglichen Server/Konto werden sie wieder geladen. Das Löschen der App-Daten oder die Deinstallation entfernt auch nicht synchronisierte Änderungen; Android-Backups bleiben deaktiviert.
 
@@ -113,6 +124,24 @@ export JAVA_HOME=/pfad/zum/jdk-17
 Alternativ kann der SDK-Pfad in der lokal ignorierten Datei `android/local.properties` als `sdk.dir=/pfad/zum/Android/Sdk` eingetragen werden. Der Gradle-Wrapper und Abhängigkeiten werden bei Bedarf heruntergeladen. Lokales `.toolchain/env.sh` nur verwenden, wenn die dazugehörigen Werkzeuge vorhanden sind.
 
 Ergebnis ausgehend vom Repository-Hauptverzeichnis: `android/app/build/outputs/apk/release/Games-Collection-0.7-release.apk`. Der Dateiname folgt automatisch der `versionName`. Aktuell: **Version 0.7 / Code 4**. Neue Veröffentlichungen erhalten einen höheren VersionCode und eigene GitHub Release Notes.
+
+### App Bundle für Google Play bauen
+
+Mit derselben lokalen Release-Signierung und JDK-/SDK-Konfiguration:
+
+```bash
+./gradlew testReleaseUnitTest lintRelease assembleRelease bundleRelease
+```
+
+Ausführen im Ordner `android/`. Das Bundle liegt ausgehend vom Repository-Hauptverzeichnis unter `android/app/build/outputs/bundle/release/app-release.aab`; der Dateiname enthält keine Versionsnummer. Die Metadaten vor einem Upload prüfen. VersionCode **4 ist bereits in Play verwendet**; für einen neuen Upload zuerst einen höheren Code mit dem Betreiber abstimmen. Der vorhandene Build wurde am 20.10.2026 hochgeladen und als interner Test eingeführt. Neue GitHub-Assets, Tags oder Releases entstehen dadurch nicht.
+
+Der lokale Keystore signiert den Upload. Die an Nutzer ausgelieferten Play-APKs signiert Google mit dem eingerichteten Google-App-Signaturschlüssel. Lokalen Keystore und `signing.properties` weiterhin sicher sichern und auf andere Build-Rechner übertragen, nicht neu erzeugen. Weitere Angaben und offene Store-Aufgaben stehen in [PLAY_STORE.md](PLAY_STORE.md).
+
+### Google Play und bisherige Release-APKs
+
+Am 20.10.2026 hat der Betreiber die Verwendung eines Google-App-Signaturschlüssels gewählt und die fehlende direkte Updatekompatibilität zu bisherigen Release-APKs akzeptiert. Der Import des lokalen privaten Schlüssels wurde abgebrochen; es wurde kein privater Schlüssel an Google übertragen. Lokale/GitHub-APKs behalten ihre bisherige Signatur. Beide Vertriebswege verwenden dieselbe App-ID und lassen sich daher nicht parallel installieren.
+
+Vor einem bewussten Wechsel zur Play-Version sämtliche ausstehenden Offline-Änderungen synchronisieren und benötigte Daten sichern. Eine Deinstallation löscht lokale Sammlung, Warteschlange und Zugangsdaten; keine automatische Deinstallation vornehmen. Öffentliche Zertifikat-Fingerabdrücke und der aktuelle Teststand stehen in [PLAY_STORE.md](PLAY_STORE.md).
 
 ### Wechsel von den bisherigen APKs
 

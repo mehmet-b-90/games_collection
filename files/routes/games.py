@@ -9,6 +9,7 @@ from ..extensions import db
 from ..idempotency import idempotent_game_write
 from ..igdb import get_igdb_token, get_preferred_age_rating, log_upstream_failure
 from ..models import Game, GamePlatformOwnership
+from ..popscore import IGDB_GAME_FIELDS, PopScoreError, popular_games
 from ..validation import validate_game_payload, validate_integer
 
 games_bp = Blueprint('games', __name__, url_prefix='/api')
@@ -23,6 +24,18 @@ def list_games():
     games = Game.query.filter_by(user_id=current_user.id).order_by(Game.id.desc()).all()
     response = jsonify({'api_version': 1, 'games': [game.to_dict() for game in games],
                         'platforms': sorted(PLATFORMS)})
+    response.headers['Cache-Control'] = 'no-store'
+    return response
+
+@games_bp.route('/discover', methods=['GET'])
+@login_required
+def discover_games():
+    if request.args:
+        return api_error('Diese Rangliste unterstützt keine Abfrageparameter.')
+    try:
+        response = jsonify(popular_games())
+    except PopScoreError as error:
+        response = current_app.make_response(api_error(str(error), error.status))
     response.headers['Cache-Control'] = 'no-store'
     return response
 
@@ -53,7 +66,7 @@ def search_igdb():
     if not token:
         return api_error('IGDB-Authentifizierung fehlgeschlagen.', 502)
     headers = {'Client-ID': client_id, 'Authorization': f'Bearer {token}'}
-    fields = 'fields id, name, cover.image_id, first_release_date, platforms.name, involved_companies.company.name, involved_companies.developer, involved_companies.publisher, url, game_engines.name, age_ratings.organization.name, age_ratings.rating_category.rating;'
+    fields = f'fields {IGDB_GAME_FIELDS};'
     if query.isdigit() and release_year is None:
         try:
             igdb_id = validate_integer(query, 'query', 1, 2**63 - 1)

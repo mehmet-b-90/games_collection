@@ -1,5 +1,12 @@
 # Games Collection
 
+
+### Lokal in Entwicklung: Entdecken / Aktuell beliebt
+
+Auf `feature/popscore` zeigen Web und Android im eigenen Reiter **Entdecken** bis zu 100 nach IGDB-Aufrufen beliebte Titel. „+ Hinzufügen“ öffnet den Editor; die Sammlung und ihre Filter bleiben getrennt. Der neue Serverendpunkt `/api/discover` benötigt die vorhandenen Twitch-/IGDB-Zugangsdaten. Rangliste täglich im Serverprozess gecached; keine zusätzliche Konfiguration oder Datenbankmigration. Dieser lokale Stand ist noch nicht veröffentlicht. Details: [PopScore](design/popscore/README.md).
+
+<img src="design/brand/github-icon-512.png" width="128" height="128" alt="Games Collection – Controller mit drei Spielcovern">
+
 Games Collection ist eine selbst gehostete Webanwendung zur Verwaltung einer persönlichen Videospielesammlung. Spieldaten und Cover erfolgen über die Suche von IGDB. Die Anwendung bietet zwei Designs, Filter, Statistiken, Benutzerkonten und eine installierbare PWA-Oberfläche.
 
 Dank Docker Container ist die Einrichtung einfach.
@@ -47,7 +54,7 @@ Die SQLite-Datenbank wird im lokalen Verzeichnis `data/` abgelegt.
 
 ## Docker-Image und Updates
 
-**Aktuelle Server-Version: [0.7](https://github.com/mehmet-b-90/games_collection/releases/tag/docker-v0.7).** Änderungen und Updatevoraussetzungen stehen in den [Release Notes](release-notes/server-0.7.md). Für diese Veröffentlichung sind `:0.7` und `:latest` verfügbar; `latest` folgt danach weiterhin dem aktuellen Serverstand.
+**Server-Release 0.8:** [Release Notes](release-notes/server-0.8.md), Tag `docker-v0.8`, Image `ghcr.io/mehmet-b-90/games_collection:0.8`. Die Veröffentlichung vom Branch `feature/popscore` startet mit dem Tag; den erfolgreichen Workflow vor dem Pull prüfen. `latest` bleibt an `main` gebunden und enthält diesen Featurestand erst nach dessen Übernahme.
 
 Das Server-Image liegt unter `ghcr.io/mehmet-b-90/games_collection`. Es unterstützt `linux/amd64` (übliche PCs/Server) und `linux/arm64` (beispielsweise ARM-NAS und Raspberry Pi mit 64-Bit-System). Docker wählt die passende Architektur automatisch.
 
@@ -55,10 +62,10 @@ Das Server-Image liegt unter `ghcr.io/mehmet-b-90/games_collection`. Es unterst�
 docker pull ghcr.io/mehmet-b-90/games_collection:latest
 ```
 
-Für eine feste Server-Version den Eintrag `image:` direkt in `docker-compose.yaml` auf `ghcr.io/mehmet-b-90/games_collection:0.7` setzen. Das Image lässt sich auch separat herunterladen:
+Für eine feste Server-Version den Eintrag `image:` direkt in `docker-compose.yaml` auf `ghcr.io/mehmet-b-90/games_collection:0.8` setzen. Das Image lässt sich auch separat herunterladen:
 
 ```bash
-docker pull ghcr.io/mehmet-b-90/games_collection:0.7
+docker pull ghcr.io/mehmet-b-90/games_collection:0.8
 ```
 
 `latest` folgt dem zuletzt erfolgreich veröffentlichten Serverstand von `main`. Mit der mitgelieferten Compose-Datei aktualisierst du eine bestehende Installation so:
@@ -164,6 +171,10 @@ Im Log nach der gemeldeten ID suchen. Datenbankfehler liefern HTTP 503; Schreibk
 [Android-App 0.7 direkt als APK herunterladen](https://github.com/mehmet-b-90/games_collection/releases/download/android-v0.7/Games-Collection-0.7-release.apk)
 
 Die Android-App wird als signierte Release-APK bereitgestellt und unterstützt Android 8.0 oder neuer. Bei der Installation muss gegebenenfalls die Installation aus dieser Quelle zugelassen werden. Für die Verbindung benötigt der Server die JSON-API dieser Projektversion.
+
+Seit **20.10.2026** ist Version **0.7 / Code 4** zusätzlich in einem **internen Google-Play-Test** aktiv; eine öffentliche Store-Veröffentlichung ist noch nicht erfolgt. Der Test ist nur für ausgewählte Google-Konten über den Teilnahme-Link verfügbar. Status und nächste Schritte stehen in [Google Play](android/PLAY_STORE.md).
+
+Die Play-Version verwendet auf Wunsch einen Google-App-Signaturschlüssel und kann die bisherige direkt verteilte Release-APK nicht unmittelbar aktualisieren. Vor einem bewussten Installationswechsel alle ausstehenden Offline-Änderungen synchronisieren und den [Signaturhinweis](android/README.md#google-play-und-bisherige-release-apks) beachten.
 
 Im Ordner [`android/`](android/README.md) liegt eine eigenständige native Android-App mit Kotlin und Jetpack Compose. Sammlung, Filter, Statistik, Anmeldung und Spielverwaltung werden direkt in der App dargestellt. Die App kommuniziert per JSON-API mit dem Docker-Server; eine WebView wird nicht verwendet. Die beiden Designs Cinematic Dark und Editorial Shelf stehen auch nativ zur Verfügung. Vor der ersten Verbindung muss der Server auf das Image dieser Projektversion aktualisiert werden. Hinweise zur Installation, zum APK-Build und zu HTTPS stehen in der [Android-Anleitung](android/README.md).
 

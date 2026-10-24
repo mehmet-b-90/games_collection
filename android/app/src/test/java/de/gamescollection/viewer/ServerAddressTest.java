@@ -14,6 +14,14 @@ public class ServerAddressTest {
         assertEquals("https://[::1]:7000/", ServerAddress.normalize("https://[::1]:7000", false));
     }
 
+    @Test public void infersProtocolFromHttpPermission() {
+        assertEquals("https://192.168.1.20:7000/", ServerAddress.normalize("192.168.1.20:7000", false));
+        assertEquals("http://192.168.1.20:7000/", ServerAddress.normalize(" 192.168.1.20:7000 ", true));
+        assertEquals("http://localhost/", ServerAddress.normalize("localhost:80", true));
+        assertEquals("http://[::1]:7000/", ServerAddress.normalize("[::1]:7000", true));
+        assertEquals("https://games.example.org/", ServerAddress.normalize("https://games.example.org", true));
+    }
+
     @Test public void rejectsUnsafeOrUnsupportedAddresses() {
         String[] invalid = {"", "http://games.example.org", "file:///tmp/test", "javascript:alert(1)",
                 "https://user:password@games.example.org", "https://games.example.org/login",

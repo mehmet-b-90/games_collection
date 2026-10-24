@@ -1,6 +1,7 @@
 package de.gamescollection.viewer
 
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import okhttp3.Cookie
 import okhttp3.CookieJar
@@ -14,6 +15,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.IOException
 import java.util.concurrent.TimeUnit
+import javax.net.ssl.SSLException
 
 class ApiException(val status: Int, message: String) : IOException(message)
 
@@ -75,6 +77,7 @@ class ApiClient private constructor(val server: String, persistence: CookiePersi
         try { request("DELETE", "/api/session") } finally { clearSession() }
     }
     suspend fun igdbCredentials(): JSONObject = JSONObject(request("POST", "/api/igdb-token", JSONObject()))
+    suspend fun discover(): DiscoveryFeed = DiscoveryFeed.fromJson(JSONObject(request("GET", "/api/discover")))
     suspend fun collection(): JSONObject = JSONObject(request("GET", "/api/games"))
     suspend fun save(game: Game, operationKey: String) {
         requireIdempotency()
@@ -93,6 +96,21 @@ class ApiClient private constructor(val server: String, persistence: CookiePersi
     suspend fun search(query: String, year: String): List<Game> = JSONArray(request("POST", "/api/search",
         JSONObject().put("query", query).put("release_year", year.ifEmpty { null } ?: JSONObject.NULL))).objects().map(Game::fromIgdb)
 
+    private suspend fun readResponse(request: Request): HttpResult {
+        var retries = 0
+        while (true) {
+            try {
+                return client.newCall(request).readBody()
+            } catch (error: IOException) {
+                // A brief network transition or closed pooled socket must not immediately
+                // strand the collection offline. Never replay writes or TLS failures.
+                // Incomplete HTTP bodies also arrive as IOExceptions (ProtocolException).
+                if (request.method != "GET" || error is SSLException || retries >= 2) throw error
+                delay(if (retries++ == 0) 500L else 1500L)
+            }
+        }
+    }
+
     private suspend fun request(method: String, path: String, data: JSONObject? = null, retryCsrf: Boolean = true, operationKey: String? = null): String {
         val url = base.resolve(path) ?: throw IOException("Ungültige Serveradresse.")
         check(ServerAddress.sameOrigin(server, url.toString()))
@@ -100,7 +118,7 @@ class ApiClient private constructor(val server: String, persistence: CookiePersi
         if (operationKey != null) builder.header("Idempotency-Key", operationKey)
         if (method != "GET") builder.header("X-CSRFToken", csrf).header("Referer", server)
         builder.method(method, if (method == "GET") null else (data?.toString() ?: "{}").toRequestBody("application/json; charset=utf-8".toMediaType()))
-        val response = client.newCall(builder.build()).readBody()
+        val response = readResponse(builder.build())
         val body = response.body
         if (response.csrfError && retryCsrf && method != "GET") {
             session()
