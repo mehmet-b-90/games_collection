@@ -319,3 +319,7 @@ Auf ausdrücklichen Folgeauftrag wird auch die vorbestehende Entfernung des Komm
 ### Veröffentlichung bestätigt – 25.10.2026
 
 Branch `feature/popscore` und Tag `android-v0.8` erfolgreich gepusht. GitHub Release unter https://github.com/mehmet-b-90/games_collection/releases/tag/android-v0.8 veröffentlicht: Titel `Games Collection v0.8`, Label `Latest`, APK `Games-Collection-0.8-release.apk` (7,83 MB). Der auf der Release-Seite angezeigte SHA-256 `851979af53265d0812e0ae8ca27db725ab3ea68c24942b370d17f81a5d255d4f` stimmt mit der lokal gebauten und signaturgeprüften APK überein. Beide README-Downloadlinks zeigen auf dieses Asset. Release-Tag bleibt am geprüften Quellcommit; spätere Dokumentationscommits verschieben ihn nicht. Kein Play-Upload.
+
+### Merge-Ergebnis und Push-Blocker – 26.10.2026
+
+Lokaler Merge von `feature/popscore` nach `main` erfolgreich und konfliktfrei committet. Push nach `origin main` blieb ohne Antwort und endete nach begrenzter Laufzeit mit Timeout (Exit 124); auch SSH-Remoteprüfung auf Port 22 sowie GitHubs Alternative Port 443 mit strikter Hostschlüsselprüfung endeten im Timeout. Öffentlicher HTTPS-Abgleich funktioniert und bestätigte zuvor main noch auf dem alten Ausgangsstand. Merge daher noch nicht auf GitHub bestätigt; kein erfolgreicher CI-/latest-Build behauptet. Nächster Schritt bei wieder erreichbarem SSH: `git push origin main`, danach Docker-Workflow prüfen. Feature-Branch und vorhandene Releases/Tags bleiben erhalten.
