@@ -1,9 +1,10 @@
 const CACHE_PREFIX = 'games-collection-';
-const CACHE_NAME = `${CACHE_PREFIX}v1`;
+const CACHE_NAME = `${CACHE_PREFIX}v3`;
 const STATIC_ASSETS = [
     '/static/offline.html',
     '/static/style.css',
     '/static/js/main.js',
+    '/static/js/discover.js',
     '/static/js/api.js',
     '/static/js/account.js',
     '/static/js/admin.js',
@@ -13,6 +14,8 @@ const STATIC_ASSETS = [
     '/static/js/pwa.js',
     '/static/js/ui.js',
     '/static/manifest.webmanifest',
+    '/static/icons/app-icon-32.png',
+    '/static/icons/apple-touch-icon-180.png',
     '/static/icons/app-icon-192.png',
     '/static/icons/app-icon-512.png',
     '/static/icons/app-icon-maskable-512.png'

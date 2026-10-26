@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Simplified silhouette of the approved controller and three game covers. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <path android:fillColor="#FFFFFF"
+        android:pathData="M28,34Q27,31 30,30L41,27L43,52L33,56ZM46,24Q46,22 49,22H61Q64,22 64,25L63,51H45ZM68,28L80,32Q82,33 81,36L76,56L66,52Z" />
+    <path android:fillColor="#FFFFFF" android:fillType="evenOdd"
+        android:pathData="M39,51C33,51 29,55 27,62L24,75C22,84 31,88 37,81L43,74H65L71,81C77,88 86,84 84,75L81,62C79,55 75,51 69,51L63,53H45ZM37,58H41V63H46V67H41V72H37V67H32V63H37ZM68,59a3,3 0,1 0,0.01,0ZM74,65a3,3 0,1 0,0.01,0ZM62,65a3,3 0,1 0,0.01,0ZM68,71a3,3 0,1 0,0.01,0Z" />
+</vector>

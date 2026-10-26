@@ -24,7 +24,7 @@ import javax.net.ssl.SSLException
 data class ViewerState(
     val server: String = "", val username: String? = null, val busy: Boolean = false,
     val games: List<Game> = emptyList(), val platforms: List<String> = emptyList(),
-    val theme: String = "cinematic", val coverSize: Int = 150,
+    val theme: String = "cinematic", val postersPerRow: Int = 2,
     val error: String? = null, val connected: Boolean = false,
     val igdbStatus: String = "IGDB-Zugang noch nicht eingerichtet. Einmal mit dem Server verbinden.",
     val queue: List<QueuedWrite> = emptyList(),
@@ -41,10 +41,14 @@ class CollectionViewModel(application: Application, private val savedState: Save
     private var api: ApiClient? = null
     private var owner: String? = null
     private var sessionVerified = false
+    private var discoveryJob: Job? = null
+    private var discoveryLoadedAt = 0L
+    var discovery by mutableStateOf(DiscoveryState())
+        private set
     private var filterJob: Job? = null
     var state by mutableStateOf(ViewerState(server = preferences.getString("server", "").orEmpty(),
         theme = preferences.getString("native_theme", "cinematic").orEmpty(),
-        coverSize = preferences.getInt("cover_size", 150).coerceIn(100, 240)))
+        postersPerRow = preferences.getInt("posters_per_row", 2).coerceIn(1, 3)))
         private set
     var searchResults by mutableStateOf<List<Game>>(emptyList())
         private set
@@ -113,7 +117,7 @@ class CollectionViewModel(application: Application, private val savedState: Save
             if (changed || api == null) {
                 if (changed) {
                     resetAccount()
-                    state = ViewerState(server = normalized, busy = true, theme = state.theme, coverSize = state.coverSize)
+                    state = ViewerState(server = normalized, busy = true, theme = state.theme, postersPerRow = state.postersPerRow)
                 }
                 val previous = api
                 api = null
@@ -133,6 +137,7 @@ class CollectionViewModel(application: Application, private val savedState: Save
         val user = session.optJSONObject("user")
         val nextOwner = user?.let { "${state.server}|${it.getInt("id")}" }
         if (owner != nextOwner) {
+            resetDiscovery()
             val nextOffline = if (nextOwner == null) null else withContext(Dispatchers.IO) { offlineStore.read(nextOwner) }
             searchResults = emptyList()
             filterJob?.cancel(); filter = CollectionFilter(); sort = GameSort.NEWEST; visibleGames = emptyList()
@@ -157,6 +162,7 @@ class CollectionViewModel(application: Application, private val savedState: Save
     }
 
     private suspend fun resetAccount(preserveDraft: Boolean = false) {
+        resetDiscovery()
         withContext(Dispatchers.IO) { igdbStore.write(emptyList()) }
         state = state.copy(igdbStatus = "IGDB-Zugang noch nicht eingerichtet.")
         offline = null
@@ -369,12 +375,57 @@ class CollectionViewModel(application: Application, private val savedState: Save
             }
         }
     }
+    private fun resetDiscovery() {
+        discoveryJob?.cancel()
+        discoveryJob = null
+        discoveryLoadedAt = 0
+        discovery = DiscoveryState()
+    }
+
+    fun loadDiscovery(force: Boolean = false) {
+        if (state.busy || discovery.loading || owner == null) return
+        if (!force && (discovery.error != null || System.currentTimeMillis() - discoveryLoadedAt < 86_400_000)) return
+        val client = api
+        if (client == null) {
+            discovery = discovery.copy(error = "Bitte verbinde dich zuerst mit dem Server.")
+            return
+        }
+        val requestedOwner = owner
+        discovery = discovery.copy(loading = true, error = null)
+        discoveryJob = viewModelScope.launch {
+            try {
+                val feed = withContext(Dispatchers.IO) { client.discover() }
+                if (owner == requestedOwner && api === client) {
+                    discoveryLoadedAt = System.currentTimeMillis()
+                    discovery = DiscoveryState(feed = feed)
+                }
+            } catch (error: CancellationException) { throw error }
+            catch (error: Exception) {
+                if (owner == requestedOwner && api === client) {
+                    val message = when (error) {
+                        is ApiException -> if (error.status == 401) "Deine Sitzung ist abgelaufen. Bitte verbinde dich erneut mit dem Server." else error.message.orEmpty()
+                        is SSLException -> "Das Serverzertifikat konnte nicht geprüft werden."
+                        is IOException -> "Aktuell beliebte Spiele sind nicht erreichbar. Bitte versuche es später erneut."
+                        else -> "Die Rangliste konnte nicht verarbeitet werden. Bitte aktualisiere den Server."
+                    }
+                    discovery = discovery.copy(loading = false, error = message)
+                }
+            }
+        }
+    }
+
+    fun addDiscovered(game: Game) {
+        if (state.busy) return
+        val existing = state.games.firstOrNull { it.igdbId == game.igdbId }
+        if (existing != null) showGame(existing) else showGame(game, editing = true)
+    }
+
     fun clearSearch() { searchResults = emptyList() }
     fun clearError() { state = state.copy(error = null) }
-    fun setCoverSize(value: Int) {
-        val size = value.coerceIn(100, 240)
-        preferences.edit { putInt("cover_size", size) }
-        state = state.copy(coverSize = size)
+    fun setPostersPerRow(value: Int) {
+        val count = value.coerceIn(1, 3)
+        preferences.edit { putInt("posters_per_row", count) }
+        state = state.copy(postersPerRow = count)
     }
     fun setTheme(value: String) {
         if (value !in setOf("cinematic", "editorial")) return

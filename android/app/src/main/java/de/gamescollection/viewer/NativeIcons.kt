@@ -7,8 +7,9 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.unit.dp
 
-/** Four small app-specific vectors avoid bundling the entire extended icon catalog. */
+/** Small app-specific vectors avoid bundling the entire extended icon catalog. */
 internal object NativeIcons {
+    val Discover = icon("Discover", "M12,2a10,10 0,1 0,0 20a10,10 0,1 0,0 -20zM12,4a8,8 0,1 1,0 16a8,8 0,1 1,0 -16zM16,8l-3,5l-5,3l3,-5z")
     val Library = icon("Library", "M3,3h8v8H3zM13,3h8v8h-8zM3,13h8v8H3zM13,13h8v8h-8z")
     val Statistics = icon("Statistics", "M4,13h4v7H4zM10,4h4v16h-4zM16,9h4v11h-4z")
     val Filters = icon("Filters", "M3,5h10v2H3zM17,5h4v2h-4zM13,3h4v6h-4zM3,11h3v2H3zM10,11h11v2H10zM6,9h4v6H6zM3,17h10v2H3zM17,17h4v2h-4zM13,15h4v6h-4z")

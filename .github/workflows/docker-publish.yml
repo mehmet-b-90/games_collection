@@ -3,7 +3,7 @@ name: Build and publish Docker image
 on:
   push:
     branches: [main]
-    tags: ['docker-v*']
+    tags: ['server-v*']
     paths:
       - 'Dockerfile'
       - '.dockerignore'
@@ -58,8 +58,8 @@ jobs:
           REF_NAME: ${{ github.ref_name }}
         run: |
           version=''
-          if [[ "$REF" == refs/tags/docker-v* ]]; then
-            version="${REF_NAME#docker-v}"
+          if [[ "$REF" == refs/tags/server-v* ]]; then
+            version="${REF_NAME#server-v}"
           elif [[ "$EVENT_NAME" != pull_request && "$REF" == refs/heads/main ]]; then
             notes=$(git diff --diff-filter=A --name-only HEAD^ HEAD -- 'release-notes/server-*.md')
             if [[ -n "$notes" ]]; then
@@ -71,7 +71,11 @@ jobs:
           if [[ -n "$version" ]]; then
             [[ "$version" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]] || { echo 'Invalid server version.'; exit 1; }
             test -f "release-notes/server-$version.md"
-            existing=$(git ls-remote origin "refs/tags/docker-v$version" "refs/tags/docker-v$version^{}")
+            existing=$(git ls-remote origin "refs/tags/server-v$version" "refs/tags/server-v$version^{}")
+            if [[ -n "$existing" && "$REF" == refs/heads/main ]]; then
+              echo "Server $version already has a release tag; publishing latest/SHA only."
+              exit 0
+            fi
             if [[ -n "$existing" ]]; then
               target=$(printf '%s\n' "$existing" | awk 'NR == 1 {sha=$1} /\^\{\}$/ {sha=$1} END {print sha}')
               test "$target" = "$GITHUB_SHA" || { echo 'Server version already belongs to another commit.'; exit 1; }
@@ -131,11 +135,11 @@ jobs:
           tags: |
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
             type=sha,format=long
-            type=match,pattern=docker-v(.*),group=1
+            type=match,pattern=server-v(.*),group=1
             type=raw,value=${{ steps.release.outputs.version }},enable=${{ steps.release.outputs.version != '' }}
 
       - name: Sign in to GitHub Container Registry
-        if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/docker-v'))
+        if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/server-v'))
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
         with:
           registry: ghcr.io
@@ -144,7 +148,7 @@ jobs:
 
       - name: Publish AMD64 and ARM64 images
         id: publish
-        if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/docker-v'))
+        if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/server-v'))
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
         with:
           context: .
@@ -177,7 +181,7 @@ jobs:
           RELEASE_VERSION: ${{ needs.build.outputs.release_version }}
           IMAGE_DIGEST: ${{ needs.build.outputs.image_digest }}
         run: |
-          tag="docker-v$RELEASE_VERSION"
+          tag="server-v$RELEASE_VERSION"
           if git rev-parse --verify "refs/tags/$tag" >/dev/null 2>&1; then
             test "$(git rev-parse "$tag^{commit}")" = "$GITHUB_SHA" || { echo 'Release tag points to another commit.'; exit 1; }
           fi
@@ -189,5 +193,5 @@ jobs:
           cat "release-notes/server-$RELEASE_VERSION.md" > "$notes"
           printf '\n## Veröffentlichtes Image\n\n`%s@%s`\n' "$IMAGE_NAME" "$IMAGE_DIGEST" >> "$notes"
           gh release create "$tag" --target "$GITHUB_SHA" \
-            --title "Games Collection Server $RELEASE_VERSION" \
-            --notes-file "$notes" --latest=false
+            --title "Games Collection v$RELEASE_VERSION" \
+            --notes-file "$notes" --latest

@@ -5,7 +5,7 @@ let timeout;
 let controller;
 let requestSequence = 0;
 
-function selectGame(game, results) {
+export function selectGame(game, results = document.getElementById('searchResults')) {
     clearTimeout(timeout);
     controller?.abort();
     controller = undefined;

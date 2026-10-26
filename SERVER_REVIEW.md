@@ -1,5 +1,22 @@
 # Serverprüfung vom 19.10.2026
 
+## PopScore-Erweiterung – Prüfung 24.10.2026
+
+- `files/popscore.py` und `GET /api/discover`: Anmeldung erforderlich; keine Konto-/Sammlungsdaten im geteilten Feed. Unbekannte Queryparameter abgewiesen, HTTP-Antworten `no-store`. Daten ausschließlich von festen IGDB-Endpunkten, keine übergebenen Suchstrings/URLs. 100 Popularitäts-IDs nach IGDB Visits, Detailreihenfolge danach wiederhergestellt; doppelte IDs entfernt. Alterseinstufung USK vor PEGI. IGDB-Bewertung getrennt von persönlicher Bewertung.
+- Cache pro Flask-App/Gunicorn-Worker mit Lock: 24 Stunden, bei Upstreamfehlern gekennzeichnete Fallbackdaten höchstens sieben Tage, Wiederholungsbremse 60 Sekunden. Twitch-Konfigurationswechsel invalidiert den Cache. Cache ist nicht persistent; erster Abruf nach Prozessneustart braucht IGDB. Multiworker würden jeweils einen eigenen Cache besitzen (bestehender Container: ein Worker).
+- **44 Backendtests erfolgreich** im vorhandenen Image `:0.7` unter Podman, ohne Netzwerk, mit aktuellem `files/` und `tests/` lesend eingebunden und temporärer Testdatenbank. Neue Tests decken Authentifizierung, keine Sammlungsmutation, Reihenfolge, Cachekopien, parallele Abrufe, leere Antworten, Fehler-Backoff, abgelaufenen Fallback, Konfigurationswechsel und ungültige IDs ab.
+- Separater Gunicorn-Vorschaucontainer mit temporärer SQLite-Datenbank und localhost-Port: Start und Live-IGDB-Abruf (100 Titel) erfolgreich. Zugangswerte aus lokaler ignorierter `.env`, nicht ausgegeben/dokumentiert. Vorübergehender Fehler beim erneuten Anlegen desselben Vorschaukontos im Testskript behoben; keine Produktdaten betroffen. Kein neues Image gebaut, kein laufendes Deployment ersetzt.
+- Browser: Cinematic Dark und Editorial Shelf auf Desktop und 390-px-Webansicht geprüft; Editor korrekt vorausgefüllt, Besitzplattform bewusst ausgewählt, Speichern und Besitzmarkierung bestätigt. Persönliche Bewertung leer; Sammlungssuche bleibt nach Reiterwechsel erhalten und beeinflusst Entdecken nicht. JavaScript-Syntaxprüfung und `git diff --check` ohne Befunde. Screenshots in `design/popscore/`.
+
+
+## Nachtrag 23.10.2026: Groß-/Kleinschreibung bei der Anmeldung
+
+Der aktuelle Quellstand erfüllt den neuen Auftrag bereits: Weblogin und native Sitzungs-API vergleichen den mit `strip().casefold()` normalisierten Benutzernamen mit `username_key`. Die ursprüngliche Schreibweise wird weiter angezeigt; Passwörter bleiben von Groß-/Kleinschreibung abhängig. Keine Änderung der Authentifizierungslogik oder Datenbank vorgenommen.
+
+Neuer Regressionstest `test_login_ignores_username_case_for_web_and_native_clients` prüft beide Loginwege mit verschiedenen Schreibweisen, Umlauten, ß/SS und Leerzeichen sowie die Ablehnung eines Passworts mit falscher Groß-/Kleinschreibung. `python -m unittest discover -s tests -v`: **37 Tests bestanden**. Ausgeführt im vorhandenen lokalen Image `ghcr.io/mehmet-b-90/games_collection:0.7` mit aktuellem `files/` und `tests/` lesend eingebunden, Netzwerk deaktiviert, schreibgeschütztem Container und temporärer Testdatenbank unter `/tmp`. Wegen SELinux-Mountzugriff nur für diesen Testcontainer `--security-opt label=disable` verwendet; Host-SELinux unverändert. Bestehende Flask-Login-DeprecationWarning bleibt bestehen.
+
+Live-Anmeldung und tatsächlich eingesetzte Serverversion nicht geprüft. Bei abweichendem Verhalten Deploymentstand prüfen. Keine Nutzdaten oder laufenden Produktivcontainer verändert, kein Release veröffentlicht. Die nachstehenden Abschnitte beschreiben die historische Serverprüfung.
+
 Geprüft wurde der lokale Arbeitsstand einschließlich bereits vorhandener Änderungen. Umfang: App-Factory und Konfiguration, Modelle und SQLite-Einstellungen, Spiel-/Konto-/Sitzungs-/Authentifizierungsrouten, Validierung, Idempotenz, IGDB/Twitch sowie die Fehlerverarbeitung der vorhandenen Webclients. Dies ist eine gezielte Stabilitäts- und Integritätsprüfung, keine vollständige Sicherheits- oder Lastprüfung.
 
 ## Behobene Befunde
@@ -39,3 +56,17 @@ Eine 503 bedeutet einen derzeit fehlgeschlagenen Datenbankzugriff, nicht zwingen
 - Die vorher vorhandene Entfernung von `files/schema.py` bleibt erhalten. Keine Migration ergänzt: `create_all()` migriert bestehende Tabellen nicht. Alte Datenbanken ohne benötigte Spalten müssen vor einem produktiven Update gesondert migriert werden. `/health` prüft die DB-Verbindung, nicht die Vollständigkeit des Schemas.
 - DELETE bleibt gemäß bestehendem API-Vertrag ohne Versionsprüfung; Kontobearbeitungen besitzen ebenfalls keine optimistische Versionierung. Die hier ergänzte Versionsabsicherung gilt für Spiel-Updates.
 - Vorbestehende Änderungen an Android, Compose, `.env.example` und Projektkontext wurden erhalten. Die anschließende Veröffentlichung des geprüften Serverstands als Version 0.7 ist separat beauftragt; lokale Android-Änderungen und Zugangswerte bleiben davon ausgenommen.
+
+
+## Übergabe und Server-Release 0.8 – 24.10.2026
+
+- Expliziter Auftrag: aktuellen Stand auf `feature/popscore` committen/pushen und Docker-Server 0.8 veröffentlichen. `origin` auf `https://github.com/mehmet-b-90/games_collection.git` geprüft und frisch gefetcht; Remote-Branch und Tag `docker-v0.8` existierten vor der Übergabe nicht.
+- Geprüfter gemeinsamer Stand umfasst PopScore, vorhandene Branding-/Icon-/UI-/Android-Verbindungskorrekturen und Dokumentation. Keine Secrets, privaten Schlüssel, Datenbanken oder Buildausgaben werden übertragen. Android bleibt 0.7 / Code 4; kein APK-/Play-Upload.
+- Release Notes: `release-notes/server-0.8.md`. Tag-Push startet den vorhandenen Docker-Workflow für `:0.8` (AMD64/ARM64) und anschließend GitHub Release Notes. `latest` bleibt an `main` gebunden; kein Merge nach main und kein laufender Produktivcontainer ersetzt. Compose für diesen Stand ausdrücklich auf `:0.8` setzen.
+- Neu verifiziert: lokales 0.8-Image im Docker-Format mit Podman gebaut, 44 Backendtests bestanden, isolierter Gunicorn-Container mit HTTP 200 / `status: ok`. Erster Testmount scheiterte am SELinux-Kontext; lesender Mount mit `:z` erfolgreich.
+- Android-Release-Prüfung mit vorhandener `.toolchain/env.sh` erfolgreich: 63 Tasks, 2 ausgeführt / 61 aktuell; kein erzwungener Testneulauf. Vorhandene Berichte: 34 Tests ohne Fehler, Lint ohne Befunde. Ein erster Lauf ohne lokalen Gradle-Cache scheiterte offline an fehlenden Plugins; korrekt konfigurierte Wiederholung erfolgreich. SDK-XML-/Gradle-9-Hinweise bleiben.
+- Gerätesichtprüfung und erneuter Live-IGDB-/Web-Sichttest wurden bei der Übergabe nicht durchgeführt; frühere Featureprüfungen siehe unten. Lokale APK: `android/app/build/outputs/apk/release/Games-Collection-0.7-release.apk`. Veröffentlichungsstatus über GitHub Actions prüfen; Commit-ID mit `git log -1` ermitteln.
+
+## Ergebnis des Push-Versuchs am 24.10.2026
+
+Der lokale Commit für PopScore/Server 0.8 wurde erstellt (aktuelle ID mit `git log` ermitteln). `git push -u origin feature/popscore` scheiterte an GitHub-HTTPS-Authentifizierung: „Invalid username or token“. Anschließendes `git ls-remote` bestätigte, dass der Remote-Feature-Branch weiterhin fehlt. Kein Tag angelegt/gepusht, kein GitHub Release und kein GHCR-0.8-Upload gestartet. Lokales geprüftes Image: `localhost/games-collection:0.8`. Git-Anmeldung erneuern, danach Feature-Branch pushen und `docker-v0.8` am Feature-Release-Commit anlegen/pushen; CI-Erfolg bestätigen. `.env.example` bleibt als unabhängige lokale Kommentaränderung uncommittet. Die vorläufige automatische Freigabeablehnung wegen vermuteten unvollständigen Stagings wurde durch Prüfung aller 59 Dateien geklärt; anschließend wurde der Commit freigegeben.
