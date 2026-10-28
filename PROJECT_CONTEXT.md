@@ -1,5 +1,12 @@
 # Games Collection – Projektkontext
 
+## Manueller Push bestätigt – 28.10.2026
+
+- Betreiber legt erfolgreiche Konsolenausgabe von `git push origin main` vor: Remote-main wurde von `9b51ecc` auf `3a6c1de` aktualisiert. Der zuvor dokumentierte SSH-Timeout beschreibt den früheren Agentenversuch und ist kein aktueller Nachweis einer defekten SSH-Einrichtung.
+- Lokal geprüft: `HEAD` auf `main` ist `3a6c1de`, gespeicherter Tracking-Stand `origin/main` gleichauf, Arbeitsbaum vor diesem Dokumentationsnachtrag sauber. Kein erneuter Netzwerkabruf oder Push durch den Agenten.
+- Der Merge von PopScore ist damit laut Betreiber-Ausgabe auf GitHub angekommen. Docker-Workflow-Erfolg und tatsächlich aktualisiertes Image `:latest` noch nicht selbst verifiziert. Folgeauftrag vom 28.10.2026: diesen Nachtrag committen und Remote aktuell halten. Weitere Veröffentlichungen oder Versionsänderungen sind damit nicht beauftragt.
+
+
 ## Übernahme nach main – 26.10.2026
 
 - Betreiber bestätigt, dass PopScore im Alltag gut funktioniert, und beauftragt den Merge. Schreibweise `feature/popcore` anhand des einzigen vorhandenen Feature-Branches als `feature/popscore` verstanden. Arbeitsbaum vor Beginn sauber; lokaler Merge nach `main` konfliktfrei vorbereitet. Feature-Branch bleibt erhalten.
