@@ -1,6 +1,6 @@
 # Games Collection auf Google Play
 
-**31.10.2026 – separate GitHub-Veröffentlichung 0.8.1 / Code 6 beauftragt:** signierte direkte APK, kein AAB-/Play-Upload. Der zuletzt bestätigte Play-Test bleibt 0.7 / Code 4. Verifizierter GitHub-Abschluss siehe `../PROJECT_CONTEXT.md`.
+**31.10.2026 – separate GitHub-Veröffentlichung 0.8.1 / Code 6 abgeschlossen:** signierte direkte APK unter `android-v0.8.1` veröffentlicht und Asset-Digest geprüft, kein AAB-/Play-Upload. Der zuletzt bestätigte Play-Test bleibt 0.7 / Code 4. Verifizierter GitHub-Abschluss siehe `../PROJECT_CONTEXT.md`.
 
 **25.10.2026 – separate GitHub-Veröffentlichung:** Android 0.8 / Code 5 wird als direkt signierte APK unter `android-v0.8` bereitgestellt. Kein Upload an Play; die folgenden Play-Angaben zu 0.7 / Code 4 bleiben der zuletzt bestätigte Stand.
 

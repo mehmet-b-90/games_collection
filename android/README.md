@@ -1,11 +1,11 @@
 # Games Collection für Android
 
-**Android 0.8.1 / VersionCode 6 (31.10.2026).** [Release Notes](../release-notes/android-v0.8.1.md). Die GitHub-Veröffentlichung ist beauftragt; den verifizierten Abschluss dokumentiert `../PROJECT_CONTEXT.md`. Der Play-Test bleibt bei 0.7 / Code 4.
+**Android 0.8.1 / VersionCode 6 (31.10.2026).** [Release Notes](../release-notes/android-v0.8.1.md). Die signierte GitHub-APK ist veröffentlicht; den verifizierten Abschluss dokumentiert `../PROJECT_CONTEXT.md`. Der Play-Test bleibt bei 0.7 / Code 4.
 
 
 ### Entdecken (seit Version 0.8)
 
-Seit Version 0.8 bietet die App **Entdecken → Aktuell beliebt**. Dafür muss der Server ebenfalls diesen Stand mit `/api/discover` enthalten; bei einem älteren Server erscheint ein Aktualisierungshinweis. Die native Sammlung bleibt getrennt. Hinzufügen übernimmt IGDB-Metadaten in den vorhandenen Editor, während eigene Bewertung und Besitzplattformen von dir gewählt werden. Die Rangliste wird nur im Arbeitsspeicher gehalten; ein neuer Abruf benötigt die Serververbindung. Die direkte GitHub-APK ist jetzt für 0.8.1 / Code 6 vorgesehen; der Play-Test bleibt separat bei 0.7 / Code 4.
+Seit Version 0.8 bietet die App **Entdecken → Aktuell beliebt**. Dafür muss der Server ebenfalls diesen Stand mit `/api/discover` enthalten; bei einem älteren Server erscheint ein Aktualisierungshinweis. Die native Sammlung bleibt getrennt. Hinzufügen übernimmt IGDB-Metadaten in den vorhandenen Editor, während eigene Bewertung und Besitzplattformen von dir gewählt werden. Die Rangliste wird nur im Arbeitsspeicher gehalten; ein neuer Abruf benötigt die Serververbindung. Die direkte GitHub-APK 0.8.1 / Code 6 ist veröffentlicht; der Play-Test bleibt separat bei 0.7 / Code 4.
 
 Die Android-App besitzt eine eigenständige native Oberfläche mit Kotlin, Jetpack Compose und Material 3. Es wird keine WebView verwendet. Über eine JSON-API verbindet sie sich mit deiner selbst gehosteten Games Collection und nutzt dieselben Benutzerkonten und dieselbe Datenbank wie die Webanwendung.
 

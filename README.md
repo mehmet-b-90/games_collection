@@ -1,6 +1,6 @@
 # Games Collection
 
-**Version 0.8.1 (31.10.2026): Web/Server und Android / VersionCode 6.** Release Notes: [Server](release-notes/server-0.8.1.md), [Android](release-notes/android-v0.8.1.md). Die Veröffentlichung ist beauftragt; den verifizierten Abschluss dokumentiert `PROJECT_CONTEXT.md`. Die zentrale Serverversionsangabe steht in `files/config.py` als `APP_VERSION`; die API-Protokollversion bleibt 1.
+**Version 0.8.1 (31.10.2026): Web/Server und Android / VersionCode 6.** Release Notes: [Server](release-notes/server-0.8.1.md), [Android](release-notes/android-v0.8.1.md). Server-Image und signierte GitHub-APK sind veröffentlicht; den verifizierten Abschluss dokumentiert `PROJECT_CONTEXT.md`. Die zentrale Serverversionsangabe steht in `files/config.py` als `APP_VERSION`; die API-Protokollversion bleibt 1.
 
 
 ### Entdecken / Aktuell beliebt
