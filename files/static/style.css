@@ -203,6 +203,7 @@ html[data-ui-theme="cinematic"] .btn-close { filter: invert(1) grayscale(100%); 
 .game-editor-head { display: grid; grid-template-columns: minmax(0, 1fr) 145px; gap: 22px; }
 .editor-fields { position: relative; min-width: 0; }
 .igdb-search-fields { display: grid; grid-template-columns: minmax(0, 1fr) 135px; gap: 12px; }
+.igdb-type-field { grid-column: 1 / -1; }
 .editor-fields small, .editor-grid small, .account-settings small { color: var(--text-muted); font-weight: 500; }
 #searchResults { left: 0; z-index: 10; display: none; width: 100%; max-height: 230px; overflow-y: auto; }
 .metadata-panel { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1px; margin-top: 16px; overflow: hidden; border: 1px solid var(--border); border-radius: 12px; background: var(--border); }

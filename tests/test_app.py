@@ -396,6 +396,44 @@ class GamesCollectionTestCase(unittest.TestCase):
         invalid = self.client.post('/api/search', json={'query': 'Zelda', 'release_year': '1899'})
         self.assertEqual(invalid.status_code, 400)
 
+    @patch('files.routes.games.requests.post')
+    @patch('files.routes.games.get_igdb_token', return_value='test-token')
+    def test_igdb_search_combines_type_year_and_id(self, _, post):
+        self.register()
+        app.config.update(TWITCH_CLIENT_ID='test-client', TWITCH_CLIENT_SECRET='test-secret')
+        post.return_value.json.return_value = []
+        response = self.client.post('/api/search', json={
+            'query': 'Battlefield 6', 'release_year': '2025', 'game_type': 0,
+        })
+        self.assertEqual(response.status_code, 200, response.json)
+        body = post.call_args.kwargs['data']
+        self.assertIn('where game_type = 0 & first_release_date >= 1735689600 & first_release_date < 1767225600;', body)
+        self.assertEqual(body.count('where '), 1)
+        self.assertTrue(body.endswith('limit 10;'))
+        for game_type in range(15):
+            with self.subTest(game_type=game_type):
+                response = self.client.post('/api/search', json={'query': 'Spiel', 'game_type': game_type})
+                self.assertEqual(response.status_code, 200)
+                self.assertIn(f'where game_type = {game_type};', post.call_args.kwargs['data'])
+        response = self.client.post('/api/search', json={'query': '317407', 'game_type': 1})
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(post.call_args.kwargs['data'].startswith('where id = 317407 & game_type = 1;'))
+        for extra in ({}, {'game_type': None}):
+            response = self.client.post('/api/search', json={'query': 'Spiel', **extra})
+            self.assertEqual(response.status_code, 200)
+            self.assertNotIn('game_type', post.call_args.kwargs['data'])
+
+    @patch('files.routes.games.requests.post')
+    @patch('files.routes.games.get_igdb_token')
+    def test_igdb_search_rejects_invalid_types_before_upstream_call(self, token, post):
+        self.register()
+        for value in (-1, 15, True, False, 1.5, 0.0, '0', '', [], {}, '0; limit 500;'):
+            with self.subTest(value=value):
+                response = self.client.post('/api/search', json={'query': 'Spiel', 'game_type': value})
+                self.assertEqual(response.status_code, 400, response.json)
+        token.assert_not_called()
+        post.assert_not_called()
+
     def test_index_loads_modular_frontend(self):
         response = self.client.post('/register', data={
             'username': 'Tester',
@@ -407,6 +445,8 @@ class GamesCollectionTestCase(unittest.TestCase):
         self.assertIn('id="dekuDealsBtn"', response.get_data(as_text=True))
         self.assertIn('id="filterMinRating"', response.get_data(as_text=True))
         self.assertIn('id="releaseYearSearch"', response.get_data(as_text=True))
+        self.assertIn('id="gameTypeSearch"', response.get_data(as_text=True))
+        self.assertIn('<option value="0">Spielevollversion</option>', response.get_data(as_text=True))
         self.assertIn('Nintendo Entertainment System (NES)', response.get_data(as_text=True))
         self.assertIn('rel="manifest"', response.get_data(as_text=True))
         self.assertIn('id="installAppBtn"', response.get_data(as_text=True))

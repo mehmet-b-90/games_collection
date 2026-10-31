@@ -16,7 +16,7 @@ class IgdbClientTest {
             server.enqueue(MockResponse().setBody("""[{"id":123,"name":"Testspiel","age_ratings":[{"organization":{"name":"USK"},"rating_category":{"rating":"12"}}]}]"""))
             val client = IgdbClient(server.url("/v4/games").toString())
             val token = IgdbCredentials("owner", "client", "token", System.currentTimeMillis() + 3600000)
-            val game = client.search(token, "Testspiel", "").single()
+            val game = client.search(token, "Testspiel", "", IgdbGameType.DLC).single()
             assertEquals("USK 12", game.ageRating)
             assertEquals(123, game.igdbId)
             val request = server.takeRequest()
@@ -24,6 +24,7 @@ class IgdbClientTest {
             assertEquals("client", request.getHeader("Client-ID"))
             assertNull(request.getHeader("Cookie"))
             assertNull(request.getHeader("X-CSRFToken"))
+            assertTrue(request.body.readUtf8().contains("where game_type = 1;"))
             server.enqueue(MockResponse().setResponseCode(401))
             try { client.search(token, "Testspiel", ""); fail("Expected expiry") }
             catch (error: IgdbException) { assertTrue(error.expired) }
@@ -47,6 +48,19 @@ class IgdbClientTest {
         assertTrue(IgdbClient.queryBody("123", "").startsWith("where id = 123;"))
         assertTrue(IgdbClient.queryBody("Spiel", "2024").contains("first_release_date >= 1704067200"))
         assertThrows(IllegalArgumentException::class.java) { IgdbClient.queryBody("Spiel", "1800") }
+    }
+    @Test fun typeFilterCombinesWithYearAndIdBeforeLimitingResults() {
+        val fullGame = IgdbClient.queryBody("Battlefield 6", "2025", IgdbGameType.MAIN_GAME)
+        assertTrue(fullGame.contains("where game_type = 0 & first_release_date >= 1735689600 & first_release_date < 1767225600;"))
+        assertTrue(fullGame.endsWith("limit 10;"))
+        assertEquals(1, Regex("where ").findAll(fullGame).count())
+        assertTrue(IgdbClient.queryBody("317407", "", IgdbGameType.MAIN_GAME)
+            .startsWith("where id = 317407 & game_type = 0;"))
+        assertFalse(IgdbClient.queryBody("Spiel", "").contains("game_type"))
+        assertFalse(IgdbClient.queryBody("Spiel", "2025").contains("game_type"))
+        for (type in IgdbGameType.entries.filter { it.id != null }) {
+            assertTrue(IgdbClient.queryBody("Spiel", "", type).contains("where game_type = ${type.id};"))
+        }
     }
     @Test fun ratingsPreferUskThenPegiAndIgnoreOtherSystems() {
         val ratings = JSONArray("""[{"organization":{"name":"PEGI"},"rating_category":{"rating":"18"}},

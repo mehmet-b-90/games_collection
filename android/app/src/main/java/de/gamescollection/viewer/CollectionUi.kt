@@ -516,10 +516,11 @@ private val EditorialColors = lightColorScheme(
     }
 }
 
-@Composable private fun SearchDialog(state: ViewerState, results: List<Game>, search: (String, String) -> Unit,
+@Composable private fun SearchDialog(state: ViewerState, results: List<Game>, search: (String, String, IgdbGameType) -> Unit,
     close: () -> Unit, select: (Game) -> Unit) {
     var query by rememberSaveable { mutableStateOf("") }
     var year by rememberSaveable { mutableStateOf("") }
+    var gameType by rememberSaveable { mutableStateOf(IgdbGameType.ALL) }
     var searched by rememberSaveable { mutableStateOf(false) }
     FullScreenDialog("Spiel hinzufügen", !state.busy, close) {
         Column(Modifier.fillMaxSize().padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -527,7 +528,11 @@ private val EditorialColors = lightColorScheme(
             FormTextField(query, { query = it }, label = "Spieletitel", singleLine = true, enabled = !state.busy, modifier = Modifier.fillMaxWidth())
             FormTextField(year, { year = it.filter(Char::isDigit).take(4) }, label = "Release-Jahr (optional)", singleLine = true,
                 enabled = !state.busy, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth())
-            Button(onClick = { searched = true; search(query, year) }, enabled = !state.busy && query.isNotBlank(), modifier = Modifier.fillMaxWidth()) {
+            ChoiceField("Titeltyp", gameType.label, IgdbGameType.entries.map { it.label },
+                modifier = Modifier.fillMaxWidth(), enabled = !state.busy) { label ->
+                gameType = IgdbGameType.entries.first { it.label == label }
+            }
+            Button(onClick = { searched = true; search(query, year, gameType) }, enabled = !state.busy && query.isNotBlank(), modifier = Modifier.fillMaxWidth()) {
                 Icon(Icons.Default.Search, null); Spacer(Modifier.width(8.dp)); Text("IGDB durchsuchen")
             }
             Text(state.igdbStatus, style = MaterialTheme.typography.bodySmall)

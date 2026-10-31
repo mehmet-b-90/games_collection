@@ -52,6 +52,7 @@ function renderResults(games, results) {
 export function initializeIgdbSearch() {
     const input = document.getElementById('titleInput');
     const yearInput = document.getElementById('releaseYearSearch');
+    const typeInput = document.getElementById('gameTypeSearch');
     const results = document.getElementById('searchResults');
     const scheduleSearch = () => {
         clearTimeout(timeout);
@@ -60,6 +61,7 @@ export function initializeIgdbSearch() {
         const sequence = ++requestSequence;
         const query = input.value.trim();
         const releaseYear = yearInput.value.trim();
+        const gameType = typeInput.value === '' ? null : Number(typeInput.value);
         if (!query || (!/^\d+$/.test(query) && query.length < 3)) {
             results.style.display = 'none';
             return;
@@ -74,7 +76,7 @@ export function initializeIgdbSearch() {
             try {
                 const response = await apiFetch('/api/search', {
                     method: 'POST', headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({query, release_year: releaseYear || null}), signal: activeController.signal
+                    body: JSON.stringify({query, release_year: releaseYear || null, game_type: gameType}), signal: activeController.signal
                 });
                 const games = await responseJson(response, 'Die IGDB-Suche ist fehlgeschlagen.');
                 if (sequence === requestSequence && !activeController.signal.aborted) renderResults(games, results);
@@ -87,6 +89,7 @@ export function initializeIgdbSearch() {
     };
     input.addEventListener('input', scheduleSearch);
     yearInput.addEventListener('input', scheduleSearch);
+    typeInput.addEventListener('change', scheduleSearch);
     document.addEventListener('click', event => {
         if (!event.target.closest('.editor-fields')) results.style.display = 'none';
     });

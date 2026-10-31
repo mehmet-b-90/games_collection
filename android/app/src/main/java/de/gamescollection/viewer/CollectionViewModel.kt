@@ -345,7 +345,7 @@ class CollectionViewModel(application: Application, private val savedState: Save
         }
     }
 
-    fun search(query: String, year: String) {
+    fun search(query: String, year: String, gameType: IgdbGameType = IgdbGameType.ALL) {
         if (query.isBlank() || query.trim().length > 200 || (year.isNotEmpty() && (year.toIntOrNull() !in 1900..2100))) {
             state = state.copy(error = "Bitte gib einen Titel (maximal 200 Zeichen) und optional ein gültiges Release-Jahr von 1900 bis 2100 ein.")
             return
@@ -360,7 +360,7 @@ class CollectionViewModel(application: Application, private val savedState: Save
             }
             showIgdbExpiry(credentials)
             try {
-                searchResults = withContext(Dispatchers.IO) { igdb.search(credentials, query.trim(), year) }
+                searchResults = withContext(Dispatchers.IO) { igdb.search(credentials, query.trim(), year, gameType) }
             } catch (error: CancellationException) { throw error }
             catch (error: IgdbException) {
                 if (error.expired) {

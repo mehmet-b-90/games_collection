@@ -1,9 +1,11 @@
 # Games Collection für Android
 
+**Android 0.8.1 / VersionCode 6 (31.10.2026).** [Release Notes](../release-notes/android-v0.8.1.md). Die GitHub-Veröffentlichung ist beauftragt; den verifizierten Abschluss dokumentiert `../PROJECT_CONTEXT.md`. Der Play-Test bleibt bei 0.7 / Code 4.
 
-### Lokaler Entwicklungsstand: Entdecken
 
-Der Branch `feature/popscore` ergänzt **Entdecken → Aktuell beliebt**. Dafür muss der Server ebenfalls diesen Stand mit `/api/discover` enthalten; bei einem älteren Server erscheint ein Aktualisierungshinweis. Die native Sammlung bleibt getrennt. Hinzufügen übernimmt IGDB-Metadaten in den vorhandenen Editor, während eigene Bewertung und Besitzplattformen von dir gewählt werden. Die Rangliste wird nur im Arbeitsspeicher gehalten; ein neuer Abruf benötigt die Serververbindung. Android 0.8 / Code 5 wird als signierte GitHub-APK veröffentlicht; der Play-Test bleibt separat bei 0.7 / Code 4.
+### Entdecken (seit Version 0.8)
+
+Seit Version 0.8 bietet die App **Entdecken → Aktuell beliebt**. Dafür muss der Server ebenfalls diesen Stand mit `/api/discover` enthalten; bei einem älteren Server erscheint ein Aktualisierungshinweis. Die native Sammlung bleibt getrennt. Hinzufügen übernimmt IGDB-Metadaten in den vorhandenen Editor, während eigene Bewertung und Besitzplattformen von dir gewählt werden. Die Rangliste wird nur im Arbeitsspeicher gehalten; ein neuer Abruf benötigt die Serververbindung. Die direkte GitHub-APK ist jetzt für 0.8.1 / Code 6 vorgesehen; der Play-Test bleibt separat bei 0.7 / Code 4.
 
 Die Android-App besitzt eine eigenständige native Oberfläche mit Kotlin, Jetpack Compose und Material 3. Es wird keine WebView verwendet. Über eine JSON-API verbindet sie sich mit deiner selbst gehosteten Games Collection und nutzt dieselben Benutzerkonten und dieselbe Datenbank wie die Webanwendung.
 
@@ -14,7 +16,7 @@ Die Android-App besitzt eine eigenständige native Oberfläche mit Kotlin, Jetpa
 - Filter nach Plattform, Status, Format, Engine, Altersfreigabe und Mindestbewertung
 - Native Statistik mit Anzahl und Prozentwerten
 - Spieldetails, Bearbeiten und Löschen mit Sicherheitsabfrage
-- Hinzufügen über IGDB mit optionalem Release-Jahr oder manuell
+- Hinzufügen über IGDB mit optionalem Release-Jahr und Titeltyp oder manuell
 - Offline-Sammlung mit dauerhaft gespeicherten Änderungen und späterer Synchronisierung
 - Mehrfachauswahl der Besitzplattformen sowie Status, Format und Bewertung
 - Cinematic Dark und Editorial Shelf als lokale App-Designs
@@ -40,11 +42,13 @@ Für lokale Serveränderungen siehe [Lokal aus dem Quellcode bauen](../README.md
 
 ## Installation und erster Start
 
+Seit Android 0.8.1 steht unter dem Release-Jahr der IGDB-Suche das Dropdown **Titeltyp**. Standard ist **Alle Typen**; auswählbar sind Spielevollversion, DLC, Erweiterung, Bundle, eigenständige Erweiterung, Mod, Episode, Season, Remake, Remaster, erweiterte Spielversion, Portierung, Fork, Paket/Add-on und Update. Titel, Jahr und Typ werden gemeinsam bei IGDB gefiltert. Die Einordnung stammt von IGDB; beispielsweise kann auch eine Sonderedition als Spielevollversion gelten. Der Filter benötigt kein Serverupdate und speichert keinen Titeltyp am Sammlungseintrag.
+
 Die folgenden Schritte betreffen die direkte APK-Installation. Zusätzlich läuft seit **20.10.2026** ein interner Google-Play-Test für Version **0.7 / Code 4**. Die App ist damit noch nicht öffentlich im Store. Ausgewählte Tester treten über den [Teilnahme-Link](https://play.google.com/apps/internaltest/4701398512557136843) mit ihrem eingetragenen Google-Konto bei und öffnen danach den angebotenen Store-Link. Bei der ersten Veröffentlichung kann die Verfügbarkeit mehrere Stunden dauern. Status, Fehlerdiagnose und nächste Schritte: [PLAY_STORE.md](PLAY_STORE.md).
 
 Play- und bisherige Release-APKs haben unterschiedliche Signaturen; vor einem Wechsel den [Hinweis unten](#google-play-und-bisherige-release-apks) lesen.
 
-1. Die [APK für Android-Version 0.8 herunterladen](https://github.com/mehmet-b-90/games_collection/releases/download/android-v0.8/Games-Collection-0.8-release.apk) und auf dem Smartphone öffnen. Bei einem aktuellen eigenen Build verwende die signierte Release-APK unter `app/build/outputs/apk/release/Games-Collection-0.8-release.apk`; zum Wechsel von der bisherigen Debug-Signatur siehe unten. Android fragt gegebenenfalls, ob die verwendete Browser- oder Datei-App APKs installieren darf.
+1. Die [APK für Android-Version 0.8.1 herunterladen](https://github.com/mehmet-b-90/games_collection/releases/download/android-v0.8.1/Games-Collection-0.8.1-release.apk) und auf dem Smartphone öffnen. Bei einem aktuellen eigenen Build verwende die signierte Release-APK unter `app/build/outputs/apk/release/Games-Collection-0.8.1-release.apk`; zum Wechsel von der bisherigen Debug-Signatur siehe unten. Android fragt gegebenenfalls, ob die verwendete Browser- oder Datei-App APKs installieren darf.
 2. Games Collection öffnen und deine Serveradresse eingeben, beispielsweise `https://games.example.org` oder für lokale Tests `http://192.168.178.20:7000`.
 3. Bei HTTP die Option „HTTP für lokale Tests zulassen“ aktivieren. Ohne Protokollangabe ergänzt die App beim Verbinden automatisch `http://`, wenn die Option aktiviert ist, andernfalls `https://`. Ein ausdrücklich eingegebenes Protokoll bleibt erhalten; `http://` benötigt weiterhin die Freigabe. HTTPS ist für den regulären Betrieb empfohlen.
 4. Mit deinem bestehenden Games-Collection-Konto anmelden.
@@ -53,7 +57,7 @@ Unter „Profil → Einstellungen“ lassen sich Design, Posteranzahl pro Reihe 
 
 Beim Serverwechsel werden die bisherigen Anmelde-Cookies gelöscht; melde dich am neuen Server erneut an. Der Knopf `↻` lädt die Sammlung erneut.
 
-Der Downloadlink verweist auf Version 0.8 (`android-v0.8`, VersionCode 5) mit Entdecken, aktualisierter Oberfläche und stabileren Leseanfragen. Hinweise zum Signaturwechsel beachten. Änderungen und Voraussetzungen stehen in den GitHub Release Notes.
+Der Downloadlink verweist auf Version 0.8.1 (`android-v0.8.1`, VersionCode 6) mit Titeltypfilter und den bisherigen Entdecken-/Oberflächen-/Verbindungsfunktionen. Hinweise zum Signaturwechsel beachten. Änderungen und Voraussetzungen stehen in den GitHub Release Notes.
 
 Das Smartphone muss den Server erreichen können, etwa im gleichen WLAN oder über ein VPN. `localhost` verweist auf dem Smartphone auf das Smartphone selbst. Im Android-Emulator ist der Hostrechner normalerweise unter `10.0.2.2` erreichbar. Die Anwendung erwartet die Serveradresse ohne Unterpfad, da die Webanwendung absolute Routen verwendet.
 
@@ -123,7 +127,7 @@ export JAVA_HOME=/pfad/zum/jdk-17
 
 Alternativ kann der SDK-Pfad in der lokal ignorierten Datei `android/local.properties` als `sdk.dir=/pfad/zum/Android/Sdk` eingetragen werden. Der Gradle-Wrapper und Abhängigkeiten werden bei Bedarf heruntergeladen. Lokales `.toolchain/env.sh` nur verwenden, wenn die dazugehörigen Werkzeuge vorhanden sind.
 
-Ergebnis ausgehend vom Repository-Hauptverzeichnis: `android/app/build/outputs/apk/release/Games-Collection-0.8-release.apk`. Der Dateiname folgt automatisch der `versionName`. Aktuell: **Version 0.8 / Code 5**. Neue Veröffentlichungen erhalten einen höheren VersionCode und eigene GitHub Release Notes.
+Ergebnis ausgehend vom Repository-Hauptverzeichnis: `android/app/build/outputs/apk/release/Games-Collection-0.8.1-release.apk`. Der Dateiname folgt automatisch der `versionName`. Aktuell: **Version 0.8.1 / Code 6**. Neue Veröffentlichungen erhalten einen höheren VersionCode und eigene GitHub Release Notes.
 
 ### App Bundle für Google Play bauen
 
@@ -151,7 +155,7 @@ Künftige Updates mit demselben Release-Schlüssel und passender Versionsnummer 
 
 ```bash
 cd android
-adb install -r app/build/outputs/apk/release/Games-Collection-0.8-release.apk
+adb install -r app/build/outputs/apk/release/Games-Collection-0.8.1-release.apk
 ```
 
 Für reine Entwicklungsprüfungen bleibt `./gradlew testDebugUnitTest lintDebug assembleDebug` verfügbar; dessen Ergebnis heißt weiterhin `app/build/outputs/apk/debug/app-debug.apk`. Debug und Release haben dieselbe App-ID und können deshalb nicht als zwei getrennte Apps parallel installiert werden.

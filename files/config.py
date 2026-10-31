@@ -1,5 +1,7 @@
 import os
 
+APP_VERSION = '0.8.1'
+
 PLATFORMS = {
     'Amazon Games', 'Battle.net', 'EA app', 'Epic Games Store', 'GOG.com',
     'Nintendo 3DS', 'Nintendo DS', 'Nintendo Entertainment System (NES)',
@@ -18,6 +20,7 @@ def configure_app(app):
     database_path = os.path.abspath(os.environ.get('DATABASE_PATH', '/app/data/database.db'))
     os.makedirs(os.path.dirname(database_path), exist_ok=True)
     app.config.update(
+        APP_VERSION=APP_VERSION,
         SECRET_KEY=secret_key,
         SQLALCHEMY_DATABASE_URI=f'sqlite:///{database_path}',
         SQLALCHEMY_TRACK_MODIFICATIONS=False,

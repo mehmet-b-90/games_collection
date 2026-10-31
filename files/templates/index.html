@@ -224,6 +224,10 @@
                             <div class="igdb-search-fields">
                                 <label>Spieletitel <small>Suche über IGDB</small><input type="text" id="titleInput" autocomplete="off"></label>
                                 <label>Release-Jahr <small>optional</small><input type="number" id="releaseYearSearch" min="1900" max="2100" step="1" inputmode="numeric" placeholder="z. B. 1998"></label>
+                                <label class="igdb-type-field">Titeltyp <small>IGDB-Suchfilter</small><select id="gameTypeSearch">
+                                    <option value="">Alle Typen</option>
+                                    {% for type_id, type_label in igdb_game_types.items() %}<option value="{{ type_id }}">{{ type_label }}</option>{% endfor %}
+                                </select></label>
                             </div>
                             <div id="searchResults" class="list-group position-absolute shadow"></div>
                             <div class="metadata-panel">

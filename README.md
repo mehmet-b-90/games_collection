@@ -1,9 +1,11 @@
 # Games Collection
 
+**Version 0.8.1 (31.10.2026): Web/Server und Android / VersionCode 6.** Release Notes: [Server](release-notes/server-0.8.1.md), [Android](release-notes/android-v0.8.1.md). Die Veröffentlichung ist beauftragt; den verifizierten Abschluss dokumentiert `PROJECT_CONTEXT.md`. Die zentrale Serverversionsangabe steht in `files/config.py` als `APP_VERSION`; die API-Protokollversion bleibt 1.
 
-### Lokal in Entwicklung: Entdecken / Aktuell beliebt
 
-Auf `feature/popscore` zeigen Web und Android im eigenen Reiter **Entdecken** bis zu 100 nach IGDB-Aufrufen beliebte Titel. „+ Hinzufügen“ öffnet den Editor; die Sammlung und ihre Filter bleiben getrennt. Der neue Serverendpunkt `/api/discover` benötigt die vorhandenen Twitch-/IGDB-Zugangsdaten. Rangliste täglich im Serverprozess gecached; keine zusätzliche Konfiguration oder Datenbankmigration. Dieser lokale Stand ist noch nicht veröffentlicht. Details: [PopScore](design/popscore/README.md).
+### Entdecken / Aktuell beliebt
+
+Seit Version 0.8 zeigen Web und Android im eigenen Reiter **Entdecken** bis zu 100 nach IGDB-Aufrufen beliebte Titel. „+ Hinzufügen“ öffnet den Editor; die Sammlung und ihre Filter bleiben getrennt. Der neue Serverendpunkt `/api/discover` benötigt die vorhandenen Twitch-/IGDB-Zugangsdaten. Rangliste täglich im Serverprozess gecached; keine zusätzliche Konfiguration oder Datenbankmigration. Entdecken ist seit 0.8 enthalten; der Titeltypfilter kommt mit 0.8.1. Details: [PopScore](design/popscore/README.md).
 
 <img src="design/brand/github-icon-512.png" width="128" height="128" alt="Games Collection – Controller mit drei Spielcovern">
 
@@ -24,6 +26,10 @@ Anmeldung, Spielverwaltung mit IGDB-Daten und Sammlungsstatistik:
 | Anmeldung | Spiel hinzufügen | Statistik |
 | --- | --- | --- |
 | <img src="docs/screenshots/desktop-login.png" alt="Anmeldung im Browser" width="280"> | <img src="docs/screenshots/desktop-spiel-hinzufuegen.png" alt="Spiel im Browser mit IGDB-Daten hinzufügen" width="280"> | <img src="docs/screenshots/desktop-statistik.png" alt="Sammlungsstatistik im Browser" width="280"> |
+
+## IGDB-Suche
+
+Seit Version 0.8.1 lässt sich die Suche im Spieleditor neben dem optionalen Release-Jahr nach **Titeltyp** eingrenzen. Das Dropdown unter dem Release-Feld bietet **Alle Typen**, Spielevollversion, DLC, Erweiterung, Bundle und weitere IGDB-Typen. Die Zuordnung stammt von IGDB; auch Sondereditionen können als Spielevollversion gelten. Titel, Jahr und Typ werden gemeinsam gesucht. Der Filter wird nicht am Sammlungseintrag gespeichert. Dafür ist ein Serverupdate auf 0.8.1 erforderlich.
 
 ## Voraussetzungen
 
@@ -54,7 +60,7 @@ Die SQLite-Datenbank wird im lokalen Verzeichnis `data/` abgelegt.
 
 ## Docker-Image und Updates
 
-**Server-Release 0.8:** [Release Notes](release-notes/server-0.8.md), Tag `docker-v0.8`, Image `ghcr.io/mehmet-b-90/games_collection:0.8`. PopScore wird nach dem Merge auf `main` auch über `latest` bereitgestellt, sobald dessen Docker-Workflow erfolgreich abgeschlossen ist.
+**Server-Release 0.8.1:** [Release Notes](release-notes/server-0.8.1.md), Tag `server-v0.8.1`, Image `ghcr.io/mehmet-b-90/games_collection:0.8.1` für AMD64/ARM64. `latest` wird nach erfolgreichem Docker-Workflow auf `main` aktualisiert.
 
 Das Server-Image liegt unter `ghcr.io/mehmet-b-90/games_collection`. Es unterstützt `linux/amd64` (übliche PCs/Server) und `linux/arm64` (beispielsweise ARM-NAS und Raspberry Pi mit 64-Bit-System). Docker wählt die passende Architektur automatisch.
 
@@ -62,10 +68,10 @@ Das Server-Image liegt unter `ghcr.io/mehmet-b-90/games_collection`. Es unterst�
 docker pull ghcr.io/mehmet-b-90/games_collection:latest
 ```
 
-Für eine feste Server-Version den Eintrag `image:` direkt in `docker-compose.yaml` auf `ghcr.io/mehmet-b-90/games_collection:0.8` setzen. Das Image lässt sich auch separat herunterladen:
+Für eine feste Server-Version den Eintrag `image:` direkt in `docker-compose.yaml` auf `ghcr.io/mehmet-b-90/games_collection:0.8.1` setzen. Das Image lässt sich auch separat herunterladen:
 
 ```bash
-docker pull ghcr.io/mehmet-b-90/games_collection:0.8
+docker pull ghcr.io/mehmet-b-90/games_collection:0.8.1
 ```
 
 `latest` folgt dem zuletzt erfolgreich veröffentlichten Serverstand von `main`. Mit der mitgelieferten Compose-Datei aktualisierst du eine bestehende Installation so:
@@ -168,7 +174,7 @@ Im Log nach der gemeldeten ID suchen. Datenbankfehler liefern HTTP 503; Schreibk
 
 ## Android-App
 
-[Android-App 0.8 direkt als APK herunterladen](https://github.com/mehmet-b-90/games_collection/releases/download/android-v0.8/Games-Collection-0.8-release.apk)
+[Android-App 0.8.1 direkt als APK herunterladen](https://github.com/mehmet-b-90/games_collection/releases/download/android-v0.8.1/Games-Collection-0.8.1-release.apk)
 
 Die Android-App wird als signierte Release-APK bereitgestellt und unterstützt Android 8.0 oder neuer. Bei der Installation muss gegebenenfalls die Installation aus dieser Quelle zugelassen werden. Für die Verbindung benötigt der Server die JSON-API dieser Projektversion.
 

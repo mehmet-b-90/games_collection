@@ -10,6 +10,14 @@ _token_expires = 0
 _token_owner = None
 _token_lock = threading.Lock()
 
+# Current IGDB game_types (live verified on 2026-10-30), shared by search validation and UI.
+IGDB_GAME_TYPES = {
+    0: 'Spielevollversion', 1: 'DLC', 2: 'Erweiterung', 3: 'Bundle',
+    4: 'Eigenständige Erweiterung', 5: 'Mod', 6: 'Episode', 7: 'Season',
+    8: 'Remake', 9: 'Remaster', 10: 'Erweiterte Spielversion', 11: 'Portierung',
+    12: 'Abspaltung (Fork)', 13: 'Paket / Add-on', 14: 'Update',
+}
+
 
 def log_upstream_failure(operation, error=None):
     # Requests exceptions can contain token-bearing URLs or response bodies.

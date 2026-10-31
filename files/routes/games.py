@@ -7,7 +7,7 @@ from ..database import api_error, commit_changes
 from ..config import PLATFORMS
 from ..extensions import db
 from ..idempotency import idempotent_game_write
-from ..igdb import get_igdb_token, get_preferred_age_rating, log_upstream_failure
+from ..igdb import IGDB_GAME_TYPES, get_igdb_token, get_preferred_age_rating, log_upstream_failure
 from ..models import Game, GamePlatformOwnership
 from ..popscore import IGDB_GAME_FIELDS, PopScoreError, popular_games
 from ..validation import validate_game_payload, validate_integer
@@ -45,7 +45,7 @@ def search_igdb():
     data = json_object()
     if data is None or not isinstance(data.get('query'), str):
         return api_error('"query" muss Text sein.')
-    unexpected = set(data) - {'query', 'release_year'}
+    unexpected = set(data) - {'query', 'release_year', 'game_type'}
     if unexpected:
         return api_error(f'Unbekannte Felder: {", ".join(sorted(unexpected))}.')
     query = data['query'].strip()
@@ -59,6 +59,11 @@ def search_igdb():
             release_year = validate_integer(release_year, 'release_year', 1900, 2100)
         except ValueError as error:
             return api_error(str(error))
+    game_type = data.get('game_type')
+    if game_type is not None:
+        if type(game_type) is not int or game_type not in IGDB_GAME_TYPES:
+            return api_error('"game_type" muss ein gültiger IGDB-Titeltyp (0–14) oder null sein.')
+    filters = [f'game_type = {game_type}'] if game_type is not None else []
     client_id = current_app.config['TWITCH_CLIENT_ID']
     if not client_id or not current_app.config['TWITCH_CLIENT_SECRET']:
         return api_error('Die IGDB-Zugangsdaten sind nicht konfiguriert.', 503)
@@ -72,15 +77,16 @@ def search_igdb():
             igdb_id = validate_integer(query, 'query', 1, 2**63 - 1)
         except ValueError as error:
             return api_error(str(error))
-        body = f'where id = {igdb_id}; {fields} limit 1;'
+        conditions = ' & '.join([f'id = {igdb_id}'] + filters)
+        body = f'where {conditions}; {fields} limit 1;'
     else:
         escaped_query = query.replace('\\', '\\\\').replace('"', '\\"')
-        year_filter = ''
         if release_year is not None:
             start = int(datetime(release_year, 1, 1, tzinfo=timezone.utc).timestamp())
             end = int(datetime(release_year + 1, 1, 1, tzinfo=timezone.utc).timestamp())
-            year_filter = f' where first_release_date >= {start} & first_release_date < {end};'
-        body = f'search "{escaped_query}";{year_filter} {fields} limit 10;'
+            filters.append(f'first_release_date >= {start} & first_release_date < {end}')
+        where = f' where {" & ".join(filters)};' if filters else ''
+        body = f'search "{escaped_query}";{where} {fields} limit 10;'
     try:
         response = requests.post('https://api.igdb.com/v4/games', headers=headers, data=body, timeout=15)
         response.raise_for_status()
