@@ -1,13 +1,13 @@
 # Games Collection
 
-**Lokaler Quellstand: Server/Web 0.9 und Android 0.9 / VersionCode 8 (02.11.2026), noch nicht veröffentlicht.** Zuletzt veröffentlicht: Web/Server und Android 0.8.1 / Android-VersionCode 6 (31.10.2026). Release Notes: [Server 0.9](release-notes/server-0.9.md), [Android](release-notes/android-v0.8.1.md). Server-Image und signierte GitHub-APK sind veröffentlicht; den verifizierten Abschluss dokumentiert `PROJECT_CONTEXT.md`. Die zentrale Serverversionsangabe steht in `files/config.py` als `APP_VERSION`; die API-Protokollversion bleibt 1.
+**Server/Web 0.9 ist veröffentlicht (02.11.2026).** [Server-Release](https://github.com/mehmet-b-90/games_collection/releases/tag/server-v0.9) · [Release Notes](release-notes/server-0.9.md). Docker-Images `:0.9` und `:latest` für AMD64/ARM64 geprüft. Android-Quellstand: **0.9 / VersionCode 8**, noch nicht veröffentlicht; direkte GitHub-APK weiterhin **0.8.1 / Code 6**, Play-Test weiterhin **0.7 / Code 4**. Verifizierter Abschluss und Digests: `PROJECT_CONTEXT.md`. Die zentrale Serverversion steht in `files/config.py` als `APP_VERSION`; die API-Protokollversion bleibt 1.
 
 
-### Freunde und freigegebene Sammlungen (lokal, noch nicht veröffentlicht)
+### Freunde und freigegebene Sammlungen (Server/Web seit 0.9)
 
 Im Web über **Freunde** oder **Profil → Freunde und Anfragen**, in Android über **Profil → Freunde und Anfragen** erreichbar. Den genauen Benutzernamen eines Kontos auf demselben Server eingeben und eine Anfrage senden. Erst nach Annahme können beide die gesamte gespeicherte Sammlung des anderen ansehen und nach Titeln durchsuchen, einschließlich Besitzplattformen, persönlicher Bewertung, Status und weiterer Spieldaten. Bearbeiten oder Löschen fremder Spiele ist nicht erlaubt. Anfragen lassen sich ablehnen/zurückziehen; „Freundschaft beenden“ entzieht beiden den Zugriff für weitere Abrufe.
 
-Benötigt den neuen lokalen Server- **und** Clientstand; die veröffentlichten Artefakte 0.8.1 enthalten diese Funktion noch nicht. Beim Serverstart wird ausschließlich die neue Tabelle `friendship` samt Constraints und Indizes ergänzt. Bestehende Benutzer-/Spieletabellen werden nicht verändert; vorhandene Daten vor einem Update wie üblich sichern. Keine zusätzlichen Zugangsdaten oder IGDB-Abfragen erforderlich. Fremde Sammlungen sind online abrufbar und werden nicht im Offline-Sammlungsspeicher abgelegt. Bereits angezeigte Daten werden ohne erneuten Abruf nicht aus der Ferne entfernt. Technischer Vertrag und Prüfergebnisse: [docs/FRIENDS.md](docs/FRIENDS.md).
+Benötigt Server/Web 0.9; Android benötigt den neuen Clientstand 0.9 (noch nicht als APK veröffentlicht). Die veröffentlichte Android-APK 0.8.1 enthält diese Funktion noch nicht. Beim Serverstart wird ausschließlich die neue Tabelle `friendship` samt Constraints und Indizes ergänzt. Bestehende Benutzer-/Spieletabellen werden nicht verändert; vorhandene Daten vor einem Update wie üblich sichern. Keine zusätzlichen Zugangsdaten oder IGDB-Abfragen erforderlich. Fremde Sammlungen sind online abrufbar und werden nicht im Offline-Sammlungsspeicher abgelegt. Bereits angezeigte Daten werden ohne erneuten Abruf nicht aus der Ferne entfernt. Technischer Vertrag und Prüfergebnisse: [docs/FRIENDS.md](docs/FRIENDS.md).
 
 ### Entdecken / Aktuell beliebt
 
