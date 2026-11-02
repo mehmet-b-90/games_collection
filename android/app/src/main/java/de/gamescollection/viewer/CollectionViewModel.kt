@@ -41,6 +41,10 @@ class CollectionViewModel(application: Application, private val savedState: Save
     private var api: ApiClient? = null
     private var owner: String? = null
     private var sessionVerified = false
+    private var friendsJob: Job? = null
+    var friends by mutableStateOf(FriendsState())
+        private set
+
     private var discoveryJob: Job? = null
     private var discoveryLoadedAt = 0L
     var discovery by mutableStateOf(DiscoveryState())
@@ -137,6 +141,7 @@ class CollectionViewModel(application: Application, private val savedState: Save
         val user = session.optJSONObject("user")
         val nextOwner = user?.let { "${state.server}|${it.getInt("id")}" }
         if (owner != nextOwner) {
+            closeFriends()
             resetDiscovery()
             val nextOffline = if (nextOwner == null) null else withContext(Dispatchers.IO) { offlineStore.read(nextOwner) }
             searchResults = emptyList()
@@ -162,6 +167,7 @@ class CollectionViewModel(application: Application, private val savedState: Save
     }
 
     private suspend fun resetAccount(preserveDraft: Boolean = false) {
+        closeFriends()
         resetDiscovery()
         withContext(Dispatchers.IO) { igdbStore.write(emptyList()) }
         state = state.copy(igdbStatus = "IGDB-Zugang noch nicht eingerichtet.")
@@ -276,9 +282,18 @@ class CollectionViewModel(application: Application, private val savedState: Save
         updateEditor(EditorState(game = game, editing = editing, open = true))
     }
     fun startEditing() { updateEditor(editor.copy(editing = true)) }
+    fun selectSearchResult(game: Game) {
+        if (!state.busy && editor.adding && editor.pending == null) {
+            updateEditor(editor.copy(game = game, editing = true))
+        }
+    }
     fun changeDraft(game: Game) { if (!state.busy && editor.pending == null) updateEditor(editor.copy(game = game)) }
     fun dismissEditor() {
-        if (!state.busy) updateEditor(if (editor.pending != null) editor.copy(open = false) else EditorState())
+        if (!state.busy) updateEditor(when {
+            editor.pending != null -> editor.copy(open = false)
+            editor.adding && editor.game != null -> editor.copy(game = null, editing = false)
+            else -> EditorState()
+        })
     }
 
     fun login(username: String, password: String, remember: Boolean) = action {
@@ -290,6 +305,14 @@ class CollectionViewModel(application: Application, private val savedState: Save
     fun logout() = action {
         try { withContext(Dispatchers.IO) { api?.logout() } }
         finally { resetAccount(); state = state.copy(username = null, games = emptyList(), summary = CollectionSummary()) }
+    }
+    fun changeStatus(gameId: Int, status: String) = action {
+        check(editor.pending == null) { "Bitte kläre zuerst den offenen Vorgang im Spieldialog." }
+        val value = offline ?: error("Bitte lade deine Sammlung zunächst einmal online.")
+        val next = value.changeStatus(gameId, status)
+        if (next == value) return@action
+        persist(next)
+        if (state.connected) synchronize()
     }
     fun save(game: Game) { write(PendingGameWrite(game)) }
     fun delete(game: Game) { write(PendingGameWrite(game, deleting = true)) }
@@ -375,6 +398,54 @@ class CollectionViewModel(application: Application, private val savedState: Save
             }
         }
     }
+    fun closeFriends() {
+        friendsJob?.cancel()
+        friendsJob = null
+        friends = FriendsState()
+    }
+
+    private fun friendsAction(block: suspend (ApiClient) -> FriendsState) {
+        if (state.busy || friends.loading || owner == null) return
+        val client = api ?: return
+        val requestedOwner = owner
+        friends = friends.copy(loading = true, error = null, message = null, library = null)
+        friendsJob = viewModelScope.launch {
+            try {
+                val result = withContext(Dispatchers.IO) { block(client) }
+                if (owner == requestedOwner && api === client) friends = result
+            } catch (error: CancellationException) { throw error }
+            catch (error: Exception) {
+                if (owner == requestedOwner && api === client) friends = friends.copy(loading = false, library = null,
+                    error = when (error) {
+                        is ApiException -> if (error.status == 401) "Deine Sitzung ist abgelaufen. Bitte verbinde dich erneut."
+                            else if (error.status == 404) "Konto oder Anfrage nicht gefunden. Bei einem älteren Server ist ein Serverupdate erforderlich."
+                            else error.message.orEmpty()
+                        is SSLException -> "Das Serverzertifikat konnte nicht geprüft werden."
+                        is IOException -> "Der Server ist nicht erreichbar. Bitte aktualisiere die Liste vor einem erneuten Versuch; eine gesendete Aktion könnte bereits ausgeführt sein."
+                        else -> "Die Antwort konnte nicht verarbeitet werden. Bitte aktualisiere den Server und die Liste."
+                    })
+            }
+        }
+    }
+
+    fun loadFriends() = friendsAction { FriendsState(friends = it.friends(), loaded = true) }
+    fun inviteFriend(username: String) = friendsAction {
+        it.inviteFriend(username)
+        FriendsState(friends = it.friends(), loaded = true, message = "Anfrage gesendet. Die Freigabe beginnt erst nach Annahme.")
+    }
+    fun acceptFriend(id: Int) = friendsAction {
+        it.acceptFriend(id)
+        FriendsState(friends = it.friends(), loaded = true, message = "Freundschaft bestätigt. Eure Sammlungen sind jetzt gegenseitig sichtbar.")
+    }
+    fun removeFriend(id: Int) = friendsAction {
+        it.removeFriend(id)
+        FriendsState(friends = it.friends(), loaded = true, message = "Freundschaft oder Anfrage entfernt.")
+    }
+    fun showFriendLibrary(id: Int) {
+        val entries = friends.friends
+        friendsAction { FriendsState(friends = entries, loaded = true, library = it.friendLibrary(id)) }
+    }
+
     private fun resetDiscovery() {
         discoveryJob?.cancel()
         discoveryJob = null

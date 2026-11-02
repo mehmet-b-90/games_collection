@@ -81,20 +81,22 @@ export function initializeDiscovery() {
         }
     }
     function showView() {
-        const next = location.hash === '#discover';
+        const view = location.hash === '#friends' ? 'friends' : location.hash === '#discover' ? 'discover' : 'collection';
+        const next = view !== 'collection';
         if (next && !discovering) collectionScroll = window.scrollY;
         const changed = next !== discovering;
         discovering = next;
-        panel.hidden = !next;
+        panel.hidden = view !== 'discover';
+        document.getElementById('friends').hidden = view !== 'friends';
         document.getElementById('collectionTop').hidden = next;
         document.body.classList.toggle('discovering', next);
         document.querySelectorAll('[data-view]').forEach(link => {
-            const active = link.dataset.view === (next ? 'discover' : 'collection');
+            const active = link.dataset.view === view;
             link.classList.toggle('active', active);
             if (active) link.setAttribute('aria-current', 'page'); else link.removeAttribute('aria-current');
         });
         if (changed) window.scrollTo({top: next ? 0 : collectionScroll, behavior: 'instant'});
-        if (next && Date.now() - loadedAt > 86400000) load();
+        if (view === 'discover' && Date.now() - loadedAt > 86400000) load();
     }
     retry.addEventListener('click', load);
     document.querySelector('[data-collection-filter]').addEventListener('click', () => {

@@ -73,3 +73,18 @@ class GameWriteReceipt(db.Model):
     fingerprint = db.Column(db.String(64), nullable=False)
     response_body = db.Column(db.Text, nullable=False)
     response_status = db.Column(db.Integer, nullable=False)
+
+
+class Friendship(db.Model):
+    """One canonical pair, with explicit consent from the recipient."""
+    __table_args__ = (
+        db.UniqueConstraint('user_low', 'user_high', name='unique_friendship_pair'),
+        db.CheckConstraint('user_low < user_high', name='ordered_friendship_pair'),
+        db.CheckConstraint('requested_by = user_low OR requested_by = user_high', name='friendship_requester'),
+        db.CheckConstraint("status IN ('pending', 'accepted')", name='friendship_status'),
+    )
+    id = db.Column(db.Integer, primary_key=True)
+    user_low = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False, index=True)
+    user_high = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False, index=True)
+    requested_by = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
+    status = db.Column(db.String(16), nullable=False, default='pending')

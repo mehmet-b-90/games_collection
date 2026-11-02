@@ -1,7 +1,13 @@
 # Games Collection
 
-**Version 0.8.1 (31.10.2026): Web/Server und Android / VersionCode 6.** Release Notes: [Server](release-notes/server-0.8.1.md), [Android](release-notes/android-v0.8.1.md). Server-Image und signierte GitHub-APK sind veröffentlicht; den verifizierten Abschluss dokumentiert `PROJECT_CONTEXT.md`. Die zentrale Serverversionsangabe steht in `files/config.py` als `APP_VERSION`; die API-Protokollversion bleibt 1.
+**Lokaler Quellstand: Server/Web 9.0 und Android 9.0 / VersionCode 8 (02.11.2026), noch nicht veröffentlicht.** Zuletzt veröffentlicht: Web/Server und Android 0.8.1 / Android-VersionCode 6 (31.10.2026). Release Notes: [Server](release-notes/server-0.8.1.md), [Android](release-notes/android-v0.8.1.md). Server-Image und signierte GitHub-APK sind veröffentlicht; den verifizierten Abschluss dokumentiert `PROJECT_CONTEXT.md`. Die zentrale Serverversionsangabe steht in `files/config.py` als `APP_VERSION`; die API-Protokollversion bleibt 1.
 
+
+### Freunde und freigegebene Sammlungen (lokal, noch nicht veröffentlicht)
+
+Im Web über **Freunde** oder **Profil → Freunde und Anfragen**, in Android über **Profil → Freunde und Anfragen** erreichbar. Den genauen Benutzernamen eines Kontos auf demselben Server eingeben und eine Anfrage senden. Erst nach Annahme können beide die gesamte gespeicherte Sammlung des anderen ansehen und nach Titeln durchsuchen, einschließlich Besitzplattformen, persönlicher Bewertung, Status und weiterer Spieldaten. Bearbeiten oder Löschen fremder Spiele ist nicht erlaubt. Anfragen lassen sich ablehnen/zurückziehen; „Freundschaft beenden“ entzieht beiden den Zugriff für weitere Abrufe.
+
+Benötigt den neuen lokalen Server- **und** Clientstand; die veröffentlichten Artefakte 0.8.1 enthalten diese Funktion noch nicht. Beim Serverstart wird ausschließlich die neue Tabelle `friendship` samt Constraints und Indizes ergänzt. Bestehende Benutzer-/Spieletabellen werden nicht verändert; vorhandene Daten vor einem Update wie üblich sichern. Keine zusätzlichen Zugangsdaten oder IGDB-Abfragen erforderlich. Fremde Sammlungen sind online abrufbar und werden nicht im Offline-Sammlungsspeicher abgelegt. Bereits angezeigte Daten werden ohne erneuten Abruf nicht aus der Ferne entfernt. Technischer Vertrag und Prüfergebnisse: [docs/FRIENDS.md](docs/FRIENDS.md).
 
 ### Entdecken / Aktuell beliebt
 

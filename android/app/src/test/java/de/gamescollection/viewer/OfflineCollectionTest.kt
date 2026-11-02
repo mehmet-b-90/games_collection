@@ -7,6 +7,36 @@ class OfflineCollectionTest {
     private val game = Game(id = 12, version = 3, title = "Original", platforms = listOf("PC"))
     private val collection = OfflineCollection("https://server/|7", "User", listOf(game), listOf("PC"))
 
+    @Test fun statusChangePreservesOtherEditsAndSurvivesRestart() {
+        val edited = collection.enqueue(game.copy(title = "Lokaler Titel", rating = 0), false)
+        val changed = edited.changeStatus(game.id, "Gespielt")
+        val restored = OfflineCollection.decode(changed.encode())
+        assertEquals(listOf(game.copy(title = "Lokaler Titel", rating = 0, status = "Gespielt")), restored.visible())
+        assertEquals(1, restored.queue.size)
+        assertEquals(3, restored.queue.single().write.game.version)
+        assertEquals(changed.queue.single().write.key, restored.queue.single().write.key)
+        assertSame(restored, restored.changeStatus(game.id, "Gespielt"))
+    }
+
+    @Test fun statusChangeOfLocalCreationKeepsOneCreate() {
+        val created = collection.enqueue(Game(title = "Neu"), false)
+        val localId = created.visible().last().id
+        val changed = created.changeStatus(localId, "Abgebrochen")
+        assertEquals(localId, changed.queue.single().localId)
+        assertEquals(0, changed.queue.single().write.game.id)
+        assertEquals("Abgebrochen", changed.visible().last().status)
+        assertEquals(created.nextId, changed.nextId)
+    }
+
+    @Test fun statusChangeCannotReplaceAttemptedWrite() {
+        val queued = collection.enqueue(game.copy(status = "Gespielt"), false)
+        val attempted = queued.copy(queue = queued.queue.map { it.copy(attempted = true) })
+        assertThrows(IllegalStateException::class.java) { attempted.changeStatus(game.id, "Abgebrochen") }
+        assertEquals(queued.queue.single().write, attempted.queue.single().write)
+        assertThrows(IllegalArgumentException::class.java) { collection.changeStatus(game.id, "Ungültig") }
+        assertThrows(IllegalStateException::class.java) { collection.changeStatus(999, "Gespielt") }
+    }
+
     @Test fun offlineChangesSurviveSerializationWithStableKeysAndVersion() {
         val queued = collection.enqueue(game.copy(title = "Geändert"), false)
             .enqueue(Game(title = "Neu", platforms = listOf("PC")), false)

@@ -46,6 +46,7 @@
     <nav class="discovery-tabs" aria-label="Bereiche">
         <a href="#collectionTop" data-view="collection" aria-current="page">Sammlung</a>
         <a href="#discover" data-view="discover">Entdecken</a>
+        <a href="#friends" data-view="friends">Freunde</a>
     </nav>
     <div class="app-layout">
         <aside class="collapse filter-panel" id="filterPanel">
@@ -180,6 +181,28 @@
                 {% endfor %}
             </div>
         </main>
+        <main class="discovery-main" id="friends" hidden aria-labelledby="friendsTitle">
+            <header class="discovery-heading">
+                <div><span class="section-kicker">Gemeinsam sammeln</span><h1 id="friendsTitle">Freunde</h1>
+                <p>Nach Annahme einer Anfrage könnt ihr gegenseitig eure gesamte gespeicherte Sammlung ansehen.</p></div>
+                <button id="friendsRefresh" type="button" class="secondary-action">Aktualisieren</button>
+            </header>
+            <form id="friendRequestForm" class="friend-request-form">
+                <label for="friendUsername">Genauer Benutzername</label>
+                <input id="friendUsername" type="text" minlength="3" maxlength="150" required autocomplete="off">
+                <button type="submit" class="primary-action">Anfrage senden</button>
+            </form>
+            <p id="friendsStatus" role="status" aria-live="polite"></p>
+            <div id="friendsList" class="friends-list"></div>
+            <section id="friendLibrary" hidden aria-labelledby="friendLibraryTitle">
+                <header class="discovery-heading"><h2 id="friendLibraryTitle"></h2>
+                    <button id="friendLibraryClose" type="button" class="secondary-action">Sammlung schließen</button></header>
+                <label for="friendLibrarySearch">Sammlung durchsuchen</label>
+                <input id="friendLibrarySearch" type="search" placeholder="Titel suchen">
+                <p id="friendLibraryCount" role="status"></p>
+                <div id="friendLibraryGrid" class="discovery-grid"></div>
+            </section>
+        </main>
         <main class="discovery-main" id="discover" hidden aria-labelledby="discoverTitle">
             <header class="discovery-heading">
                 <div><span class="section-kicker">Entdecken</span><h1 id="discoverTitle">Aktuell beliebt</h1>
@@ -204,7 +227,13 @@
     <div class="modal fade" id="statsModal" tabindex="-1">
         <div class="modal-dialog modal-lg modal-dialog-centered"><div class="modal-content app-modal">
             <div class="modal-header"><div><span class="eyebrow">Überblick</span><h2 class="modal-title">Sammlungs-Statistiken</h2></div><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-            <div class="modal-body"><div class="stats-grid">
+            <div class="modal-body">
+                <div class="stats-summary" aria-label="Sammlung in Zahlen">
+                    <div class="summary-card"><span>Spiele</span><strong>{{ summary.games }}</strong></div>
+                    <div class="summary-card"><span>Ø Bewertung</span><strong>{{ summary.average_rating if summary.average_rating is not none else '–' }}</strong></div>
+                    <div class="summary-card"><span>Plattformen</span><strong>{{ summary.platforms }}</strong></div>
+                </div>
+                <div class="stats-grid">
                 <div class="chart-card"><h3>Plattformen</h3><canvas id="platformChart"></canvas></div>
                 <div class="chart-card"><h3>Format</h3><canvas id="formatChart"></canvas></div>
                 <div class="chart-card"><h3>Status</h3><canvas id="statusChart"></canvas></div>
@@ -263,6 +292,7 @@
         <div class="modal-dialog modal-dialog-centered"><div class="modal-content app-modal">
             <div class="modal-header"><div><span class="eyebrow">Persönlich</span><h2 class="modal-title">Mein Konto</h2></div><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
             <div class="modal-body account-settings">
+                <button id="openFriends" type="button" class="secondary-action" data-bs-dismiss="modal">Freunde und Anfragen</button>
                 <fieldset class="theme-picker">
                     <legend>Darstellung</legend>
                     <label class="theme-option"><input type="radio" name="uiTheme" value="cinematic" {% if current_user.ui_theme == 'cinematic' %}checked{% endif %}><span class="theme-swatch cinematic-swatch"></span><span><strong>Cinematic Dark</strong><small>Dunkel, fokussiert und atmosphärisch</small></span></label>

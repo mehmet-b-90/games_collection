@@ -6,6 +6,8 @@ import java.time.Instant
 import java.time.ZoneOffset
 import java.util.Locale
 
+val GAME_STATUSES = listOf("Nicht gespielt", "Gespielt", "Abgebrochen")
+
 data class Game(
     val id: Int = 0, val version: Int = 1, val title: String,
     val cover: String = "", val release: String = "", val developer: String = "",

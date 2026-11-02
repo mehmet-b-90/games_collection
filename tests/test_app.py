@@ -59,6 +59,123 @@ class GamesCollectionTestCase(unittest.TestCase):
             'cover_url': 'https://images.igdb.com/igdb/image/upload/test.jpg',
         })
 
+    def friend_accounts(self):
+        clients = []
+        for name in ('Alice', 'Böb', 'Charlie'):
+            client = app.test_client()
+            self.assertEqual(client.post('/register', data={
+                'username': name, 'password': 'password1', 'password_confirm': 'password1',
+            }).status_code, 302)
+            clients.append(client)
+        return clients
+
+    def test_friendship_requires_mutual_consent_and_revokes_access(self):
+        alice, bob, charlie = self.friend_accounts()
+        bob.post('/api/games', json={'title': 'Private Bibliothek', 'rating': 0,
+            'owned_platform': 'Steam', 'format': 'Digital', 'status': 'Gespielt'}).json
+        self.assertEqual(alice.get('/api/friends/2/games').status_code, 403)
+        self.assertEqual(alice.post('/api/friends', json={'username': ' BÖB '}).status_code, 201)
+        self.assertEqual(alice.get('/api/friends/2/games').status_code, 403)
+        self.assertEqual(bob.get('/api/friends/1/games').status_code, 403)
+        self.assertFalse(alice.get('/api/friends').json['friends'][0]['incoming'])
+        incoming = bob.get('/api/friends').json['friends'][0]
+        self.assertEqual(incoming, {'id': 1, 'username': 'Alice', 'status': 'pending', 'incoming': True})
+        self.assertEqual(alice.put('/api/friends/2', json={}).status_code, 403)
+        self.assertEqual(charlie.put('/api/friends/1', json={}).status_code, 404)
+        self.assertEqual(bob.put('/api/friends/1', json={}).status_code, 200)
+        shared = alice.get('/api/friends/2/games')
+        self.assertEqual(shared.status_code, 200)
+        self.assertEqual(shared.headers['Cache-Control'], 'no-store')
+        self.assertEqual(shared.json['user'], {'id': 2, 'username': 'Böb'})
+        self.assertEqual(shared.json['games'][0]['title'], 'Private Bibliothek')
+        self.assertEqual(shared.json['games'][0]['owned_platform'], 'Steam')
+        self.assertEqual(shared.json['games'][0]['rating'], 0)
+        self.assertEqual(bob.get('/api/friends/1/games').json['games'], [])
+        self.assertEqual(alice.get('/api/games').json['games'], [])
+        self.assertEqual(charlie.get('/api/friends/2/games').status_code, 403)
+        game_id = shared.json['games'][0]['id']
+        self.assertEqual(alice.put(f'/api/games/{game_id}', json={'title': 'Hacked', 'version': 1}).status_code, 403)
+        self.assertEqual(alice.delete(f'/api/games/{game_id}').status_code, 403)
+        self.assertEqual(alice.delete('/api/friends/2', json={}).status_code, 200)
+        self.assertEqual(alice.get('/api/friends/2/games').status_code, 403)
+        self.assertEqual(bob.get('/api/friends/1/games').status_code, 403)
+        self.assertEqual(bob.get('/api/games').json['games'][0]['title'], 'Private Bibliothek')
+
+    def test_friendship_decline_cancel_and_duplicates(self):
+        alice, bob, _ = self.friend_accounts()
+        self.assertEqual(alice.post('/api/friends', json={'username': 'Böb'}).status_code, 201)
+        self.assertEqual(alice.post('/api/friends', json={'username': 'Böb'}).status_code, 409)
+        self.assertEqual(bob.post('/api/friends', json={'username': 'Alice'}).status_code, 409)
+        self.assertEqual(bob.delete('/api/friends/1', json={}).status_code, 200)
+        self.assertEqual(alice.get('/api/friends').json['friends'], [])
+        self.assertEqual(bob.put('/api/friends/1', json={}).status_code, 404)
+        self.assertEqual(alice.post('/api/friends', json={'username': 'Böb'}).status_code, 201)
+        self.assertEqual(alice.delete('/api/friends/2', json={}).status_code, 200)
+        self.assertEqual(bob.post('/api/friends', json={'username': 'Alice'}).status_code, 201)
+        self.assertEqual(alice.put('/api/friends/2', json={}).status_code, 200)
+        self.assertEqual(alice.put('/api/friends/2', json={}).status_code, 200)
+        self.assertEqual(bob.get('/api/friends/1/games').status_code, 200)
+        self.assertEqual(alice.post('/api/friends', json={'username': 'Böb'}).status_code, 409)
+
+    def test_concurrent_friendship_requests_keep_one_pending_pair(self):
+        from files.models import Friendship
+        alice, bob, _ = self.friend_accounts()
+        barrier = Barrier(2)
+
+        def invite(args):
+            client, username = args
+            barrier.wait(timeout=10)
+            return client.post('/api/friends', json={'username': username}).status_code
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            statuses = list(pool.map(invite, [(alice, 'Böb'), (bob, 'Alice')]))
+        self.assertEqual(sorted(statuses), [201, 409])
+        with app.app_context():
+            self.assertEqual(Friendship.query.count(), 1)
+            self.assertEqual(Friendship.query.one().status, 'pending')
+        self.assertEqual(alice.get('/api/friends/2/games').status_code, 403)
+        self.assertEqual(bob.get('/api/friends/1/games').status_code, 403)
+
+    def test_friendship_validation_authentication_and_csrf(self):
+        for method, path, body in [('get', '/api/friends', None), ('post', '/api/friends', {}),
+                ('put', '/api/friends/1', {}), ('delete', '/api/friends/1', {}),
+                ('get', '/api/friends/1/games', None)]:
+            self.assertEqual(getattr(self.client, method)(path, json=body).status_code, 401)
+        alice, bob, _ = self.friend_accounts()
+        for payload in ({}, {'username': []}, {'username': True}, {'username': 'x'},
+                {'username': 'x' * 151}, {'username': 'Böb', 'status': 'accepted'}):
+            self.assertEqual(alice.post('/api/friends', json=payload).status_code, 400)
+        self.assertEqual(alice.post('/api/friends', json={'username': 'Alice'}).status_code, 400)
+        self.assertEqual(alice.post('/api/friends', json={'username': 'Nobody'}).status_code, 404)
+        self.assertEqual(alice.get('/api/friends?username=Böb').status_code, 400)
+        self.assertEqual(alice.get(f'/api/friends/{2**100}/games').status_code, 403)
+        self.assertEqual(alice.delete(f'/api/friends/{2**100}', json={}).status_code, 404)
+        app.config['WTF_CSRF_ENABLED'] = True
+        self.assertEqual(alice.post('/api/friends', json={'username': 'Böb'}).status_code, 400)
+        csrf = alice.get('/api/session').json['csrf_token']
+        self.assertEqual(alice.post('/api/friends', json={'username': 'Böb'}, headers={'X-CSRFToken': csrf}).status_code, 201)
+        self.assertEqual(bob.put('/api/friends/1', json={}).status_code, 400)
+        self.assertEqual(alice.delete('/api/friends/2', json={}).status_code, 400)
+        self.assertEqual(alice.put('/api/friends/2', json={'status': 'accepted'}, headers={'X-CSRFToken': csrf}).status_code, 400)
+        self.assertEqual(alice.get('/api/friends').json['friends'][0]['status'], 'pending')
+
+    def test_friendship_schema_is_additive_and_account_delete_cascades(self):
+        from files.models import Friendship
+        alice, bob, _ = self.friend_accounts()
+        with app.app_context():
+            # Simulate an existing server database before the additive new table.
+            Friendship.__table__.drop(db.engine)
+            db.create_all()
+            self.assertEqual(User.query.count(), 3)
+        self.assertEqual(alice.post('/api/friends', json={'username': 'Böb'}).status_code, 201)
+        self.assertEqual(bob.put('/api/friends/1', json={}).status_code, 200)
+        self.assertEqual(bob.delete('/api/account', json={'current_password': 'password1'}).status_code, 200)
+        self.assertEqual(alice.get('/api/friends').json['friends'], [])
+        self.assertEqual(alice.get('/api/friends/2/games').status_code, 403)
+        with app.app_context():
+            self.assertEqual(Friendship.query.count(), 0)
+            self.assertEqual(User.query.count(), 2)
+
     def test_discovery_requires_login_and_never_changes_collection(self):
         self.assertEqual(self.client.get('/api/discover').status_code, 401)
         self.register()

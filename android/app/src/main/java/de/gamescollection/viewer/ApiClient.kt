@@ -78,6 +78,12 @@ class ApiClient private constructor(val server: String, persistence: CookiePersi
     }
     suspend fun igdbCredentials(): JSONObject = JSONObject(request("POST", "/api/igdb-token", JSONObject()))
     suspend fun discover(): DiscoveryFeed = DiscoveryFeed.fromJson(JSONObject(request("GET", "/api/discover")))
+    suspend fun friends(): List<Friend> = JSONObject(request("GET", "/api/friends"))
+        .getJSONArray("friends").objects().map(Friend::fromJson)
+    suspend fun inviteFriend(username: String) { request("POST", "/api/friends", JSONObject().put("username", username)) }
+    suspend fun acceptFriend(id: Int) { request("PUT", "/api/friends/$id", JSONObject()) }
+    suspend fun removeFriend(id: Int) { request("DELETE", "/api/friends/$id", JSONObject()) }
+    suspend fun friendLibrary(id: Int): FriendLibrary = FriendLibrary.fromJson(JSONObject(request("GET", "/api/friends/$id/games")))
     suspend fun collection(): JSONObject = JSONObject(request("GET", "/api/games"))
     suspend fun save(game: Game, operationKey: String) {
         requireIdempotency()

@@ -19,6 +19,7 @@ Gilt für das gesamte Repository. Stand: 20.10.2026. Technische Bestandsaufnahme
 
 - Selbst gehosteter Docker-Server mit persistentem SQLite-Verzeichnis; Gunicorn statt Flask-Entwicklungsserver im Container.
 - Server-Image: `ghcr.io/mehmet-b-90/games_collection:latest` für AMD64/ARM64. Compose lädt das fest eingetragene Image; `GAMES_COLLECTION_IMAGE` wird aktuell nicht ausgewertet. Für lokale Builds `docker build -t games-collection:local .` verwenden, den `image:`-Eintrag bzw. eine Compose-Override-Datei auf dieses Image setzen und mit `docker compose up -d --pull never` starten. Workflow `.github/workflows/docker-publish.yml` prüft Backend und Containerstart vor Veröffentlichung. Neue Server-Versionstags verwenden `server-v*` (bisherige `docker-v*` bleiben historisch erhalten), Android-Tags bleiben davon getrennt. Keine feste Docker-Version erfinden.
+- Server/Web: lokaler Quellstand **9.0** seit Versionsauftrag vom 02.11.2026, noch nicht veröffentlicht.
 - Server/Web 0.8.1 am 31.10.2026 veröffentlicht: Tag `server-v0.8.1`, Image `:0.8.1` und `:latest` für AMD64/ARM64, CI erfolgreich. Verifizierter Digest und Release-Commit stehen in `PROJECT_CONTEXT.md`. Eine Veröffentlichung ersetzt keinen laufenden Produktivcontainer.
 - Historisches Server-Release 0.8: Release-Tag `docker-v0.8`, Image `:0.8`, beauftragt auf `feature/popscore`. Tag-Push startet die Veröffentlichung auch vom Feature-Branch; `latest` bleibt an `main` gebunden. Workflow-Erfolg vor Nutzung bestätigen. Eine neue `release-notes/server-<Version>.md` im Release-Commit auf `main` fordert nach erfolgreicher Image-Veröffentlichung Tag und GitHub Release an; für normale Änderungen keine neue Release-Notes-Datei anlegen. Vorhandene Versionstags nicht verschieben.
 - Datenbank heißt `database.db`, nicht mehr `games.db`. Containerstandard: `/app/data/database.db`, Compose-Bind-Mount `./data:/app/data`.
@@ -27,12 +28,19 @@ Gilt für das gesamte Repository. Stand: 20.10.2026. Technische Bestandsaufnahme
 - Beide Designs erhalten; Webdesign ist kontobezogen gespeichert, Androiddesign und Android-Covergröße gelten lokal auf dem Gerät.
 - Altersfreigabe: **USK bevorzugen, sonst PEGI**, andere Systeme nicht als Ersatz speichern.
 - IGDB-Suche über Titel, optionales Release-Jahr und Titeltyp erhalten. Titeltypfilter in Android und Web unter dem Release-Jahr; Standard „Alle Typen“. IGDB-Feld `game_type` verwenden, nicht das veraltete `category`; Typ mit Jahr bzw. IGDB-ID vor dem Trefferlimit kombinieren. Besitzplattformen und IGDB-verfügbare Plattformen sind unterschiedliche Informationen.
-- Android: Aktueller Quellstand und veröffentlichte GitHub-APK `versionName '0.8.1'`, `versionCode 6` (Tag `android-v0.8.1`); Play-Test weiterhin 0.7 / Code 4; nicht als 2.0.0 bezeichnen. Versions-/Tagänderungen mit dem konkreten Auftrag abstimmen; bei neuen installierbaren Releases den Android-VersionCode beachten.
+- Android: Aktueller lokaler Quellstand `versionName '9.0'`, `versionCode 8` (expliziter Versionsauftrag vom 02.11.2026) (noch nicht veröffentlicht). Veröffentlichte GitHub-APK weiterhin 0.8.1 / Code 6 (Tag `android-v0.8.1`); Play-Test weiterhin 0.7 / Code 4; nicht als 2.0.0 bezeichnen. Versions-/Tagänderungen mit dem konkreten Auftrag abstimmen; bei neuen installierbaren Releases den Android-VersionCode beachten.
 - Google Play: kostenlos, Deutsch, Typ App; persönliches verifiziertes Entwicklerkonto. Interner Test 0.7 / Code 4 seit 20.10.2026 aktiv, drei Konten in ausgewählter Testerliste; Testdownload inzwischen vom Betreiber bestätigt, Geräte-/Funktionsprüfung und öffentlicher Produktionszugang noch offen. Code 4 ist in Play bereits verwendet, neue Bundles brauchen einen höheren Code. Interner Test ersetzt nicht den geschlossenen Test mit zwölf Testern und 14 Tagen fortlaufender Teilnahme.
 - Play App Signing verwendet auf ausdrücklichen Wunsch einen Google-Schlüssel. Der bestehende lokale Release-Schlüssel bleibt für AAB-Uploadsignierung und direkte APKs erhalten. Unterschiedliche Signaturen von Play- und bisherigen Release-APKs sind akzeptiert; keinen privaten Schlüsselimport/PEPK-Workflow wieder aufnehmen. Vor Wechsel Offline-Änderungen sichern/synchronisieren, niemals ungefragt deinstallieren. Google-Signierung, lokaler Uploadschlüssel und GitHub-APK getrennt behandeln.
 
 ## UI-Konventionen aus bisherigen Aufträgen
 
+- Android-Status seit Auftrag vom 02.11.2026: Statuslabel über dem Cover der eigenen Sammlung als kompakter Button (sichtbare Mindesthöhe 32 dp seit Screenshotkorrektur vom selben Tag) mit Auswahl „Nicht gespielt“, „Gespielt“, „Abgebrochen“; direkt speichern über bestehende Offline-Warteschlange/Synchronisierung. Cover öffnet weiterhin Details, fremde Sammlungen bleiben schreibgeschützt.
+
+- Web-Statistik seit Folgeauftrag vom 02.11.2026: direkt unter dem Dialogkopf und vor den Diagrammen drei kompakte Kennzahlenkarten „Spiele“, „Ø Bewertung“, „Plattformen“ analog zu Android; in beiden Designs auch mobil nebeneinander. Werte beziehen sich auf die gesamte eigene Sammlung, nicht auf aktive Filter; fehlende persönliche Bewertungen als „–“.
+
+- Mobile Web-Sammlung seit Auftrag vom 02.11.2026 analog zu Android kompakt halten: großer Sammlungskopf inklusive Spielanzahl, Kennzahlenkarten und Schnellfilter ausgeblendet; direkt mit „Alle Spiele“/Sortierung beginnen. Kennzahlen mobil ausschließlich unter Statistik, Filter über die vorhandene Filteransicht. Gilt für beide Designs unterhalb des Desktop-Breakpoints 992 px.
+
+- Android-Hinzufügen seit Auftrag vom 01.11.2026: Zurück aus dem Editor eines Suchtreffers führt wieder zu „Spiel hinzufügen“, inklusive bisheriger Suche und Treffer. Erst erfolgreiches Speichern beendet den gesamten Hinzufügen-Ablauf; die Suche selbst bleibt ausdrücklich abbrechbar.
 - Auftrag vom 24.10.2026: „Aktuell beliebt“ ausschließlich unter **Entdecken**, sowohl Web als auch Android; keine beliebten Titel in der Sammlung. „+ Hinzufügen“ öffnet den vorhandenen vorausgefüllten Editor. IGDB-Bewertung und verfügbare Plattformen nicht als persönliche Bewertung oder Besitz übernehmen.
 
 - Suche als ein zusammenhängendes Feld mit integriertem Symbol; keine doppelte Umrandung.
@@ -45,6 +53,8 @@ Gilt für das gesamte Repository. Stand: 20.10.2026. Technische Bestandsaufnahme
 - Statistikbeschriftungen lesbar halten; Prozentwerte in Klammern, auch innerhalb ausreichend großer Tortenstücke.
 
 ## Code und Datenkonsistenz
+
+- Freundschaften seit Auftrag vom 01.11.2026: Anfrage über genauen Benutzernamen, gegenseitiger Lesezugriff auf die gesamte gespeicherte Sammlung erst nach Annahme durch den Empfänger. Offene Anfragen geben nichts frei; Entfernen entzieht beiden den Zugriff für weitere Abrufe. Kein Schreibzugriff auf fremde Spiele und kein öffentliches Benutzerverzeichnis. Fremde Sammlungen nicht in Android-Offline-Sammlung/Warteschlange übernehmen; beim Schließen/Konto-/Serverwechsel verwerfen. Neue Tabelle `friendship` ist eine additive Schemaergänzung, kein Umbau bestehender Tabellen.
 
 - Vorhandene Modularisierung weiterführen: Python-Blueprints und zentrale Validierung; ES-Module im Web; Compose-Bausteine, ViewModel, API-Client und SessionStore in Android. Neue gemeinsame Logik nicht mehrfach kopieren.
 - Bestehenden Stil beibehalten: Python mit vier Leerzeichen und `snake_case`; JavaScript-ES-Module; Kotlin/Java mit den bestehenden Namens- und Einrückungskonventionen. Es ist kein repositoryweiter Formatter-/Linter-Standard festgelegt.

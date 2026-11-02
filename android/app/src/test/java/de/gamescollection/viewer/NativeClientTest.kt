@@ -84,5 +84,38 @@ class NativeClientTest {
         }
     }
 
+    @Test fun friendshipTransportPreservesConsentCsrfAndReadOnlyLibrary() = runBlocking {
+        MockWebServer().use { server ->
+            server.enqueue(json("""{"api_version":1,"csrf_token":"social-token","authenticated":true}"""))
+            val api = ApiClient.create(server.url("/").toString(), MemoryCookies())
+            api.session()
+            server.takeRequest()
+            server.enqueue(json("""{"friends":[{"id":7,"username":"Friend","status":"pending","incoming":true}]}"""))
+            assertTrue(api.friends().single().incoming)
+            assertEquals("/api/friends", server.takeRequest().path)
+            server.enqueue(json("""{"status":"accepted"}"""))
+            api.acceptFriend(7)
+            val accepted = server.takeRequest()
+            assertEquals("PUT", accepted.method)
+            assertEquals("/api/friends/7", accepted.path)
+            assertEquals("social-token", accepted.getHeader("X-CSRFToken"))
+            assertEquals(0, JSONObject(accepted.body.readUtf8()).length())
+            server.enqueue(json("""{"user":{"id":7,"username":"Friend"},"games":[{
+                "id":42,"version":3,"title":"Shared game","rating":0,"owned_platform":"Steam",
+                "status":"Gespielt","format":"Digital"}]}"""))
+            val library = api.friendLibrary(7)
+            assertEquals("Friend", library.username)
+            assertEquals(0, library.games.single().rating)
+            assertEquals(listOf("Steam"), library.games.single().platforms)
+            val read = server.takeRequest()
+            assertEquals("GET", read.method)
+            assertEquals("/api/friends/7/games", read.path)
+            server.enqueue(json("""{"error":"Diese Sammlung ist nicht freigegeben."}""").setResponseCode(403))
+            val revoked = assertThrows(ApiException::class.java) { runBlocking { api.friendLibrary(7) } }
+            assertEquals(403, revoked.status)
+            assertEquals(5, server.requestCount)
+        }
+    }
+
     private fun json(body: String) = MockResponse().setHeader("Content-Type", "application/json").setBody(body)
 }

@@ -198,6 +198,8 @@ html[data-ui-theme="editorial"] .platform-icon { width: 22px; height: 22px; padd
 .btn-close { filter: none; }
 html[data-ui-theme="cinematic"] .btn-close { filter: invert(1) grayscale(100%); }
 .stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+.stats-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-bottom: 18px; }
+.stats-summary .summary-card { min-width: 0; overflow-wrap: anywhere; }
 .chart-card { min-width: 0; padding: 18px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); }
 .chart-card h3 { margin: 0 0 12px; font-size: .9rem; }
 .game-editor-head { display: grid; grid-template-columns: minmax(0, 1fr) 145px; gap: 22px; }
@@ -273,9 +275,8 @@ body.vh-100 .form-check-label { cursor: pointer; }
     .filter-heading, html[data-ui-theme="editorial"] .filter-heading { display: flex; }
     .filter-fields, html[data-ui-theme="editorial"] .filter-fields { grid-template-columns: repeat(2, 1fr); padding: 0; border: 0; background: transparent; }
     .collection-main { padding: 28px 16px 50px; }
-    .collection-header { align-items: start; }.collection-header h1 { font-size: 2.1rem; }
-    .summary-grid { grid-template-columns: repeat(3, 1fr); width: 100%; }
-    .summary-card { min-width: 0; padding: 11px; }.summary-card strong { font-size: 1.1rem; }
+    /* Keep the mobile collection focused on games, like the native Android app. */
+    .collection-header, .quick-filters { display: none; }
     .collection-toolbar { align-items: start; }.size-control { display: none !important; }
     .grid-container { --cover-size: 150px !important; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
     .account-logout-action { width: 100%; }
@@ -287,14 +288,16 @@ body.vh-100 .form-check-label { cursor: pointer; }
 }
 
 @media (max-width: 680px) {
-    .collection-header { display: block; }.summary-grid { margin-top: 20px; }
-    .quick-filters { margin-bottom: 22px; }
     .collection-toolbar h2 { font-size: 1.25rem; }.sort-control > span { display: none; }.sort-control select { min-width: 155px; }
     .grid-container { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 13px; }
     .game-card { border-radius: 12px; }.cinematic-overlay { padding: 13px 10px; }.cinematic-overlay h3 { font-size: .8rem; }
     .status-badge { font-size: .58rem; }.platform-icon-badge { width: 23px; height: 23px; }.platform-icon { width: 21px; height: 21px; }
     html[data-ui-theme="editorial"] .game-card-body { padding: 9px 3px; }
     .stats-grid { grid-template-columns: 1fr; }
+    .stats-summary { gap: 8px; }
+    .stats-summary .summary-card { padding: 12px 8px; }
+    .stats-summary .summary-card span { font-size: .68rem; }
+    .stats-summary .summary-card strong { font-size: 1.2rem; }
     .game-editor-head { grid-template-columns: 1fr 92px; gap: 12px; }
     .igdb-search-fields { grid-template-columns: 1fr; }
     .metadata-panel { grid-template-columns: 1fr; max-height: 215px; overflow-y: auto; }
@@ -354,3 +357,16 @@ html[data-ui-theme="editorial"] .discovery-heading h1 { font-family: Georgia, se
     .discovery-tabs { position: sticky; top: 72px; z-index: 1010; }
     .discovery-main { scroll-margin-top: 124px; }
 }
+
+/* Mutual collection sharing uses the active design's colors and spacing. */
+.friend-request-form { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 24px 0; }
+.friend-request-form input { flex: 1 1 200px; min-width: 0; }
+.friends-list { display: grid; gap: 24px; margin: 24px 0; }
+.friends-list h2 { font-size: 1.2rem; }
+.friend-row { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+.friend-row strong { flex: 1 1 160px; overflow-wrap: anywhere; }
+#friendLibrary { margin-top: 32px; }
+#friendLibrarySearch { width: 100%; margin: 12px 0; }
+#friendLibraryGrid h3 { font-size: 1rem; margin: 12px 0; overflow-wrap: anywhere; }
+#friendLibraryGrid p { font-size: .85rem; overflow-wrap: anywhere; }
+#friendLibraryGrid details p { margin-top: 8px; }

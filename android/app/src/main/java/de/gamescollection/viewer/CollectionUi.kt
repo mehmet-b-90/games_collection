@@ -97,6 +97,7 @@ private val EditorialColors = lightColorScheme(
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             var serverDialog by rememberSaveable { mutableStateOf(false) }
             var queueOpen by rememberSaveable { mutableStateOf(false) }
+            var friendsOpen by rememberSaveable(state.server, state.username) { mutableStateOf(false) }
             var settingsOpen by rememberSaveable(state.server, state.username) { mutableStateOf(false) }
             // Never retain a previous account's detail view or drafts across a login/server change.
             var tab by rememberSaveable(state.server, state.username) { mutableIntStateOf(0) }
@@ -105,6 +106,10 @@ private val EditorialColors = lightColorScheme(
             val pageState = rememberSaveableStateHolder()
             LaunchedEffect(tab, state.busy, state.server, state.username) {
                 if (tab == 3 && state.username != null && !state.busy) model.loadDiscovery()
+            }
+            LaunchedEffect(friendsOpen, state.server, state.username, state.busy) {
+                if (friendsOpen && state.username != null && !state.busy && !model.friends.loaded
+                    && !model.friends.loading && model.friends.error == null) model.loadFriends()
             }
             val filter = model.filter
             val sort = model.sort
@@ -161,10 +166,11 @@ private val EditorialColors = lightColorScheme(
                         Box(Modifier.weight(1f)) {
                         pageState.SaveableStateProvider("${state.server}|${state.username}|$tab") {
                         when (tab) {
-                            0 -> LibraryScreen(state, model.visibleGames, sort, model::changeSort) { model.showGame(it) }
+                            0 -> LibraryScreen(state, model.visibleGames, sort, model::changeSort,
+                                model::changeStatus) { model.showGame(it) }
                             3 -> DiscoveryScreen(model.discovery, state, { model.loadDiscovery(force = true) }, model::addDiscovered)
                             1 -> StatisticsScreen(state.summary)
-                            else -> ProfileScreen(state, { settingsOpen = true }, model::logout)
+                            else -> ProfileScreen(state, { settingsOpen = true }, { friendsOpen = true }, model::logout)
                         }
                         }
                         if (state.busy) LinearProgressIndicator(Modifier.fillMaxWidth().align(Alignment.TopCenter))
@@ -173,6 +179,13 @@ private val EditorialColors = lightColorScheme(
                 }
             }
 
+            if (friendsOpen && state.username != null) FullScreenDialog("Freunde", true, {
+                if (model.friends.library != null) model.loadFriends()
+                else { friendsOpen = false; model.closeFriends() }
+            }) {
+                FriendsScreen(model.friends, model::loadFriends, model::inviteFriend, model::acceptFriend,
+                    model::removeFriend, model::showFriendLibrary, model::loadFriends)
+            }
             if (queueOpen && state.username != null) QueueDialog(state, model::discardQueued, { queueOpen = false })
             if (settingsOpen && state.username != null) SettingsDialog(state, model::setTheme, model::setPostersPerRow,
                 { serverDialog = true }, { settingsOpen = false })
@@ -192,7 +205,7 @@ private val EditorialColors = lightColorScheme(
                 close = { searchOpen = false }
             )
             if (adding && state.username != null) SearchDialog(state, model.searchResults, model::search,
-                model::dismissEditor, { model.showGame(it, editing = true) })
+                model::dismissEditor, model::selectSearchResult)
             selected?.takeIf { state.username != null }?.let { game ->
                 GameDialog(game, state, edit, model.editor.pending != null, model::startEditing,
                     model::dismissEditor, model::changeDraft, model::save, { model.delete(game) }, model::retryWrite)
@@ -325,7 +338,7 @@ private val EditorialColors = lightColorScheme(
 }
 
 @Composable private fun LibraryScreen(state: ViewerState, visible: List<Game>,
-    sort: GameSort, changeSort: (GameSort) -> Unit, select: (Game) -> Unit) {
+    sort: GameSort, changeSort: (GameSort) -> Unit, changeStatus: (Int, String) -> Unit, select: (Game) -> Unit) {
     Column(Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
         Text("DEINE BIBLIOTHEK", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelSmall, letterSpacing = 2.sp)
         Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -339,7 +352,7 @@ private val EditorialColors = lightColorScheme(
                 else "Keine Spiele für diese Filter gefunden.", color = MaterialTheme.colorScheme.onSurfaceVariant)
         } else LazyVerticalGrid(columns = GridCells.Fixed(state.postersPerRow), horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp), contentPadding = PaddingValues(bottom = 90.dp)) {
-            items(visible, key = { it.id }) { game -> GameCard(game, select) }
+            items(visible, key = { it.id }) { game -> GameCard(game, select, !state.busy, changeStatus) }
         }
     }
 }
@@ -353,15 +366,38 @@ private val EditorialColors = lightColorScheme(
     }
 }
 
-@Composable private fun GameCard(game: Game, select: (Game) -> Unit) {
+@Composable private fun GameCard(game: Game, select: (Game) -> Unit, statusEnabled: Boolean,
+    changeStatus: (Int, String) -> Unit) {
     // Round only the cover. Clipping the entire card also clips the lower text corners.
     Column(Modifier.clickable { select(game) }) {
         Box(Modifier.fillMaxWidth().aspectRatio(0.72f).clip(RoundedCornerShape(16.dp)).background(MaterialTheme.colorScheme.surfaceVariant)) {
             if (game.cover.isNotEmpty()) AsyncImage(game.cover, "Cover von ${game.title}", Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
             else Icon(NativeIcons.Gamepad, null, Modifier.size(48.dp).align(Alignment.Center))
             Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = .75f)), startY = 140f)))
-            Surface(modifier = Modifier.padding(8.dp).align(Alignment.TopStart), shape = RoundedCornerShape(12.dp), color = Color.Black.copy(alpha = .72f)) {
-                Text(game.status, color = Color.White, fontSize = 10.sp, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp))
+            Box(Modifier.padding(8.dp).align(Alignment.TopStart)) {
+                var expanded by remember { mutableStateOf(false) }
+                CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
+                    Surface(onClick = { expanded = true }, enabled = statusEnabled,
+                        modifier = Modifier.heightIn(min = 32.dp).semantics {
+                            contentDescription = "Status von ${game.title} ändern: ${game.status}"
+                        }, shape = RoundedCornerShape(12.dp), color = Color.Black.copy(alpha = .72f), contentColor = Color.White) {
+                        Row(Modifier.padding(horizontal = 8.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Text(game.status, fontSize = 10.sp, maxLines = 2, overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f, fill = false))
+                            Icon(Icons.Default.ArrowDropDown, null, Modifier.size(16.dp))
+                        }
+                    }
+                }
+                DropdownMenu(expanded = expanded && statusEnabled, onDismissRequest = { expanded = false }) {
+                    GAME_STATUSES.forEach { status ->
+                        DropdownMenuItem(text = { Text(status) },
+                            trailingIcon = { if (status == game.status) Icon(Icons.Default.Check, "Aktueller Status") },
+                            onClick = {
+                                expanded = false
+                                if (status != game.status) changeStatus(game.id, status)
+                            })
+                    }
+                }
             }
             if (game.rating != null) Text("★ ${game.rating}", color = Color.White, modifier = Modifier.align(Alignment.BottomEnd).padding(10.dp), fontSize = 13.sp)
         }
@@ -401,7 +437,7 @@ private val EditorialColors = lightColorScheme(
         verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text("Deine Sammlung filtern", style = MaterialTheme.typography.headlineSmall)
         ChoiceField("Plattform", filter.platform, listOf("") + state.platforms) { change(filter.copy(platform = it)) }
-        ChoiceField("Status", filter.status, listOf("", "Nicht gespielt", "Gespielt", "Abgebrochen")) { change(filter.copy(status = it)) }
+        ChoiceField("Status", filter.status, listOf("") + GAME_STATUSES) { change(filter.copy(status = it)) }
         ChoiceField("Format", filter.format, listOf("", "Digital", "Physisch")) { change(filter.copy(format = it)) }
         ChoiceField("Engine", filter.engine, listOf("") + state.summary.engines) { change(filter.copy(engine = it)) }
         ChoiceField("Altersfreigabe", filter.ageRating, listOf("") + state.summary.ageRatings) { change(filter.copy(ageRating = it)) }
@@ -447,7 +483,7 @@ private val EditorialColors = lightColorScheme(
     }
 }
 
-@Composable private fun ProfileScreen(state: ViewerState, settings: () -> Unit, logout: () -> Unit) {
+@Composable private fun ProfileScreen(state: ViewerState, settings: () -> Unit, friends: () -> Unit, logout: () -> Unit) {
     val context = LocalContext.current
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
         Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primaryContainer, modifier = Modifier.size(64.dp)) {
@@ -459,6 +495,8 @@ private val EditorialColors = lightColorScheme(
         Text("Server", style = MaterialTheme.typography.titleMedium)
         Text(state.server, color = MaterialTheme.colorScheme.onSurfaceVariant)
         OutlinedCard(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
+            ProfileAction("Freunde und Anfragen", Icons.Default.Person, !state.busy, onClick = friends)
+            HorizontalDivider(Modifier.padding(start = 52.dp, end = 16.dp))
             ProfileAction("Einstellungen", Icons.Default.Settings, true, onClick = settings)
             HorizontalDivider(Modifier.padding(start = 52.dp, end = 16.dp))
             ProfileAction("Konto im Browser verwalten", Icons.Default.AccountCircle, !state.busy,
@@ -601,7 +639,7 @@ private val EditorialColors = lightColorScheme(
                 item { FormTextField(draft.release, { changeDraft(draft.copy(release = it.filter(Char::isDigit).take(4))) }, label = "Release-Jahr",
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), enabled = editable, modifier = Modifier.fillMaxWidth()) }
                 item { ChoiceField("Format", draft.format, listOf("Digital", "Physisch"), enabled = editable) { changeDraft(draft.copy(format = it)) } }
-                item { ChoiceField("Status", draft.status, listOf("Nicht gespielt", "Gespielt", "Abgebrochen"), enabled = editable) { changeDraft(draft.copy(status = it)) } }
+                item { ChoiceField("Status", draft.status, GAME_STATUSES, enabled = editable) { changeDraft(draft.copy(status = it)) } }
                 item { ChoiceField("Bewertung", draft.rating?.toString() ?: "Nicht bewertet", listOf("Nicht bewertet") + (0..10).map { it.toString() }, enabled = editable) { changeDraft(draft.copy(rating = it.toIntOrNull())) } }
                 item { OutlinedButton(onClick = { platformDialog = true }, enabled = editable, modifier = Modifier.fillMaxWidth()) {
                     Text(if (draft.platforms.isEmpty()) "Besitzplattformen wählen (Pflichtfeld)" else "Besitz: ${draft.platforms.joinToString(", ")}")

@@ -1,5 +1,32 @@
 # Serverprüfung vom 19.10.2026
 
+## Kennzahlen im Web-Statistikdialog – 02.11.2026
+
+- Folgeauftrag umgesetzt: drei kompakte Karten „Spiele“, „Ø Bewertung“, „Plattformen“ direkt unter dem Statistikdialogkopf und oberhalb der Diagramme, entsprechend der Pfeilmarkierung und Android-Vorlage. In beiden Designs mobil nebeneinander, ebenfalls im Desktopdialog vorhanden. Die mobile Sammlung bleibt ohne Kennzahlen.
+- Vorhandene serverseitige `summary` wiederverwendet: gesamte eigene Sammlung unabhängig von Filtern, Durchschnitt ausschließlich persönlicher vorhandener Bewertungen (0 zählt mit), eindeutige Besitzplattformen. Ohne Bewertungen „–“. Bestehende Neuladung nach Speichern/Löschen aktualisiert auch diese Werte; keine neue Datenberechnung oder API. Separate `.stats-summary` verhindert die bisherige Editorial-Ausblendung von `.summary-grid`; gemeinsame Kartenstile weiterverwendet. PWA-Cache v6.
+- Verifiziert: isolierte Browservorschau mit aktuellem CSS/Statistik-Templateausschnitt und künstlichen Werten 3 / – / 1; Diagramm durch statischen Platzhalter ersetzt. Beide Designs bei 360 px sowie Cinematic bei 390 px visuell geprüft; DOM bestätigt Karten vor Diagrammen auch bei 320/768/1024 px. Cinematic bei 320 px: drei Karten auf derselben Zeile, kein Kartenüberlauf; Editorial-Kennzahlen sichtbar. `git diff --check` ohne Befunde. Kein vollständiger Flask-/Chart.js-End-to-End-Test oder echtes Smartphone; Backend-/Androidcode unverändert, keine neuen Tests/Builds. Vorhandene lokale Änderungen erhalten, kein Commit/Push/Release/Deployment.
+
+
+## Mobile Sammlungsansicht – 02.11.2026
+
+Mobile Webansicht in beiden Designs an die kompakte Android-Sammlung angeglichen: unter 992 px kein großer Sammlungskopf mit Spielanzahl/Kennzahlen und keine Schnellfilter; Beginn mit Spieleübersicht und Sortierung. Statistik-/Filterzugänge bleiben bestehen, Desktop unverändert. CSS-Anpassung und PWA-Cache v5; kein Serververtrag oder Datenbankschema geändert.
+
+Isolierte Layoutvorschau aus aktuellem CSS und Templateausschnitt: beide Designs bei 390 px visuell geprüft; Zugänglichkeitsbaum bei 390/768 und 992/1440 px auf mobile Ausblendung bzw. erhaltene Desktopbereiche geprüft. Kein vollständiger App-Funktionstest oder echtes Smartphone; Backend-/Androidtests für diese CSS-Änderung nicht erneut ausgeführt. `git diff --check` ohne Befunde. Keine Veröffentlichung.
+
+
+## Server/Web-Version 9.0 vorbereitet – 02.11.2026
+
+- Expliziter gemeinsamer Versionsauftrag: zentrale `APP_VERSION` von 0.8.1 auf **9.0** gesetzt. Keine weitere Schema-/API-Vertragsänderung durch diesen Versionsschritt; API-Version weiterhin 1. Die lokalen Freundschaftsänderungen bleiben enthalten.
+- Aktuellen Quellcode im vorhandenen lokalen Image `localhost/gamescollection_games_collection:latest` ohne Netzwerk und mit temporärer Datenbank gestartet. App-Konfiguration 9.0, Sessionantwort HTTP 200 und API-Version 1 bestätigt. Das ältere lokale Testimage 0.8.1 fehlt inzwischen; nach fehlgeschlagenem Erstversuch vorhandenes Image explizit ohne Pull verwendet.
+- Keine erneute vollständige Backendtestsuite für die reine Versionsänderung, letzter vollständiger Freundschaftslauf vom 01.11.: 51 Tests erfolgreich. Kein neues Image, Release, Commit/Push oder Produktivdeployment. Veröffentlichter Server weiterhin 0.8.1; aktuelle Dokumentation und Versionsangaben unterscheiden lokalen und veröffentlichten Stand.
+
+## Freundschaften: lokaler Prüfstand – 01.11.2026
+
+- Gegenseitiger Lesezugriff auf Sammlungen über bestätigte Freundschaften umgesetzt; ausschließlich genaue Benutzernamen, keine Kontoliste für Nicht-Admins. `friendship` wird additiv angelegt; kanonisches eindeutiges Paar, Status-/Absender-Constraints, Indizes und Konto-Löschkaskaden. Bedingte Mutation verhindert Wiederbeleben zwischenzeitlich entfernter/ersetzter Anfragen. Login-/CSRF-/Eigentumsprüfungen bleiben erhalten.
+- **51 Backendtests bestanden**, mit aktuellem Quellcode im vorhandenen lokalen Image 0.8.1, ohne Netzwerk und nur temporären Datenbanken. Neue Tests decken Zustimmung, Anfrage-/Freundschaftsentfernung, Rechteentzug, Fremdzugriff und fremde Schreibversuche, CSRF, Eingabeprüfung, gleichzeitige Gegenanfragen, additive Tabelle und Kontolöschung ab. Keine echte Datenbank verändert.
+- Browserprüfung beider Designs, Desktop und 390 px; Sammlung, Suche, Annahme, verständliche Fehler und mobiler Profilzugang. Gunicorn-Vorschau mit künstlichen Konten gestartet und Healthcheck erfolgreich; Details zu Read-only-Steuerverzeichnis und korrigierten gemeinsamen SELinux-Mountlabels im aktuellen `PROJECT_CONTEXT.md`. Kein neues Image gebaut, kein Produktivcontainer ersetzt.
+- Vertrag/Betrieb/Grenzen: `docs/FRIENDS.md`. Kein Release, Versionswechsel, Commit oder Push. Offen: reale Geräte/Nutzer, Last, große Sammlungen, Pagination, Anfragelimits und Blockierfunktion. Bereits angezeigte Daten sind nicht zurückrufbar; keine Echtzeitaktualisierung.
+
 ## Veröffentlichung 0.8.1 abgeschlossen – 31.10.2026
 
 - Geprüften gemeinsamen Quellstand nach `main` committed und per SSH nach GitHub gepusht. Release-Commit: `55f1fe253cae6facbfe3b17d959fd632bc67f0bb`. Die Git-Konfiguration enthielt keine Autorenidentität; ausschließlich für Commit/Tag dieselbe Identität wie in den letzten Projektcommits verwendet (keine dauerhafte globale Konfigurationsänderung). Alle bestehenden lokalen Titeltypfilter-, Versions- und Dokumentationsänderungen einschließlich OCR-Verwerfungsnotiz enthalten; keine Secrets/Nutzdaten.

@@ -20,3 +20,6 @@ initializePwa();
 
 import {initializeDiscovery} from './discover.js';
 initializeDiscovery();
+
+import {initializeFriends} from './friends.js';
+initializeFriends();

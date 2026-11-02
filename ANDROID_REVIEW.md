@@ -1,5 +1,49 @@
 # Android-Codeprüfung vom 17.10.2026
 
+## Android: kompaktere Statusbuttons – 02.11.2026
+
+- Folgeauftrag anhand des Betreiber-Screenshots: sichtbare Mindesthöhe der Statusbuttons von 48 auf **32 dp** reduziert, vertikales Innenpadding von 6 auf 4 dp. Die Material-3-Mindestgröße wird ausschließlich für diesen Coverbutton lokal aufgehoben, damit sie die sichtbare Höhe nicht wieder auf 48 dp vergrößert. Text darf bei schmalen Karten/großer Schrift weiter zweizeilig wachsen. Auswahlmenü und Speicherablauf unverändert, gilt für beide Designs.
+- Verifiziert: `testReleaseUnitTest lintRelease assembleRelease --offline --no-daemon` erfolgreich (63 Tasks, 17 ausgeführt / 46 aktuell); 39 Tests ohne Fehler/übersprungen, Lint 0 Befunde, APK-v2-Signatur gültig. Bestehende Toolchain/Signierung außerhalb der Sandbox verwendet; bekannte SDK-XML-/Gradle-9-Hinweise. Lokale APK: `android/app/build/outputs/apk/release/Games-Collection-9.0-release.apk`, weiterhin 9.0 / Code 8; keine Veröffentlichung, Installation, Commits, Pushes oder Tags. Bestehende lokale Änderungen erhalten.
+- Die frühere Angabe „mindestens 48 dp hohe Bedienfläche“ im ursprünglichen Statusbutton-Protokoll darunter beschreibt den überholten Stand vor dieser Screenshotkorrektur. Keine neue Geräte-/Sichtprüfung; genaue Darstellung und Touchverhalten auf dem Smartphone noch prüfen.
+
+
+## Android: Status direkt auf dem Cover ändern – 02.11.2026
+
+- Betreiberauftrag umgesetzt: Das schwebende Statuslabel der eigenen Sammlung ist ein antippbarer Button mit Pfeil und Auswahlmenü für „Nicht gespielt“, „Gespielt“, „Abgebrochen“; aktueller Wert mit Häkchen. Mindestens 48 dp hohe Bedienfläche, auf schmalen Karten zweizeilige Beschriftung mit Überlaufbegrenzung. Gemeinsame Darstellung für Cinematic Dark und Editorial Shelf; Tippen auf das übrige Cover öffnet weiterhin Details. Fremde Sammlungen bleiben schreibgeschützt.
+- `CollectionViewModel.changeStatus` verwendet den aktuellen lokalen Titel anhand seiner ID und die vorhandene atomare Offline-Warteschlange samt Synchronisierung, Versionsprüfung und UUID-Idempotenz. Nur der Status wird geändert; ungesendete andere Bearbeitungen und lokale Neuanlagen bleiben erhalten. Bereits versuchte Übertragungen werden nicht ersetzt; Fehler erscheinen über den vorhandenen Hinweisdialog, ausstehende Vorgänge bleiben unter „Details“ sichtbar. Auswahl des bestehenden Wertes erzeugt keinen Schreibauftrag. Editorentwürfe werden nicht geschlossen oder zurückgesetzt. Statusoptionen für Filter, Editor und Cover zentral zusammengeführt.
+- Verifiziert: `testReleaseUnitTest lintRelease assembleRelease --offline --no-daemon` mit vorhandener JDK-17-/SDK-36-Toolchain und privater Signierung erfolgreich: 63 Tasks, 18 ausgeführt / 45 aktuell; **39 Tests**, keine Fehler/übersprungen, darunter drei neue Regressionstests zu Statuswechsel/Persistenz, lokalem Create und Schutz bereits versuchter Writes. Lint **0 Befunde**; APK-v2-Signatur gültig, Metadaten **9.0 / Code 8**. Gradle lief nach lokalem Socketfehler außerhalb der Sandbox; bekannte SDK-XML-/Gradle-9-Hinweise bleiben.
+- Lokale signierte APK: `android/app/build/outputs/apk/release/Games-Collection-9.0-release.apk`. Keine Installation, keine neue Geräte-/Sichtprüfung in beiden Designs; kleine Displays, große Schrift, 1–3 Poster, Menüberührung gegenüber Cover-Klick sowie Online-/Offline- und Konfliktverhalten noch am Smartphone prüfen. Backend unverändert. Vorbestehende lokale Änderungen erhalten; keine Versionserhöhung, kein Commit/Push, Tag, GitHub-/Play-Upload oder Deployment.
+
+
+## Android-Version 9.0 vorbereitet – 02.11.2026
+
+- Auf ausdrücklichen gemeinsamen Versionsauftrag nun `versionName '9.0'`, `versionCode 8`; zuvor lokal 0.8.2 / Code 7. Bestehende Freundschafts-/Navigationsänderungen erhalten, Signierung unverändert.
+- `testReleaseUnitTest lintRelease assembleRelease --offline --no-daemon` erfolgreich (63 Tasks, 17 ausgeführt, 46 aktuell). Unit-Test-Task UP-TO-DATE; vorhandene 36 Tests ohne Fehler/übersprungen. Lint 0 Befunde; APK-v2-Signatur gültig und 9.0 / Code 8 per `aapt` bestätigt. Lokale APK: `android/app/build/outputs/apk/release/Games-Collection-9.0-release.apk`.
+- Kein neuer Geräte-/Sichttest, Installation, Upload oder Release. Bekannte Toolchainhinweise bleiben. GitHub-Download weiterhin 0.8.1 / Code 6, Play zuletzt bestätigt intern 0.7 / Code 4. Aktuelle Dokumentation angepasst, datierte ältere Prüfstände bleiben historisch.
+
+## Freundschaften: lokaler Prüfstand – 01.11.2026
+
+- Native Profilaktion „Freunde und Anfragen“: Anfragen senden/annehmen/ablehnen/zurückziehen, Freunde entfernen mit Bestätigung, fremde Sammlung mit Titelsuche und weiteren Spieldaten ansehen. Nur Lesen; kein Aufruf des eigenen Editors oder Offline-Schreibspeichers. Zurück aus der Sammlung lädt die Freundesliste neu.
+- Eigener ViewModel-Zustand/Job, Requests auf IO, Abbruch und Prüfung von API-Instanz und Server-/Kontobindung; fremde Sammlungen nur im Arbeitsspeicher, beim Schließen/Konto-/Serverwechsel sowie vor neuem Abruf verworfen. Fehler bleiben im Dialog sichtbar. Alter Server benötigt Update, API-401 fordert erneutes Verbinden. Keine Änderung des bestehenden Hinzufügen-Fixes und der Offline-Warteschlange.
+- Abschlussprüfung `testReleaseUnitTest lintRelease assembleRelease --offline --no-daemon` mit vorhandener JDK-17-/SDK-36-Toolchain und Signierung erfolgreich, 63 Tasks (17 ausgeführt, 46 aktuell); **36 JVM-Tests bestanden**, keine Fehler/übersprungen; **Lint 0 Befunde**. Neuer MockWebServer-Test für CSRF, Freundschaftsannahme, separaten Sammlungspfad, Besitz/Bewertung und verweigerten Folgeabruf nach Entzug. APK-v2-Signatur gültig; 0.8.2 / Code 7 bestätigt. Bekannte SDK-XML-/Gradle-9-Hinweise bleiben.
+- Lokale signierte APK: `android/app/build/outputs/apk/release/Games-Collection-0.8.2-release.apk`. Kein Upload/Release oder Installation; veröffentlichte GitHub-APK weiterhin 0.8.1 / Code 6 und Play weiterhin zuletzt bestätigt intern 0.7 / Code 4. Smartphone-/Lifecycle-/Keystore-Prüfung in beiden Designs, Kontowechsel bei laufendem Request und große fremde Sammlungen bleiben offen. `docs/FRIENDS.md` beschreibt Nutzung, Servervoraussetzung und Grenzen.
+
+## Android-Version 0.8.2 vorbereitet – 01.11.2026
+
+- Expliziter Auftrag: nur Android auf **0.8.2** setzen. `versionName '0.8.2'`, `versionCode 7` (zuvor 0.8.1 / Code 6), damit das nächste Update eine höhere interne Versionsnummer erhält. Der lokale Navigationsfix vom selben Tag bleibt enthalten.
+- READMEs und AGENTS.md unterscheiden den lokalen Quellstand von der veröffentlichten GitHub-APK 0.8.1 / Code 6. Lokale Build-/Installationspfade folgen 0.8.2. Server/Web bleibt 0.8.1; Play zuletzt bestätigt intern 0.7 / Code 4. Downloadlinks und vorhandene Tags bleiben bei den veröffentlichten Artefakten.
+- Verifiziert: `testReleaseUnitTest lintRelease assembleRelease --offline --no-daemon` erfolgreich (63 Tasks, 17 ausgeführt, 46 aktuell). Unit-Test-Task UP-TO-DATE; bestehende Berichte mit 35 erfolgreichen Tests, kein erzwungener Neulauf. Release-Lint 0 Befunde. APK-Signatur v2 gültig; `aapt` bestätigt 0.8.2 / Code 7. Bekannte SDK-XML-/Gradle-9-Hinweise bleiben. Lokale signierte APK: `android/app/build/outputs/apk/release/Games-Collection-0.8.2-release.apk`. Keine Installation oder Geräteprüfung.
+- Kein Commit, Push, Tag oder Upload beauftragt; keine neuen Release Notes angelegt. Geräteprüfung des Navigationsfixes bleibt offen.
+
+## Android: Zurück aus dem Hinzufügen-Editor – 01.11.2026
+
+- Betreiber meldet: Nach Auswahl eines IGDB-Treffers führt Zurück unerwartet zur Sammlung. Ursache im Quellcode bestätigt: Die Auswahl ersetzte den Hinzufügen-Zustand durch einen unabhängigen Spieleditor.
+- Suchauswahl erhält nun `EditorState.adding`; der Suchdialog bleibt unter dem Editor eingebunden. Zurück über Systemnavigation oder den Pfeil entfernt nur den gewählten Entwurf und zeigt wieder „Spiel hinzufügen“ mit Suchtext, Jahr, Titeltyp und Treffern. Gilt auch für manuelle Titelanlage und beide Designs. Die Suche selbst bleibt ausdrücklich abbrechbar; Sammlung und Entdecken behalten ihre bisherigen Editorwege.
+- Erfolgreiche dauerhafte lokale Übernahme schließt weiterhin den gesamten Ablauf (Offline-Warteschlange bleibt möglich); bei fehlgeschlagener lokaler Speicherung bleibt der Editor offen. Keine Änderung am Synchronisierungsvertrag.
+- Verifiziert: `testReleaseUnitTest lintRelease assembleRelease --offline --no-daemon` mit bestehender JDK-17-/SDK-36-Toolchain und Release-Signierung erfolgreich, 63 Tasks (18 ausgeführt, 45 aktuell). **35 JVM-Tests bestanden**, keine Fehler/übersprungen; Lint **0 Befunde**; APK-v2-Signatur gültig. Gradle musste wegen gesperrter lokaler Netzwerkschnittstellen außerhalb der Sandbox laufen. Bekannte SDK-XML-/Gradle-9-Hinweise bleiben.
+- Lokale Prüf-APK: `android/app/build/outputs/apk/release/Games-Collection-0.8.1-release.apk`. Version bleibt 0.8.1 / Code 6. Keine Installation, Veröffentlichung, Tags, Commits oder Pushes; die veröffentlichte GitHub-APK enthält diese Korrektur noch nicht.
+- Offen: Geräteprüfung von System-Zurück und Toolbar-Pfeil, erneutem Auswählen, manueller Anlage, erfolgreichem/fehlgeschlagenem Speichern, Rotation und beiden Designs. Build/JVM-Tests belegen keine korrekte Darstellung oder Dialognavigation am Smartphone.
+
 ## Veröffentlichung 0.8.1 abgeschlossen – 31.10.2026
 
 - Geprüften gemeinsamen Quellstand nach `main` committed und per SSH nach GitHub gepusht. Release-Commit: `55f1fe253cae6facbfe3b17d959fd632bc67f0bb`. Die Git-Konfiguration enthielt keine Autorenidentität; ausschließlich für Commit/Tag dieselbe Identität wie in den letzten Projektcommits verwendet (keine dauerhafte globale Konfigurationsänderung). Alle bestehenden lokalen Titeltypfilter-, Versions- und Dokumentationsänderungen einschließlich OCR-Verwerfungsnotiz enthalten; keine Secrets/Nutzdaten.

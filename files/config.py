@@ -1,6 +1,6 @@
 import os
 
-APP_VERSION = '0.8.1'
+APP_VERSION = '9.0'
 
 PLATFORMS = {
     'Amazon Games', 'Battle.net', 'EA app', 'Epic Games Store', 'GOG.com',

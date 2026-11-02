@@ -26,6 +26,14 @@ data class OfflineCollection(val owner: String, val username: String,
         return result.values.toList()
     }
 
+    fun changeStatus(gameId: Int, status: String): OfflineCollection {
+        require(status in GAME_STATUSES) { "Dieser Spielstatus ist nicht gültig." }
+        val game = visible().firstOrNull { it.id == gameId }
+            ?: error("Dieser Titel ist nicht mehr in deiner Sammlung.")
+        if (game.status == status) return this
+        return enqueue(game.copy(status = status), deleting = false)
+    }
+
     fun enqueue(game: Game, deleting: Boolean): OfflineCollection {
         val previous = queue.find { it.localId == game.id }
         check(previous == null || !previous.attempted) { "Bitte synchronisiere zuerst den offenen Vorgang für diesen Titel." }
