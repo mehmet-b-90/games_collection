@@ -1,5 +1,11 @@
 # Games Collection – Projektkontext
 
+## Server v0.9 finalisieren – 02.11.2026
+
+- Betreiber hat Release `server-v0.9` bereits mit eigener Beschreibung und Screenshots veröffentlicht und beauftragt die restliche Serverfinalisierung; anschließend soll die Android-Beschreibung offen bleiben. Bestehender Server-Tag bleibt unverändert am Quellcommit `941f3b0e36b72c63f63b49b2d117d87433ce0f46`. GitHub-Release als Latest bestätigt. Betreibertext gespeichert und unter `release-notes/server-0.9.md` mit H1/Abschnitt „Neue Funktion“ und technischen Voraussetzungen/Prüfungen gesichert.
+- Tag-Workflow `41490390499` scheiterte vor dem Build, weil die Notes-Datei im bereits getaggten Stand fehlt. Erfolgreicher main-Lauf `41486800335` enthält bereits denselben Produktstand. Neuer optionaler Workflow-Dispatch-Parameter `release_version` baut ausdrücklich den bestehenden unveränderten Server-Tag; versioniertes Image erhält die tatsächliche Quellcommit-ID, `latest` bleibt dem normalen main-Lauf vorbehalten. Bereits veröffentlichte Notes werden vom Wiederholungslauf nicht überschrieben. Keine Tagverschiebung und kein Produktivdeployment.
+- Workflowprüfung: YAML erfolgreich geparst, alle Shellblöcke mit `bash -n` geprüft; sechs isolierte Auswahlfälle (bestehender/fehlender/falscher Tag, ungültige Version, normaler main- und Taglauf) bestanden. `git diff --check` ohne Befunde. Imageveröffentlichung und Digest noch zu bestätigen. Android 0.9 / Code 8 bleibt bisher unveröffentlicht; APK-/Play-Veröffentlichung noch nicht Teil dieses Serverabschlusses.
+
 ## Versionsbezeichnung auf 0.9 korrigiert – 02.11.2026
 
 - Verifiziert: Server-Import meldet `APP_VERSION = 0.9` im vorhandenen Container ohne Netzwerk. Android-Release-Prüfung erfolgreich (63 Tasks, 17 ausgeführt / 46 aktuell); Unit-Tests UP-TO-DATE, vorhandene Berichte mit 39 erfolgreichen Tests, Lint 0 Befunde. APK-v2-Signatur gültig; `aapt` bestätigt **0.9 / Code 8**. Bekannte SDK-XML-/Gradle-9-Hinweise bleiben. Beide offenen Releaseformulartitel auf 0.9 korrigiert, leere Beschreibungen erhalten. Korrektur wird im bestehenden Commit-/Push-Auftrag nach `main` übertragen; keine neue Geräte-/Sichtprüfung oder Releaseveröffentlichung.

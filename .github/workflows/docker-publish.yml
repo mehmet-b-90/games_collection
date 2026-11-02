@@ -22,6 +22,12 @@ on:
       - 'release-notes/server-*.md'
       - '.github/workflows/docker-publish.yml'
   workflow_dispatch:
+    inputs:
+      release_version:
+        description: 'Rebuild an existing server-v tag (for example 0.9); empty builds the selected branch'
+        required: false
+        default: ''
+        type: string
 
 permissions:
   contents: read
@@ -47,6 +53,7 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
+          ref: ${{ inputs.release_version != '' && format('refs/tags/server-v{0}', inputs.release_version) || github.ref }}
           persist-credentials: false
           fetch-depth: 2
 
@@ -56,9 +63,13 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           REF: ${{ github.ref }}
           REF_NAME: ${{ github.ref_name }}
+          MANUAL_VERSION: ${{ inputs.release_version }}
         run: |
+          echo "source_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
           version=''
-          if [[ "$REF" == refs/tags/server-v* ]]; then
+          if [[ "$EVENT_NAME" == workflow_dispatch && -n "$MANUAL_VERSION" ]]; then
+            version="$MANUAL_VERSION"
+          elif [[ "$REF" == refs/tags/server-v* ]]; then
             version="${REF_NAME#server-v}"
           elif [[ "$EVENT_NAME" != pull_request && "$REF" == refs/heads/main ]]; then
             notes=$(git diff --diff-filter=A --name-only HEAD^ HEAD -- 'release-notes/server-*.md')
@@ -70,15 +81,21 @@ jobs:
           fi
           if [[ -n "$version" ]]; then
             [[ "$version" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]] || { echo 'Invalid server version.'; exit 1; }
-            test -f "release-notes/server-$version.md"
+            # A manual rebuild uses an existing immutable tag and keeps its published notes.
+            if [[ -z "$MANUAL_VERSION" ]]; then
+              test -f "release-notes/server-$version.md"
+            fi
             existing=$(git ls-remote origin "refs/tags/server-v$version" "refs/tags/server-v$version^{}")
-            if [[ -n "$existing" && "$REF" == refs/heads/main ]]; then
+            if [[ -n "$existing" && "$REF" == refs/heads/main && -z "$MANUAL_VERSION" ]]; then
               echo "Server $version already has a release tag; publishing latest/SHA only."
               exit 0
             fi
+            if [[ -n "$MANUAL_VERSION" && -z "$existing" ]]; then
+              echo 'Manual release rebuild requires an existing server tag.'; exit 1
+            fi
             if [[ -n "$existing" ]]; then
               target=$(printf '%s\n' "$existing" | awk 'NR == 1 {sha=$1} /\^\{\}$/ {sha=$1} END {print sha}')
-              test "$target" = "$GITHUB_SHA" || { echo 'Server version already belongs to another commit.'; exit 1; }
+              test "$target" = "$(git rev-parse HEAD)" || { echo 'Server version already belongs to another commit.'; exit 1; }
             fi
             echo "version=$version" >> "$GITHUB_OUTPUT"
           fi
@@ -133,8 +150,8 @@ jobs:
           images: ${{ env.IMAGE_NAME }}
           flavor: latest=false
           tags: |
-            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
-            type=sha,format=long
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' && inputs.release_version == '' }}
+            type=raw,value=sha-${{ steps.release.outputs.source_sha }}
             type=match,pattern=server-v(.*),group=1
             type=raw,value=${{ steps.release.outputs.version }},enable=${{ steps.release.outputs.version != '' }}
 
@@ -155,7 +172,9 @@ jobs:
           push: true
           platforms: linux/amd64,linux/arm64
           tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          labels: |
+            ${{ steps.meta.outputs.labels }}
+            org.opencontainers.image.revision=${{ steps.release.outputs.source_sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -171,6 +190,7 @@ jobs:
       - name: Check out release notes
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
+          ref: ${{ inputs.release_version != '' && format('refs/tags/server-v{0}', inputs.release_version) || github.ref }}
           persist-credentials: false
           fetch-depth: 0
 
@@ -179,15 +199,19 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
           RELEASE_VERSION: ${{ needs.build.outputs.release_version }}
+          MANUAL_VERSION: ${{ inputs.release_version }}
           IMAGE_DIGEST: ${{ needs.build.outputs.image_digest }}
         run: |
           tag="server-v$RELEASE_VERSION"
           if git rev-parse --verify "refs/tags/$tag" >/dev/null 2>&1; then
-            test "$(git rev-parse "$tag^{commit}")" = "$GITHUB_SHA" || { echo 'Release tag points to another commit.'; exit 1; }
+            test "$(git rev-parse "$tag^{commit}")" = "$(git rev-parse HEAD)" || { echo 'Release tag points to another commit.'; exit 1; }
           fi
           if gh release view "$tag" >/dev/null 2>&1; then
             echo "Release $tag already exists; keeping the published notes."
             exit 0
+          fi
+          if [[ -n "$MANUAL_VERSION" ]]; then
+            echo 'Manual rebuild requires an existing GitHub release; publish its notes first.'; exit 1
           fi
           notes="$RUNNER_TEMP/server-release-notes.md"
           cat "release-notes/server-$RELEASE_VERSION.md" > "$notes"
