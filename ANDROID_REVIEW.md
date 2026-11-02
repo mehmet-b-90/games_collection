@@ -1,5 +1,11 @@
 # Android-Codeprüfung vom 17.10.2026
 
+## Versionsbezeichnung auf 0.9 korrigiert – 02.11.2026
+
+- Verifiziert: Server-Import meldet `APP_VERSION = 0.9` im vorhandenen Container ohne Netzwerk. Android-Release-Prüfung erfolgreich (63 Tasks, 17 ausgeführt / 46 aktuell); Unit-Tests UP-TO-DATE, vorhandene Berichte mit 39 erfolgreichen Tests, Lint 0 Befunde. APK-v2-Signatur gültig; `aapt` bestätigt **0.9 / Code 8**. Bekannte SDK-XML-/Gradle-9-Hinweise bleiben. Beide offenen Releaseformulartitel auf 0.9 korrigiert, leere Beschreibungen erhalten. Korrektur wird im bestehenden Commit-/Push-Auftrag nach `main` übertragen; keine neue Geräte-/Sichtprüfung oder Releaseveröffentlichung.
+- Betreiberkorrektur: Server/Web und Android heißen **0.9**, nicht 9.0. `APP_VERSION` und `versionName` sowie aktuelle READMEs, AGENTS.md und Freundschaftsdokumentation abgeglichen. Android-`versionCode` bleibt **8**, da dieser Stand noch nicht als installierbares Release veröffentlicht wurde.
+- Frühere datierte Angaben zu 9.0 darunter dokumentieren den damaligen Prüf-/Übertragungsstand und sind als aktuelle Versionsbezeichnung überholt. Neue lokale APK: `android/app/build/outputs/apk/release/Games-Collection-0.9-release.apk`. Vorgesehene Tags: `server-v0.9` und `android-v0.9`; keine Tags/Veröffentlichungen durch diese Korrektur. Beschreibungen bleiben dem Betreiber vorbehalten.
+
 ## Android: kompaktere Statusbuttons – 02.11.2026
 
 - Folgeauftrag anhand des Betreiber-Screenshots: sichtbare Mindesthöhe der Statusbuttons von 48 auf **32 dp** reduziert, vertikales Innenpadding von 6 auf 4 dp. Die Material-3-Mindestgröße wird ausschließlich für diesen Coverbutton lokal aufgehoben, damit sie die sichtbare Höhe nicht wieder auf 48 dp vergrößert. Text darf bei schmalen Karten/großer Schrift weiter zweizeilig wachsen. Auswahlmenü und Speicherablauf unverändert, gilt für beide Designs.

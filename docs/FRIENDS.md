@@ -1,6 +1,6 @@
 # Freunde und Sammlungseinsicht
 
-Lokaler Implementierungsstand vom 01.11.2026, noch nicht veröffentlicht. Auf ausdrücklichen Folgeauftrag vom 02.11.2026 sind Server/Web und Android nun auf **9.0** gesetzt (Android-Code **8**). Tags und Downloadlinks bleiben bei den veröffentlichten Artefakten 0.8.1.
+Lokaler Implementierungsstand vom 01.11.2026, noch nicht veröffentlicht. Auf ausdrücklichen Folgeauftrag vom 02.11.2026 sind Server/Web und Android nun auf **0.9** gesetzt (Android-Code **8**). Tags und Downloadlinks bleiben bei den veröffentlichten Artefakten 0.8.1.
 
 ## Nutzung
 

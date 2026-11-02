@@ -1,6 +1,6 @@
 # Games Collection für Android
 
-**Lokaler Android-Quellstand 9.0 / VersionCode 8 (02.11.2026), noch nicht veröffentlicht.** Zuletzt veröffentlicht: Android 0.8.1 / Code 6. [Release Notes](../release-notes/android-v0.8.1.md). Die signierte GitHub-APK ist veröffentlicht; den verifizierten Abschluss dokumentiert `../PROJECT_CONTEXT.md`. Der Play-Test bleibt bei 0.7 / Code 4.
+**Lokaler Android-Quellstand 0.9 / VersionCode 8 (02.11.2026), noch nicht veröffentlicht.** Zuletzt veröffentlicht: Android 0.8.1 / Code 6. [Release Notes](../release-notes/android-v0.8.1.md). Die signierte GitHub-APK ist veröffentlicht; den verifizierten Abschluss dokumentiert `../PROJECT_CONTEXT.md`. Der Play-Test bleibt bei 0.7 / Code 4.
 
 
 ### Entdecken (seit Version 0.8)
@@ -16,7 +16,7 @@ Lokale Korrektur vom 01.11.2026 (noch nicht in der veröffentlichten GitHub-APK)
 - Freunde und Anfragen über das Profil: gegenseitige Sammlungseinsicht nach Annahme, Titelsuche, Anfragenverwaltung und Freundschaft beenden (lokaler unveröffentlichter Stand; aktualisierter Server erforderlich)
 - Native Anmeldung, Abmeldung und optional „Eingeloggt bleiben“
 - Sammlung mit Cover-Raster, Titelsuche und Sortierung
-- Status direkt über den Button oben auf dem Cover ändern (lokaler Stand 9.0): antippen, „Nicht gespielt“, „Gespielt“ oder „Abgebrochen“ auswählen; offline lokal gespeichert und später synchronisiert
+- Status direkt über den Button oben auf dem Cover ändern (lokaler Stand 0.9): antippen, „Nicht gespielt“, „Gespielt“ oder „Abgebrochen“ auswählen; offline lokal gespeichert und später synchronisiert
 - Filter nach Plattform, Status, Format, Engine, Altersfreigabe und Mindestbewertung
 - Native Statistik mit Anzahl und Prozentwerten
 - Spieldetails, Bearbeiten und Löschen mit Sicherheitsabfrage
@@ -54,7 +54,7 @@ Die folgenden Schritte betreffen die direkte APK-Installation. Zusätzlich läuf
 
 Play- und bisherige Release-APKs haben unterschiedliche Signaturen; vor einem Wechsel den [Hinweis unten](#google-play-und-bisherige-release-apks) lesen.
 
-1. Die [APK für Android-Version 0.8.1 herunterladen](https://github.com/mehmet-b-90/games_collection/releases/download/android-v0.8.1/Games-Collection-0.8.1-release.apk) und auf dem Smartphone öffnen. Bei einem aktuellen eigenen Build verwende die signierte Release-APK unter `app/build/outputs/apk/release/Games-Collection-9.0-release.apk`; zum Wechsel von der bisherigen Debug-Signatur siehe unten. Android fragt gegebenenfalls, ob die verwendete Browser- oder Datei-App APKs installieren darf.
+1. Die [APK für Android-Version 0.8.1 herunterladen](https://github.com/mehmet-b-90/games_collection/releases/download/android-v0.8.1/Games-Collection-0.8.1-release.apk) und auf dem Smartphone öffnen. Bei einem aktuellen eigenen Build verwende die signierte Release-APK unter `app/build/outputs/apk/release/Games-Collection-0.9-release.apk`; zum Wechsel von der bisherigen Debug-Signatur siehe unten. Android fragt gegebenenfalls, ob die verwendete Browser- oder Datei-App APKs installieren darf.
 2. Games Collection öffnen und deine Serveradresse eingeben, beispielsweise `https://games.example.org` oder für lokale Tests `http://192.168.178.20:7000`.
 3. Bei HTTP die Option „HTTP für lokale Tests zulassen“ aktivieren. Ohne Protokollangabe ergänzt die App beim Verbinden automatisch `http://`, wenn die Option aktiviert ist, andernfalls `https://`. Ein ausdrücklich eingegebenes Protokoll bleibt erhalten; `http://` benötigt weiterhin die Freigabe. HTTPS ist für den regulären Betrieb empfohlen.
 4. Mit deinem bestehenden Games-Collection-Konto anmelden.
@@ -133,7 +133,7 @@ export JAVA_HOME=/pfad/zum/jdk-17
 
 Alternativ kann der SDK-Pfad in der lokal ignorierten Datei `android/local.properties` als `sdk.dir=/pfad/zum/Android/Sdk` eingetragen werden. Der Gradle-Wrapper und Abhängigkeiten werden bei Bedarf heruntergeladen. Lokales `.toolchain/env.sh` nur verwenden, wenn die dazugehörigen Werkzeuge vorhanden sind.
 
-Ergebnis ausgehend vom Repository-Hauptverzeichnis: `android/app/build/outputs/apk/release/Games-Collection-9.0-release.apk`. Der Dateiname folgt automatisch der `versionName`. Aktueller Quellstand: **Version 9.0 / Code 8**. Neue Veröffentlichungen erhalten einen höheren VersionCode und eigene GitHub Release Notes.
+Ergebnis ausgehend vom Repository-Hauptverzeichnis: `android/app/build/outputs/apk/release/Games-Collection-0.9-release.apk`. Der Dateiname folgt automatisch der `versionName`. Aktueller Quellstand: **Version 0.9 / Code 8**. Neue Veröffentlichungen erhalten einen höheren VersionCode und eigene GitHub Release Notes.
 
 ### App Bundle für Google Play bauen
 
@@ -161,7 +161,7 @@ Künftige Updates mit demselben Release-Schlüssel und passender Versionsnummer 
 
 ```bash
 cd android
-adb install -r app/build/outputs/apk/release/Games-Collection-9.0-release.apk
+adb install -r app/build/outputs/apk/release/Games-Collection-0.9-release.apk
 ```
 
 Für reine Entwicklungsprüfungen bleibt `./gradlew testDebugUnitTest lintDebug assembleDebug` verfügbar; dessen Ergebnis heißt weiterhin `app/build/outputs/apk/debug/app-debug.apk`. Debug und Release haben dieselbe App-ID und können deshalb nicht als zwei getrennte Apps parallel installiert werden.

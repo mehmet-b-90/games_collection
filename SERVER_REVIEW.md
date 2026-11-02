@@ -1,5 +1,11 @@
 # Serverprüfung vom 19.10.2026
 
+## Versionsbezeichnung auf 0.9 korrigiert – 02.11.2026
+
+- Verifiziert: Server-Import meldet `APP_VERSION = 0.9` im vorhandenen Container ohne Netzwerk. Android-Release-Prüfung erfolgreich (63 Tasks, 17 ausgeführt / 46 aktuell); Unit-Tests UP-TO-DATE, vorhandene Berichte mit 39 erfolgreichen Tests, Lint 0 Befunde. APK-v2-Signatur gültig; `aapt` bestätigt **0.9 / Code 8**. Bekannte SDK-XML-/Gradle-9-Hinweise bleiben. Beide offenen Releaseformulartitel auf 0.9 korrigiert, leere Beschreibungen erhalten. Korrektur wird im bestehenden Commit-/Push-Auftrag nach `main` übertragen; keine neue Geräte-/Sichtprüfung oder Releaseveröffentlichung.
+- Betreiberkorrektur: Server/Web und Android heißen **0.9**, nicht 9.0. `APP_VERSION` und `versionName` sowie aktuelle READMEs, AGENTS.md und Freundschaftsdokumentation abgeglichen. Android-`versionCode` bleibt **8**, da dieser Stand noch nicht als installierbares Release veröffentlicht wurde.
+- Frühere datierte Angaben zu 9.0 darunter dokumentieren den damaligen Prüf-/Übertragungsstand und sind als aktuelle Versionsbezeichnung überholt. Neue lokale APK: `android/app/build/outputs/apk/release/Games-Collection-0.9-release.apk`. Vorgesehene Tags: `server-v0.9` und `android-v0.9`; keine Tags/Veröffentlichungen durch diese Korrektur. Beschreibungen bleiben dem Betreiber vorbehalten.
+
 ## Kennzahlen im Web-Statistikdialog – 02.11.2026
 
 - Folgeauftrag umgesetzt: drei kompakte Karten „Spiele“, „Ø Bewertung“, „Plattformen“ direkt unter dem Statistikdialogkopf und oberhalb der Diagramme, entsprechend der Pfeilmarkierung und Android-Vorlage. In beiden Designs mobil nebeneinander, ebenfalls im Desktopdialog vorhanden. Die mobile Sammlung bleibt ohne Kennzahlen.

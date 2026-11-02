@@ -1,6 +1,6 @@
 # Games Collection
 
-**Lokaler Quellstand: Server/Web 9.0 und Android 9.0 / VersionCode 8 (02.11.2026), noch nicht veröffentlicht.** Zuletzt veröffentlicht: Web/Server und Android 0.8.1 / Android-VersionCode 6 (31.10.2026). Release Notes: [Server](release-notes/server-0.8.1.md), [Android](release-notes/android-v0.8.1.md). Server-Image und signierte GitHub-APK sind veröffentlicht; den verifizierten Abschluss dokumentiert `PROJECT_CONTEXT.md`. Die zentrale Serverversionsangabe steht in `files/config.py` als `APP_VERSION`; die API-Protokollversion bleibt 1.
+**Lokaler Quellstand: Server/Web 0.9 und Android 0.9 / VersionCode 8 (02.11.2026), noch nicht veröffentlicht.** Zuletzt veröffentlicht: Web/Server und Android 0.8.1 / Android-VersionCode 6 (31.10.2026). Release Notes: [Server](release-notes/server-0.8.1.md), [Android](release-notes/android-v0.8.1.md). Server-Image und signierte GitHub-APK sind veröffentlicht; den verifizierten Abschluss dokumentiert `PROJECT_CONTEXT.md`. Die zentrale Serverversionsangabe steht in `files/config.py` als `APP_VERSION`; die API-Protokollversion bleibt 1.
 
 
 ### Freunde und freigegebene Sammlungen (lokal, noch nicht veröffentlicht)
