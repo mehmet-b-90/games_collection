@@ -1,6 +1,6 @@
 # Freunde und Sammlungseinsicht
 
-Server/Web seit 02.11.2026 als **0.9** veröffentlicht (`server-v0.9`, Images `:0.9` und `:latest`). Android-Quellstand **0.9 / Code 8**, noch nicht als APK veröffentlicht; Android-Downloadlink weiterhin 0.8.1. Implementierung ursprünglich vom 01.11.2026; aktuelle Prüf-/Veröffentlichungsnachweise in `../PROJECT_CONTEXT.md`.
+Server/Web seit 02.11.2026 als **0.9** veröffentlicht (`server-v0.9`, Images `:0.9` und `:latest`). Android ebenfalls als **0.9 / Code 8** unter `android-v0.9` veröffentlicht; GitHub-Asset `games_collection-v0.9.apk`. Implementierung ursprünglich vom 01.11.2026; aktuelle Prüf-/Veröffentlichungsnachweise in `../PROJECT_CONTEXT.md`.
 
 ## Nutzung
 

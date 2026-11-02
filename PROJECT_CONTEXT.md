@@ -1,5 +1,12 @@
 # Games Collection – Projektkontext
 
+## Android-App 0.9 veröffentlicht – 02.11.2026
+
+- Betreiber hat eigene Beschreibung und Screenshot ergänzt und die APK angehängt. Direkt verifiziert: [Android-App v0.9](https://github.com/mehmet-b-90/games_collection/releases/tag/android-v0.9) veröffentlicht, kein Draft/Prerelease; Tag `android-v0.9` am Commit `352efc72e253d026fe880b30f4f3f861ac6cd58f`. Dessen Android-Quellcode entspricht dem geprüften Build 0.9 / Code 8; dazwischen nur Server-Workflow/Dokumentation geändert.
+- Asset **`games_collection-v0.9.apk`**, **8.240.122 Bytes**, Status `uploaded`. GitHub-Digest **`sha256:4b83008b646bf1e5d359e2c6bc5da24c509d9535c25883a4d90939a1f97e026d`** stimmt exakt mit der lokalen `android/app/build/outputs/apk/release/Games-Collection-0.9-release.apk` überein. Erneut lokal bestätigt: gültige APK-v2-Signatur und Metadaten **0.9 / Code 8**. Der vom Betreiber gewählte Asset-Dateiname bleibt erhalten; README-Links zeigen auf diesen tatsächlichen Namen. Reguläre lokale Build-Dateinamen bleiben `Games-Collection-<versionName>-release.apk`.
+- Betreiberbeschreibung unverändert unter `release-notes/android-v0.9.md` gesichert; Onlinebeschreibung nicht umgeschrieben. Bisherige Releaseprüfung: 39 erfolgreiche JVM-Tests (zuletzt UP-TO-DATE), Lint 0 Befunde. Für diesen reinen Dokumentationsabgleich kein erneuter Build/Testlauf. `git diff --check` ohne Befunde; keine neue Installation oder Smartphone-/Lifecycle-Prüfung.
+- READMEs, AGENTS.md und aktuelle Freundschaftshinweise auf beide veröffentlichten 0.9-Versionen abgeglichen; bestehende historische Protokolle erhalten. Keine Tags verschoben, keine Assets ersetzt. Play bleibt zuletzt bestätigt interner Test **0.7 / Code 4**, kein AAB-/Play-Upload oder Produktivdeployment. Abschlussdokumentation im bestehenden Veröffentlichungsauftrag nach `main` übertragen.
+
 ## Server/Web 0.9 veröffentlicht – 02.11.2026
 
 - Abschluss verifiziert: [Games Collection v0.9](https://github.com/mehmet-b-90/games_collection/releases/tag/server-v0.9) veröffentlicht, kein Draft/Prerelease, Label Latest. Betreiberbeschreibung und Screenshots erhalten; H1/Abschnitt „Neue Funktion“, technische Voraussetzungen/Prüfungen und bestätigten Image-Digest ergänzt. Tag `server-v0.9` unverändert am Produktcommit `941f3b0e36b72c63f63b49b2d117d87433ce0f46`.
