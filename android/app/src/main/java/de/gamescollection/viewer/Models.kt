@@ -14,7 +14,8 @@ data class Game(
     val publisher: String = "", val engine: String = "", val available: String = "",
     val ageRating: String = "", val platforms: List<String> = emptyList(),
     val format: String = "Digital", val status: String = "Nicht gespielt",
-    val rating: Int? = null, val igdbId: Int? = null, val igdbUrl: String = ""
+    val rating: Int? = null, val igdbId: Int? = null, val igdbUrl: String = "",
+    val customCoverUrl: String = "", val customCoverEdit: String? = null
 ) {
     fun payload() = JSONObject().apply {
         put("title", title); put("cover_url", cover); put("release_date", release)
@@ -23,6 +24,7 @@ data class Game(
         put("owned_platform", platforms.joinToString(", ")); put("format", format)
         put("status", status); put("rating", rating ?: JSONObject.NULL)
         put("igdb_id", igdbId ?: JSONObject.NULL); put("igdb_url", igdbUrl)
+        customCoverEdit?.let { put("custom_cover", it.ifEmpty { null } ?: JSONObject.NULL) }
         if (id != 0) put("version", version)
     }
 
@@ -35,7 +37,9 @@ data class Game(
             ageRating = json.text("age_rating"), platforms = json.text("owned_platform").split(',').map { it.trim() }.filter { it.isNotEmpty() },
             format = json.text("format"), status = json.text("status"),
             rating = if (json.isNull("rating")) null else json.getInt("rating"),
-            igdbId = if (json.isNull("igdb_id")) null else json.getInt("igdb_id"), igdbUrl = json.text("igdb_url")
+            igdbId = if (json.isNull("igdb_id")) null else json.getInt("igdb_id"), igdbUrl = json.text("igdb_url"),
+            customCoverUrl = json.text("custom_cover_url"),
+            customCoverEdit = if (json.has("custom_cover")) json.text("custom_cover") else null
         )
 
         fun fromIgdb(json: JSONObject): Game {

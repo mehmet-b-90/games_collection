@@ -37,6 +37,24 @@ class OfflineCollectionTest {
         assertThrows(IllegalStateException::class.java) { collection.changeStatus(999, "Gespielt") }
     }
 
+    @Test fun coverEditsRoundTripThroughDraftAndQueue() {
+        val saved = game.copy(customCoverUrl = "/api/games/12/cover/example")
+        assertFalse(saved.payload().has("custom_cover"))
+        assertFalse(saved.payload().has("custom_cover_url"))
+        for (edit in listOf("aW1hZ2U=", "")) {
+            val changed = saved.copy(customCoverEdit = edit)
+            val draft = EditorState(game = changed, editing = true, open = true)
+            assertEquals(draft, EditorState.restore(draft.encode()))
+            val queued = collection.enqueue(changed, false)
+            val restored = OfflineCollection.decode(queued.encode()).queue.single().write
+            assertEquals(queued.queue.single().write, restored)
+            val payload = restored.game.payload()
+            assertTrue(payload.has("custom_cover"))
+            if (edit.isEmpty()) assertTrue(payload.isNull("custom_cover"))
+            else assertEquals(edit, payload.getString("custom_cover"))
+        }
+    }
+
     @Test fun offlineChangesSurviveSerializationWithStableKeysAndVersion() {
         val queued = collection.enqueue(game.copy(title = "Geändert"), false)
             .enqueue(Game(title = "Neu", platforms = listOf("PC")), false)

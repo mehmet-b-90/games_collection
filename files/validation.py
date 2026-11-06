@@ -1,12 +1,13 @@
 from urllib.parse import urlparse
 from .config import PLATFORMS
+from .covers import decode_cover
 
 GAME_TEXT_FIELDS = {
     'title': 200, 'cover_url': 500, 'release_date': 50, 'developer': 1000,
     'publisher': 1000, 'game_engine': 1000, 'available_platforms': 2000,
     'igdb_url': 500, 'age_rating': 50,
 }
-GAME_ALLOWED_FIELDS = set(GAME_TEXT_FIELDS) | {'igdb_id', 'owned_platform', 'format', 'rating', 'status', 'version'}
+GAME_ALLOWED_FIELDS = set(GAME_TEXT_FIELDS) | {'igdb_id', 'owned_platform', 'format', 'rating', 'status', 'version', 'custom_cover'}
 VALID_AGE_RATINGS = {
     'USK 0', 'USK 6', 'USK 12', 'USK 16', 'USK 18',
     'PEGI 3', 'PEGI 7', 'PEGI 12', 'PEGI 16', 'PEGI 18',
@@ -74,6 +75,8 @@ def validate_game_payload(data, creating=False):
     age_rating = cleaned.get('age_rating')
     if age_rating is not None and age_rating not in VALID_AGE_RATINGS:
         raise ValueError('"age_rating" enthält keine unterstützte USK- oder PEGI-Freigabe.')
+    if 'custom_cover' in data:
+        cleaned['custom_cover'] = decode_cover(data['custom_cover'])
     if 'cover_url' in cleaned:
         cleaned['cover_url'] = validate_https_url(cleaned['cover_url'], 'cover_url', {'images.igdb.com'})
     if 'igdb_url' in cleaned:

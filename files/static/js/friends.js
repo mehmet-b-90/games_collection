@@ -31,9 +31,10 @@ export function initializeFriends() {
             const card = node('article', null, 'discovery-card');
             const cover = node('div', null, 'discovery-cover');
             cover.append(node('span', 'Kein Cover', 'discovery-placeholder'));
-            if (typeof game.cover_url === 'string' && /^https?:\/\//.test(game.cover_url)) {
+            const coverUrl = game.custom_cover_url || game.cover_url;
+            if (coverUrl) {
                 const img = node('img');
-                img.src = game.cover_url;
+                img.src = coverUrl;
                 img.alt = `Cover von ${game.title}`;
                 img.loading = 'lazy';
                 img.addEventListener('error', () => img.remove());

@@ -7,9 +7,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
 import org.json.JSONObject
 
 data class Friend(val id: Int, val username: String, val status: String, val incoming: Boolean) {
@@ -86,8 +84,8 @@ fun FriendsScreen(state: FriendsState, refresh: () -> Unit, invite: (String) -> 
             items(games, key = { it.id }) { game ->
                 OutlinedCard(Modifier.fillMaxWidth()) {
                     Row(Modifier.padding(12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        if (game.cover.isNotEmpty()) AsyncImage(game.cover, "Cover von ${game.title}",
-                            Modifier.width(76.dp).height(104.dp), contentScale = ContentScale.Crop)
+                        GameCoverImage(game, "Cover von ${game.title}",
+                            Modifier.width(76.dp).height(104.dp))
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             Text(game.title, style = MaterialTheme.typography.titleMedium)
                             Text("${game.release.ifEmpty { "Jahr unbekannt" }} · ${game.ageRating.ifEmpty { "Keine Altersfreigabe" }}", style = MaterialTheme.typography.bodySmall)

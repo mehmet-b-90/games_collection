@@ -1,18 +1,48 @@
 from datetime import datetime, timezone
+from hashlib import sha256
 
 import requests
-from flask import Blueprint, current_app, jsonify, request
+from flask import Blueprint, Response, current_app, jsonify, request
 from flask_login import current_user, login_required
 from ..database import api_error, commit_changes
 from ..config import PLATFORMS
 from ..extensions import db
 from ..idempotency import idempotent_game_write
 from ..igdb import IGDB_GAME_TYPES, get_igdb_token, get_preferred_age_rating, log_upstream_failure
-from ..models import Game, GamePlatformOwnership
+from ..models import Game, GameCover, GamePlatformOwnership
 from ..popscore import IGDB_GAME_FIELDS, PopScoreError, popular_games
 from ..validation import validate_game_payload, validate_integer
+from .friends import pair_with
 
 games_bp = Blueprint('games', __name__, url_prefix='/api')
+
+@games_bp.get('/games/<int:game_id>/cover/<digest>')
+@login_required
+def game_cover(game_id, digest):
+    if game_id > 2**63 - 1:
+        return api_error('Cover nicht gefunden.', 404)
+    game = db.session.get(Game, game_id)
+    if game is not None and game.user_id != current_user.id:
+        friendship = pair_with(game.user_id)
+        if friendship is None or friendship.status != 'accepted':
+            game = None
+    if game is None or game.custom_cover is None or game.custom_cover.digest != digest:
+        return api_error('Cover nicht gefunden.', 404)
+    return Response(game.custom_cover.data, mimetype='image/jpeg',
+                    headers={'X-Content-Type-Options': 'nosniff', 'Cross-Origin-Resource-Policy': 'same-origin'})
+
+
+def set_custom_cover(game, data):
+    if data is None:
+        game.custom_cover = None
+    else:
+        digest = sha256(data).hexdigest()
+        if game.custom_cover is None:
+            game.custom_cover = GameCover(digest=digest, data=data)
+        else:
+            game.custom_cover.digest = digest
+            game.custom_cover.data = data
+
 
 def json_object():
     data = request.get_json(silent=True)
@@ -113,7 +143,10 @@ def add_game():
     except ValueError as error:
         return api_error(str(error))
     platforms = game_data.pop('owned_platform')
+    cover = game_data.pop('custom_cover', None)
     game = Game(user_id=current_user.id, **game_data)
+    if cover is not None:
+        set_custom_cover(game, cover)
     game.owned_platforms = [GamePlatformOwnership(platform=platform) for platform in platforms]
     db.session.add(game)
     error = commit_changes('Dieses IGDB-Spiel ist bereits in deiner Sammlung.')
@@ -146,6 +179,8 @@ def manage_game(game_id):
     if not game_data:
         return api_error('Keine Änderungen übermittelt.')
     platforms = game_data.pop('owned_platform', None)
+    if 'custom_cover' in game_data:
+        set_custom_cover(game, game_data.pop('custom_cover'))
     for key, value in game_data.items():
         setattr(game, key, value)
     if platforms is not None:

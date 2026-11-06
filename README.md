@@ -1,5 +1,15 @@
 # Games Collection
 
+### Standardwerte für neue Spiele (lokaler Stand 0.10)
+
+Im Web unter **Profil → Mein Konto → Standardwerte für neue Spiele**, in Android unter **Profil → Einstellungen**: Titeltyp für die Suche, Format, Status und Besitzplattformen wählen und **Standardwerte speichern**. Die Werte gelten für das Konto in beiden Clients und werden beim Hinzufügen einschließlich Entdecken vorbelegt. Vorhandene Spiele und offene Entwürfe bleiben unverändert. Leere Plattformauswahl ist als Vorgabe erlaubt; beim Speichern eines Spiels bleibt mindestens eine Besitzplattform erforderlich.
+
+Web übernimmt Änderungen aus anderen Clients nach Neuladen, Android beim Verbinden/Anmelden/Synchronisieren. Android verwendet offline die zuletzt geladenen kontogebundenen Vorgaben; Änderungen an den Einstellungen benötigen eine Verbindung zum aktualisierten Server.
+
+**Datenerhaltender Updateweg:** Vor dem Serverupdate ein konsistentes Datenbank-Backup erstellen (Serververwaltung). Den neuen Server mit demselben persistenten Datenverzeichnis starten; die Startinitialisierung ergänzt die fehlende Tabelle `user_game_defaults` automatisch. Keine Tabellen löschen und keine Datenbank neu erstellen. Bestehende Benutzer-/Spieletabellen bleiben unverändert; Datenerhalt wird durch einen Kompatibilitätstest abgesichert. Anschließend `/health`, Anmeldung, vorhandene Sammlung und Speichern/Laden der Vorgaben prüfen. Clients danach aktualisieren. Ein älterer Server unterstützt das Speichern dieser Vorgaben noch nicht.
+
+**Lokaler Entwicklungsstand: Server/Web 0.10 und Android 0.10 / VersionCode 9.** Enthält die manuelle Coverauswahl.
+
 **Server/Web 0.9 ist veröffentlicht (02.11.2026).** [Server-Release](https://github.com/mehmet-b-90/games_collection/releases/tag/server-v0.9) · [Release Notes](release-notes/server-0.9.md). Docker-Images `:0.9` und `:latest` für AMD64/ARM64 geprüft. Android ebenfalls als direkte GitHub-APK **0.9 / VersionCode 8** veröffentlicht; Play-Test weiterhin **0.7 / Code 4**. Verifizierter Abschluss und Digests: `PROJECT_CONTEXT.md`. Die zentrale Serverversion steht in `files/config.py` als `APP_VERSION`; die API-Protokollversion bleibt 1.
 
 
@@ -15,7 +25,7 @@ Seit Version 0.8 zeigen Web und Android im eigenen Reiter **Entdecken** bis zu 1
 
 <img src="design/brand/github-icon-512.png" width="128" height="128" alt="Games Collection – Controller mit drei Spielcovern">
 
-Games Collection ist eine selbst gehostete Webanwendung zur Verwaltung einer persönlichen Videospielesammlung. Spieldaten und Cover erfolgen über die Suche von IGDB. Die Anwendung bietet zwei Designs, Filter, Statistiken, Benutzerkonten und eine installierbare PWA-Oberfläche.
+Games Collection ist eine selbst gehostete Webanwendung zur Verwaltung einer persönlichen Videospielesammlung. Die IGDB-Suche liefert Spieldaten und Standardcover. Die Anwendung bietet zwei Designs, Filter, Statistiken, Benutzerkonten und eine installierbare PWA-Oberfläche.
 
 Dank Docker Container ist die Einrichtung einfach.
 
@@ -32,6 +42,12 @@ Anmeldung, Spielverwaltung mit IGDB-Daten und Sammlungsstatistik:
 | Anmeldung | Spiel hinzufügen | Statistik |
 | --- | --- | --- |
 | <img src="docs/screenshots/desktop-login.png" alt="Anmeldung im Browser" width="280"> | <img src="docs/screenshots/desktop-spiel-hinzufuegen.png" alt="Spiel im Browser mit IGDB-Daten hinzufügen" width="280"> | <img src="docs/screenshots/desktop-statistik.png" alt="Sammlungsstatistik im Browser" width="280"> |
+
+## Eigene Cover im Editor
+
+Im neuen lokalen Stand **Cover wählen** anklicken und eine JPEG-, PNG- oder WebP-Datei von der Festplatte auswählen. Die Vorschau zeigt das Bild vor dem Speichern. Mit **Standardcover** lässt sich das IGDB-Cover wiederherstellen, sofern eines vorliegt. Die Funktion gilt beim Anlegen und Bearbeiten eines Spiels.
+
+Eigene Cover werden zusammen mit der Sammlung in `database.db` gesichert. Der aktualisierte Server ergänzt beim Start die Tabelle `game_cover`. Falls ein Reverse-Proxy die Anfragegröße begrenzt, sollte er für Spieländerungen mindestens 600 KiB zulassen. Die lokale Funktion benötigt den aktualisierten Serverstand.
 
 ## IGDB-Suche
 
@@ -101,6 +117,15 @@ docker compose up -d --pull never
 ```
 
 Der Docker-Buildkontext enthält ausschließlich Dockerfile, `requirements.txt` und die Anwendung unter `files/`. Lokale Konfiguration, Datenbank, Git-Verlauf und Android-Werkzeuge werden nicht an den Builder übertragen.
+
+Mit Podman den lokalen Build als `localhost/games-collection:local` markieren und diesen Namen im Compose-Eintrag `image:` verwenden:
+
+```bash
+podman build --format docker -t localhost/games-collection:local .
+podman compose up -d --pull never --force-recreate games_collection
+```
+
+Bei `ModuleNotFoundError: No module named 'PIL'` enthält der gestartete Container die neue Cover-Abhängigkeit nicht. Pillow steht in `requirements.txt` und wird beim Image-Build installiert. Wenn der lokale Quellcode in ein vorhandenes Image eingebunden wird, den Mount für `/app/files` beim Test mit dem frisch gebauten Image weglassen. Ein Neustart des alten Containers übernimmt die neue Abhängigkeit nicht.
 
 ## Konfiguration
 
@@ -215,3 +240,13 @@ Anmeldung, Sammlung, IGDB-Suche, Spielverwaltung und Statistik auf dem Smartphon
 ### Künftige Server-Releases
 
 Seit 25.10.2026 lösen Tags nach `server-v<VERSION>` (z. B. `server-v0.9`) die Server-Veröffentlichung aus. Bestehende `docker-v*`-Tags bleiben unverändert. Release Notes werden aus [der Vorlage](release-notes/TEMPLATE.md) als `release-notes/server-<VERSION>.md` angelegt: Titel „Games Collection v<VERSION>“, Abschnitt „Neue Funktion“; das veröffentlichte Image mit Digest ergänzt der Workflow. Neue GitHub Releases erhalten das Label **Latest**. Dieses Label ändert nicht das Docker-Image-Tag `latest`, das weiterhin `main` folgt.
+
+## Datenbank sichern und wiederherstellen
+
+Administratoren öffnen im Web über das Zahnrad die **Serververwaltung**. Dort stehen **Datenbank exportieren** und die **Benutzerverwaltung** gemeinsam bereit. Der Export erstellt im laufenden Betrieb einen konsistenten SQLite-Snapshot und lädt `Games-Collection-Backup-<Datum>_<Zeit>_UTC.db` herunter. Prüfe nach dem Download, dass die Datei tatsächlich gespeichert wurde.
+
+Das Backup enthält sämtliche Konten (einschließlich Passwort-Hashes), Sammlungen, Besitzplattformen, Freundschaften, eigene Cover und Vorgangsbelege. Geschützt und getrennt vom VPS aufbewahren. `.env`, Server-/Proxykonfiguration und sonstige Dateien außerhalb der Datenbank müssen separat gesichert werden. Der Download ist nicht verschlüsselt; für produktiven Fernzugriff HTTPS verwenden.
+
+Eine Wiederherstellung erfolgt bewusst außerhalb der Weboberfläche: alle auf die Datenbank zugreifenden Serverinstanzen stoppen, den aktuellen Datenbestand einschließlich eventuell vorhandener `database.db-wal` und `database.db-shm` separat sichern und die Backup-Datei im Datenverzeichnis als `database.db` bereitstellen. Alte WAL-/SHM-Dateien dürfen nicht mit der wiederhergestellten Datei kombiniert werden. Dateieigentümer und Berechtigungen passend zum Container erhalten. Zunächst mit einer Kopie und zur Sicherung passender Serverversion prüfen, danach Konten und Sammlungen kontrollieren. Bei Compose liegt die Datenbank standardmäßig unter `./data/database.db`. Eine Wiederherstellung setzt alle Daten auf den Sicherungszeitpunkt zurück; neuere Änderungen sind darin nicht enthalten.
+
+Der produktive Datenbestand muss bei Updates erhalten bleiben. Diese Verwaltungsfunktion verändert das Schema nicht. `create_all()` ersetzt keine Migration bestehender Tabellen; künftige Schemaänderungen benötigen einen datenerhaltenden, geprüften Upgradeweg.

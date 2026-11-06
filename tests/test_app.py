@@ -1,3 +1,5 @@
+from base64 import b64encode
+from io import BytesIO
 import os
 import tempfile
 import unittest
@@ -19,6 +21,7 @@ from files.app import (  # noqa: E402
     db,
     get_preferred_age_rating,
 )
+from PIL import Image
 from sqlalchemy.exc import SQLAlchemyError
 from files.models import GameWriteReceipt
 from files.database import commit_changes as real_commit_changes
@@ -69,6 +72,106 @@ class GamesCollectionTestCase(unittest.TestCase):
             clients.append(client)
         return clients
 
+    def test_game_defaults_isolation_validation_and_csrf(self):
+        path = '/api/account/game-defaults'
+        self.assertEqual(self.client.get(path).status_code, 401)
+        self.assertEqual(self.client.put(path, json={}).status_code, 401)
+        alice, bob, _ = self.friend_accounts()
+        original = alice.get(path).json
+        values = dict(game_type=0, format='Physisch', status='Gespielt', platforms=['Steam', 'Switch'])
+        self.assertEqual(alice.put(path, json=values).json, values)
+        self.assertEqual(alice.get('/api/session').json['user']['game_defaults'], values)
+        self.assertEqual(bob.get(path).json, original)
+        self.assertEqual(alice.get(path).headers['Cache-Control'], 'no-store')
+        for field, invalid in [('game_type', True), ('game_type', '0'), ('game_type', 15),
+                               ('format', []), ('status', 'Fertig'), ('platforms', ['Unknown']),
+                               ('platforms', 'Steam'), ('platforms', [None])]:
+            self.assertEqual(alice.put(path, json={**values, field: invalid}).status_code, 400)
+        for invalid in ({}, [], {**values, 'user_id': 2}):
+            self.assertEqual(alice.put(path, json=invalid).status_code, 400)
+        self.assertEqual(alice.get(path).json, values)
+        self.assertEqual(alice.put(path, json=original).json, original)
+        app.config['WTF_CSRF_ENABLED'] = True
+        self.assertEqual(alice.put(path, json=values).status_code, 400)
+        token = alice.get('/api/session').json['csrf_token']
+        self.assertEqual(alice.put(path, json=values, headers={'X-CSRFToken': token}).status_code, 200)
+
+    def test_game_defaults_additive_schema_preserves_data_and_cascades(self):
+        from files.models import UserGameDefaults
+        self.register()
+        self.add_game()
+        before = self.client.get('/api/games').json
+        with app.app_context():
+            UserGameDefaults.__table__.drop(db.engine)
+            db.create_all()
+            self.assertEqual(User.query.count(), 1)
+        self.assertEqual(self.client.get('/api/games').json, before)
+        values = dict(game_type=None, format='Physisch', status='Abgebrochen', platforms=[])
+        self.assertEqual(self.client.put('/api/account/game-defaults', json=values).status_code, 200)
+        self.assertEqual(self.client.get('/api/games').json, before)
+        self.assertIn('Standardwerte für neue Spiele', self.client.get('/').text)
+        self.assertEqual(self.client.delete('/api/account', json={'current_password': 'password1'}).status_code, 200)
+        with app.app_context():
+            self.assertEqual(UserGameDefaults.query.count(), 0)
+
+    def test_game_defaults_failed_write_rolls_back(self):
+        self.register()
+        values = dict(game_type=1, format='Physisch', status='Gespielt', platforms=['Steam'])
+        with patch.object(db.session, 'commit', side_effect=SQLAlchemyError('simulated')):
+            self.assertEqual(self.client.put('/api/account/game-defaults', json=values).status_code, 503)
+        self.assertEqual(self.client.get('/api/account/game-defaults').json['format'], 'Digital')
+
+    def test_admin_backup_permissions_and_csrf(self):
+        self.assertEqual(self.client.post('/api/admin/backup').status_code, 401)
+        self.register()
+        other = app.test_client()
+        other.post('/register', data={'username': 'Other', 'password': 'password1',
+                                     'password_confirm': 'password1'})
+        self.assertEqual(other.post('/api/admin/backup').status_code, 403)
+        self.assertNotIn('id="adminModal"', other.get('/').text)
+        self.assertIn('Serververwaltung', self.client.get('/').text)
+        app.config['WTF_CSRF_ENABLED'] = True
+        self.assertEqual(self.client.post('/api/admin/backup').status_code, 400)
+        token = self.client.get('/api/csrf-token').json['csrf_token']
+        response = self.client.post('/api/admin/backup', headers={'X-CSRFToken': token})
+        self.assertEqual(response.status_code, 200)
+        response.close()
+
+    def test_admin_backup_is_complete_standalone_snapshot(self):
+        import sqlite3
+        self.register()
+        self.add_game()
+        with app.app_context():
+            raw = db.engine.raw_connection()
+            try:
+                before = list(raw.driver_connection.iterdump())
+            finally:
+                raw.close()
+        response = self.client.post('/api/admin/backup')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.headers['Cache-Control'], 'no-store')
+        self.assertIn('attachment;', response.headers['Content-Disposition'])
+        self.assertIn('.db', response.headers['Content-Disposition'])
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, 'restored.db')
+            with open(path, 'wb') as backup:
+                backup.write(response.data)
+            with sqlite3.connect(path) as restored:
+                self.assertEqual(restored.execute('PRAGMA integrity_check').fetchone()[0], 'ok')
+                self.assertEqual(restored.execute('PRAGMA foreign_key_check').fetchall(), [])
+                self.assertEqual(list(restored.iterdump()), before)
+        response.close()
+        self.add_game(title='Nach Backup', igdb_id=456)
+        self.assertEqual(len(self.client.get('/api/games').json['games']), 2)
+
+    def test_admin_backup_failure_is_readable(self):
+        self.register()
+        with patch('files.routes.admin.tempfile.TemporaryDirectory', side_effect=OSError('disk full')):
+            response = self.client.post('/api/admin/backup')
+        self.assertEqual(response.status_code, 503)
+        self.assertIn('Backup konnte nicht erstellt', response.json['error'])
+        self.assertEqual(response.headers['Cache-Control'], 'no-store')
+
     def test_friendship_requires_mutual_consent_and_revokes_access(self):
         alice, bob, charlie = self.friend_accounts()
         bob.post('/api/games', json={'title': 'Private Bibliothek', 'rating': 0,
@@ -100,6 +203,67 @@ class GamesCollectionTestCase(unittest.TestCase):
         self.assertEqual(alice.get('/api/friends/2/games').status_code, 403)
         self.assertEqual(bob.get('/api/friends/1/games').status_code, 403)
         self.assertEqual(bob.get('/api/games').json['games'][0]['title'], 'Private Bibliothek')
+
+    def test_custom_cover_lifecycle_and_access(self):
+        alice, bob, charlie = self.friend_accounts()
+        app.config['WTF_CSRF_ENABLED'] = True
+
+        def csrf(client):
+            return {'X-CSRFToken': client.get('/api/session').json['csrf_token']}
+
+        def image(color):
+            buffer = BytesIO()
+            Image.new('RGB', (64, 96), color).save(buffer, 'JPEG')
+            return b64encode(buffer.getvalue()).decode('ascii')
+
+        igdb_cover = 'https://images.igdb.com/igdb/image/upload/test.jpg'
+        payload = {'title': 'Spiel', 'owned_platform': 'Steam', 'cover_url': igdb_cover, 'custom_cover': image('red')}
+        self.assertEqual(alice.post('/api/games', json=payload).status_code, 400)
+        headers = {**csrf(alice), 'Idempotency-Key': str(uuid4())}
+        self.assertEqual(alice.post('/api/games', json=payload, headers=headers).status_code, 201)
+        replay = alice.post('/api/games', json=payload, headers=headers)
+        self.assertEqual(replay.headers['Idempotency-Replayed'], '1')
+        game, = alice.get('/api/games').json['games']
+        self.assertEqual(game['cover_url'], igdb_cover)
+        cover = game['custom_cover_url']
+        response = alice.get(cover)
+        self.assertEqual(response.mimetype, 'image/jpeg')
+        self.assertEqual(response.headers['Cache-Control'], 'no-store')
+        self.assertIn(cover, alice.get('/').get_data(as_text=True))
+        self.assertEqual(self.client.get(cover).status_code, 401)
+        self.assertEqual(charlie.get(cover).status_code, 404)
+
+        alice_headers, bob_headers = csrf(alice), csrf(bob)
+        self.assertEqual(alice.post('/api/friends', json={'username': 'Böb'}, headers=alice_headers).status_code, 201)
+        self.assertEqual(bob.get(cover).status_code, 404)
+        self.assertEqual(bob.put('/api/friends/1', json={}, headers=bob_headers).status_code, 200)
+        self.assertEqual(bob.get(cover).data, response.data)
+        self.assertEqual(bob.get('/api/friends/1/games').json['games'][0]['custom_cover_url'], cover)
+        self.assertEqual(bob.delete('/api/friends/1', json={}, headers=bob_headers).status_code, 200)
+        self.assertEqual(bob.get(cover).status_code, 404)
+
+        url = f"/api/games/{game['id']}"
+        for invalid in (False, 'x' * (512 * 1024 + 1), b64encode(b'<svg></svg>').decode('ascii')):
+            self.assertEqual(alice.put(url, json={'version': 1, 'custom_cover': invalid},
+                                       headers=alice_headers).status_code, 400)
+        self.assertEqual(alice.put(url, json={'version': 1, 'cover_url': igdb_cover, 'status': 'Gespielt'},
+                                   headers=alice_headers).status_code, 200)
+        self.assertEqual(alice.get(cover).data, response.data)
+        self.assertEqual(alice.put(url, json={'version': 1, 'custom_cover': image('blue')},
+                                   headers=alice_headers).status_code, 409)
+        self.assertEqual(alice.put(url, json={'version': 2, 'custom_cover': image('blue')},
+                                   headers=alice_headers).status_code, 200)
+        self.assertEqual(alice.get(cover).status_code, 404)
+        new_cover = alice.get('/api/games').json['games'][0]['custom_cover_url']
+        self.assertNotEqual(alice.get(new_cover).data, response.data)
+        self.assertEqual(alice.put(url, json={'version': 3, 'custom_cover': None}, headers=alice_headers).status_code, 200)
+        self.assertNotIn('custom_cover_url', alice.get('/api/games').json['games'][0])
+        self.assertEqual(alice.put(url, json={'version': 4, 'custom_cover': image('red')},
+                                   headers=alice_headers).status_code, 200)
+        self.assertEqual(alice.delete(url, headers=alice_headers).status_code, 200)
+        from files.models import GameCover
+        with app.app_context():
+            self.assertEqual(GameCover.query.count(), 0)
 
     def test_friendship_decline_cancel_and_duplicates(self):
         alice, bob, _ = self.friend_accounts()
@@ -843,9 +1007,12 @@ class GamesCollectionTestCase(unittest.TestCase):
         response = self.client.patch('/api/games', json={})
         self.assertEqual(response.status_code, 405)
         self.assertIn('GET', response.headers['Allow'])
-        response = self.client.post('/api/games', data='x' * (65 * 1024), content_type='application/json')
+        response = self.client.post('/api/search', data='x' * (65 * 1024), content_type='application/json')
         self.assertEqual(response.status_code, 413)
         self.assertIn('64 KiB', response.json['error'])
+        response = self.client.post('/api/games', data='x' * (601 * 1024), content_type='application/json')
+        self.assertEqual(response.status_code, 413)
+        self.assertIn('600 KiB', response.json['error'])
         self.assertEqual(self.client.delete(f'/api/games/{2**100}').status_code, 404)
         self.assertEqual(self.client.delete(f'/api/users/{2**100}').status_code, 404)
         with self.client.session_transaction() as session:

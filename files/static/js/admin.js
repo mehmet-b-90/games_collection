@@ -1,14 +1,40 @@
 import {apiFetch, responseJson} from './api.js';
 
 export async function openAdminModal() {
-    let users;
+    const modal = document.getElementById('adminModal');
+    if (!modal) return;
+    bootstrap.Modal.getOrCreateInstance(modal).show();
+    document.getElementById('adminBackupBtn').onclick = exportDatabase;
+    const status = document.getElementById('adminUsersStatus');
+    status.textContent = 'Benutzer werden geladen …';
     try {
-        users = await responseJson(await apiFetch('/api/users'), 'Benutzer konnten nicht geladen werden.');
-    } catch (error) { alert(error.message); return; }
-    const list = document.getElementById('adminUserList');
-    list.replaceChildren();
-    users.forEach(user => list.appendChild(createUserRow(user)));
-    new bootstrap.Modal(document.getElementById('adminModal')).show();
+        const users = await responseJson(await apiFetch('/api/users'), 'Benutzer konnten nicht geladen werden.');
+        document.getElementById('adminUserList').replaceChildren(...users.map(createUserRow));
+        status.textContent = '';
+    } catch (error) { status.textContent = error.message; }
+}
+
+async function exportDatabase() {
+    const button = document.getElementById('adminBackupBtn');
+    const status = document.getElementById('adminBackupStatus');
+    button.disabled = true;
+    status.textContent = 'Backup wird erstellt …';
+    try {
+        const response = await apiFetch('/api/admin/backup', {method: 'POST'});
+        if (!response.ok) await responseJson(response, 'Das Backup konnte nicht erstellt werden.');
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = response.headers.get('Content-Disposition')?.match(/filename="?([^";]+)"?/)?.[1]
+            || 'Games-Collection-Backup.db';
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
+        status.textContent = 'Download gestartet. Prüfe, ob die Backup-Datei gespeichert wurde.';
+    } catch (error) { status.textContent = error.message; }
+    finally { button.disabled = false; }
 }
 
 function createUserRow(user) {
@@ -23,12 +49,15 @@ function createUserRow(user) {
         badge.className = 'badge bg-warning text-dark'; badge.textContent = 'Admin'; identity.appendChild(badge);
     }
     const controls = document.createElement('div');
-    controls.className = 'd-flex gap-2';
+    controls.className = 'admin-user-controls d-flex flex-wrap gap-2';
     const username = document.createElement('input');
     username.type = 'text'; username.className = 'form-control form-control-sm';
+    username.setAttribute('aria-label', 'Benutzername');
     username.id = `edit-user-${user.id}`; username.value = user.username; username.style.width = '120px';
     const password = document.createElement('input');
     password.type = 'password'; password.className = 'form-control form-control-sm';
+    password.setAttribute('aria-label', 'Neues Passwort');
+    password.autocomplete = 'new-password';
     password.id = `edit-pass-${user.id}`; password.placeholder = 'Neues Passwort'; password.style.width = '140px';
     const save = document.createElement('button');
     save.className = 'btn btn-success btn-sm'; save.textContent = 'Speichern'; save.addEventListener('click', () => updateUser(user.id));

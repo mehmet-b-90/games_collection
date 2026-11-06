@@ -96,18 +96,6 @@ function installDisplayFieldValues() {
             set(value) { this.innerText = value || '-'; }
         });
     });
-    const coverInput = document.getElementById('coverUrlInput');
-    const nativeValue = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value');
-    Object.defineProperty(coverInput, 'value', {
-        set(value) {
-            nativeValue.set.call(this, value);
-            const preview = document.getElementById('coverPreview');
-            preview.src = value || '';
-            preview.classList.toggle('d-none', !value);
-            document.getElementById('coverPlaceholder').classList.toggle('d-none', Boolean(value));
-        },
-        get() { return nativeValue.get.call(this); }
-    });
 }
 
 function addPlatformIcons() {

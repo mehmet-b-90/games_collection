@@ -4,6 +4,7 @@ import org.json.JSONObject
 import java.util.UUID
 
 internal fun Game.savedJson(): JSONObject = payload().put("id", id).put("version", version)
+    .put("custom_cover_url", customCoverUrl)
 
 data class PendingGameWrite(val game: Game, val deleting: Boolean = false, val key: String = UUID.randomUUID().toString()) {
     fun json(): JSONObject = JSONObject().put("game", game.savedJson()).put("deleting", deleting).put("key", key)

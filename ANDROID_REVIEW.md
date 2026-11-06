@@ -1,5 +1,30 @@
 # Android-Codeprüfung vom 17.10.2026
 
+## Animierter Kartenwechsel in Spieldetails – 06.11.2026
+
+- Freigegebenen Entwurf mit dem horizontalen Compose-Pager umgesetzt. Die Detailkarten bewegen sich direkt mit der Geste. Beim Einrasten wird der tatsächlich angezeigte Titel über den vorhandenen Öffnungspfad übernommen. Pfeile und Positionsanzeige ergänzen die Geste.
+- `testReleaseUnitTest lintRelease assembleRelease --offline --no-daemon` erfolgreich. 43 JVM-Tests bestanden, Lint ohne Befunde, APK-v2-Signatur und Version 0.10 / Code 9 verifiziert. Auf dem Gerät noch in beiden Designs prüfen: langsam ziehen und loslassen, schnell wischen, Listenenden, Pfeile, vertikales Scrollen und Bearbeiten nach Titelwechsel.
+
+## Standardwerte – Prüfung 06.11.2026
+
+Profil → Einstellungen: Titeltyp, Format, Status und Mehrfachauswahl der Besitzplattformen, expliziter Speichern-Button und Fehleranzeige. Kontoweite Serverwerte, lokaler Cache pro Server/Konto für Offline-Neuanlage. Session lädt aktuellen Stand; ältere Server zeigen einen Updatehinweis. Laufende Entwürfe und vorhandene Spiele behalten ihre Werte. Neue Spiele aus Suche/manueller Anlage/Entdecken übernehmen Vorgaben.
+
+43 Release-JVM-Tests bestanden, Lint ohne Befunde, Release-APK gebaut und v2-Signatur geprüft. Tests ergänzen JSON-Roundtrip aller Titeltypen, Metadatenerhalt bei Vorbelegung und Schutz gespeicherter sowie negativer lokaler Spiel-IDs. APK: `android/app/build/outputs/apk/release/Games-Collection-0.10-release.apk`. Keine Geräteprüfung: Darstellung beider Designs, Rotation des Einstellungsentwurfs und kontoübergreifender Offline-Neustart noch praktisch prüfen. Kein Upload, Version 0.10 / Code 9 unverändert.
+
+## Wisch-Navigation in Spieldetails – 06.11.2026
+
+- Horizontales Wischen wechselt in der Reihenfolge des eigenen Sammlungsrasters. Der vorhandene Öffnungspfad bleibt für den Titelwechsel zuständig. Die Geste ist beim Bearbeiten, während laufender Aktionen und bei einem offenen Schreibvorgang im Dialog gesperrt.
+- `testReleaseUnitTest lintRelease assembleRelease --offline --no-daemon` erfolgreich: 40 JVM-Tests bestanden, Release-Lint ohne Befunde. APK-v2-Signatur und 0.10 / Code 9 verifiziert. Kein Android-Gerät verbunden. Zur Geräteprüfung in beiden Designs eine gefilterte Liste öffnen, in beide Richtungen und an den Listenenden wischen sowie vertikales Scrollen und Bearbeiten prüfen.
+
+## Lokaler Release-Build 0.10 – 06.11.2026
+
+- Für die manuelle Coverauswahl `versionName` auf 0.10 und `versionCode` auf 9 gesetzt. Release-Build und Lint erfolgreich. Die 40 JVM-Tests waren aktuell, Signatur und Versionsmetadaten der neuen lokalen APK wurden geprüft. Der ausstehende Gerätetest betrifft insbesondere den System-Fotodialog.
+
+## Eigene Cover aus der System-Fotoauswahl – 06.11.2026
+
+- Auswahl ohne breite Galerie-Berechtigung über den Android-Systemdialog. Das verkleinerte JPEG verbleibt im kontogebundenen Entwurf und nach dem lokalen Speichern mit unverändertem Payload in der Offline-Warteschlange. Der Server muss `custom_covers` anbieten. Nach der Synchronisierung ruft Android eigene Cover angemeldet vom Sammlungsserver ab. Offline fällt die Anzeige bei bereits synchronisierten Bildern auf das verfügbare IGDB-Cover oder den Platzhalter zurück. Bilder fremder Sammlungen werden ohne Speicher- und Diskcache geladen.
+- `testReleaseUnitTest lintRelease assembleRelease --offline --no-daemon` erfolgreich, 40 JVM-Tests bestanden. Der neue Test prüft die Wiederherstellung von Entwurf und Warteschlange mit stabiler UUID sowie die getrennten Fälle Cover beibehalten, ersetzen und entfernen. Release-Lint ohne Befunde, APK-v2-Signatur gültig. Lokale APK `android/app/build/outputs/apk/release/Games-Collection-0.9-release.apk`. System-Fotoauswahl, Geräte-Lifecycle und Darstellung auf einem Smartphone stehen zur praktischen Prüfung aus.
+
 ## Android-App 0.9 veröffentlicht – 02.11.2026
 
 - Betreiber hat eigene Beschreibung und Screenshot ergänzt und die APK angehängt. Direkt verifiziert: [Android-App v0.9](https://github.com/mehmet-b-90/games_collection/releases/tag/android-v0.9) veröffentlicht, kein Draft/Prerelease; Tag `android-v0.9` am Commit `352efc72e253d026fe880b30f4f3f861ac6cd58f`. Dessen Android-Quellcode entspricht dem geprüften Build 0.9 / Code 8; dazwischen nur Server-Workflow/Dokumentation geändert.

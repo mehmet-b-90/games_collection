@@ -1,5 +1,33 @@
 # Serverprüfung vom 19.10.2026
 
+## Standardwerte – Prüfung 06.11.2026
+
+Kontoweite Defaults in zusätzlicher Tabelle `user_game_defaults`; vollständige validierte Ersetzung über Login-/CSRF-geschütztes PUT, GET/Session nur eigene Werte und `no-store`. Bestehende Spieledaten bleiben unverändert. Beim Start ergänzt `create_all()` ausschließlich die fehlende Tabelle; keine Spaltenmigration erforderlich. Expliziter Updateweg in README.
+
+58 Backendtests mit aktuellem Quellcode im vorhandenen Podman-Testimage bestanden, Netzwerk deaktiviert und nur temporäre DBs. Neue Tests prüfen fehlende Tabelle mit bestehenden Benutzern/Spielen, identische Spielantwort nach Anlage/Speicherung, Kontentrennung, CSRF/Authentifizierung, ungültige Typen/Werte/Felder, Rollback und Löschkaskade. JS-Syntax geprüft. Browser-/Lastprüfung und neues Image stehen aus; kein Produktivdeployment.
+
+## Serververwaltung und Datenbank-Backup – 06.11.2026
+
+- Betreiber bestätigt produktiven VPS-Betrieb mit registrierten Konten und gepflegten Sammlungen. Datenbankkompatibilität und datenerhaltende künftige Migrationen sind jetzt ausdrücklich verbindlich in `AGENTS.md` festgehalten. Kein Zugriff auf den VPS oder dessen Datenbank erfolgt.
+- Web-Zugang „Serververwaltung“ bündelt Datenbank-Backup und bestehende Benutzerverwaltung in erweiterbaren Abschnitten. Benutzerliste lädt unabhängig vom Backup; Fehler bleiben im Dialog sichtbar. Eingaben umbrechen auf kleinen Displays, Beschriftungen für assistive Technik ergänzt, Modalinstanz wird wiederverwendet. PWA-Cache v8.
+- Neuer `POST /api/admin/backup`: Login, Adminprüfung und bestehender CSRF-Schutz; SQLite-Online-Backup über separate Verbindung, einschließlich committeter WAL-Daten. Download als datierte eigenständige `.db` mit UTC-Zeit und `no-store`; temporäre Dateien werden geschlossen/entfernt. Zeitlimit für die Snapshot-Erstellung 20 Sekunden. Alle Tabellen einschließlich Cover und Vorgangsbelegen werden gesichert; Serverkonfiguration/Secrets außerhalb der DB sind nicht enthalten. Kein Schemaumbau oder Versionswechsel.
+- Verifiziert: 55 Backendtests im vorhandenen lokalen Podman-Testimage mit aktuellem Quellcode, ohne Netzwerk und ausschließlich temporären Testdatenbanken bestanden. Neue Prüfungen: Login/Admin/CSRF, verborgene Adminansicht für normale Benutzer, eigenständig geöffneter Snapshot mit vollständigem SQL-Dump-Vergleich, Integritäts-/Fremdschlüsselprüfung, weitere Schreibbarkeit und verständlicher Fehler bei fehlgeschlagener temporärer Dateiablage. `git diff --check` ohne Befunde.
+- Offen: Browser-Sichtprüfung beider Designs und Größen, Download mit realem Browser, Lastprüfung großer produktiver Datenbanken. Lokale Python-Umgebung hatte kein Flask; deshalb Containerprüfung. JavaScript-Syntaxprüfung per `node` nicht möglich, da nicht im PATH. Kein Commit/Push, Release oder Produktivdeployment. Wiederherstellungsablauf siehe README.
+
+## Podman-Startprüfung für Server/Web 0.10 – 06.11.2026
+
+- Auf die Betreibermeldung zum fehlenden Modul `PIL` folgte ein frischer Podman-Build im Docker-Format als `localhost/games-collection:0.10-pillow-check` (AMD64). Im daraus gestarteten Container ließ sich Pillow 12.3.0 importieren. Gunicorn startete und `/health` lieferte HTTP 200 mit `{"status":"ok"}`. Alle 52 Backendtests bestanden im Image mit temporären Testdatenbanken.
+- Der Testcontainer lief ohne externes Netzwerk oder Host-Datenmount und wurde danach entfernt. Die Compose-Neuerstellung des Betreibercontainers wurde nicht ausgeführt. Das veröffentlichte Image wurde nicht geändert.
+
+## Lokale Server-/Web-Version 0.10 – 06.11.2026
+
+- `APP_VERSION` im lokalen Arbeitsstand auf 0.10 erhöht. Flask-Konfiguration mit temporärer Datenbank geprüft, 52 Backendtests bestanden. Das aktualisierte Docker-Image und Deployment stehen separat aus.
+
+## Eigene Cover – 06.11.2026
+
+- `game_cover` ergänzt das Schema ohne Spaltenumbau. In Sammlung und Freigaben enthält JSON nur die Bildadresse. Der JPEG-Abruf prüft Eigentum oder bestätigte Freundschaft und setzt `no-store`. PNG/JPEG/WebP aus dem Web werden im Browser verkleinert. Der Server validiert JPEG-Daten mit Pillow (maximal 800 Pixel Kantenlänge, 384 KiB Eingabedaten) und kodiert sie ohne Metadaten neu. POST/PUT für Spiele erlauben 600 KiB JSON einschließlich Cover. Die übrigen Routen behalten das Standardlimit von 64 KiB.
+- 52 Backendtests mit temporären Datenbanken bestanden. Die neuen Prüfungen decken CSRF, Idempotenz, Kompatibilität mit bisherigen Änderungen, Versionskonflikt, Ersatz/Entfernung und Zugriffsende ab. Firefox prüfte Upload und Standardcover am lokalen Gunicorn mit beiden Designs bei 360 und 1240 px. Der Test blendete externe Bootstrap-/Chart-Ressourcen aus und öffnete den Dialog im Testskript. Kein neues Docker-Image gebaut.
+
 ## Server/Web 0.9 veröffentlicht – 02.11.2026
 
 - Abschluss verifiziert: [Games Collection v0.9](https://github.com/mehmet-b-90/games_collection/releases/tag/server-v0.9) veröffentlicht, kein Draft/Prerelease, Label Latest. Betreiberbeschreibung und Screenshots erhalten; H1/Abschnitt „Neue Funktion“, technische Voraussetzungen/Prüfungen und bestätigten Image-Digest ergänzt. Tag `server-v0.9` unverändert am Produktcommit `941f3b0e36b72c63f63b49b2d117d87433ce0f46`.
@@ -147,3 +175,10 @@ Eine 503 bedeutet einen derzeit fehlgeschlagenen Datenbankzugriff, nicht zwingen
 ## Ergebnis des Push-Versuchs am 24.10.2026
 
 Der lokale Commit für PopScore/Server 0.8 wurde erstellt (aktuelle ID mit `git log` ermitteln). `git push -u origin feature/popscore` scheiterte an GitHub-HTTPS-Authentifizierung: „Invalid username or token“. Anschließendes `git ls-remote` bestätigte, dass der Remote-Feature-Branch weiterhin fehlt. Kein Tag angelegt/gepusht, kein GitHub Release und kein GHCR-0.8-Upload gestartet. Lokales geprüftes Image: `localhost/games-collection:0.8`. Git-Anmeldung erneuern, danach Feature-Branch pushen und `docker-v0.8` am Feature-Release-Commit anlegen/pushen; CI-Erfolg bestätigen. `.env.example` bleibt als unabhängige lokale Kommentaränderung uncommittet. Die vorläufige automatische Freigabeablehnung wegen vermuteten unvollständigen Stagings wurde durch Prüfung aller 59 Dateien geklärt; anschließend wurde der Commit freigegeben.
+
+
+## Web-Einstellungen: freigegebener Reiterentwurf – 06.11.2026
+
+Vier Reiter im vorhandenen Kontodialog umgesetzt (Darstellung, Spielvorgaben, Konto, App), mit bereichsbezogenen Speicherbuttons, Erhalt der Eingaben beim Wechsel und Tastaturbedienung. Bestehende APIs/CSRF-Prüfungen unverändert, Serververwaltung weiterhin separat mit Adminbedingung. PWA-Cache v10.
+
+Prüfungen: 58 Backendtests im isolierten lokalen Podman-Container erfolgreich (temporäre Datenbanken, kein Netzwerk); JavaScript-Syntax und isolierte Tab-/Tastaturprüfung erfolgreich. Firefox-Sichtprüfung des gerenderten Dialogs in Cinematic bei 390 px und Editorial bei 1100/320 px; mobile Reiterbreiten korrigiert. Kein vollständiger Browser-End-to-End-Test von Speicherung/Installation/Freunde-Wechsel, kein reales Smartphone und kein Deployment. Details im aktuellen PROJECT_CONTEXT.md.

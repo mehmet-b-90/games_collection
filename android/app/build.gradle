@@ -20,8 +20,8 @@ android {
         applicationId 'de.gamescollection.viewer'
         minSdk 26
         targetSdk 36
-        versionCode 8
-        versionName '0.9'
+        versionCode 9
+        versionName '0.10'
         testInstrumentationRunner 'android.test.InstrumentationTestRunner'
     }
 

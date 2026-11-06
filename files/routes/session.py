@@ -5,6 +5,7 @@ from flask_wtf.csrf import generate_csrf
 from werkzeug.security import check_password_hash
 from ..igdb import get_igdb_credentials
 from ..database import api_error
+from ..game_defaults import get_defaults
 from ..models import User
 from ..validation import normalize_username
 
@@ -14,10 +15,10 @@ session_bp = Blueprint('session', __name__, url_prefix='/api')
 def session_response():
     user = None
     if current_user.is_authenticated:
-        user = {**current_user.to_dict(), 'ui_theme': current_user.ui_theme}
+        user = {**current_user.to_dict(), 'ui_theme': current_user.ui_theme, 'game_defaults': get_defaults(current_user.id)}
     response = jsonify({
         'api_version': 1,
-        'capabilities': {'idempotent_game_writes': True, 'friendships': True},
+        'capabilities': {'idempotent_game_writes': True, 'friendships': True, 'custom_covers': True, 'game_defaults': True},
         'authenticated': user is not None,
         'user': user,
         'csrf_token': generate_csrf(),

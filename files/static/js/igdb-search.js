@@ -1,5 +1,5 @@
 import {apiFetch, responseJson} from './api.js';
-import {updateDekuDealsLink} from './games.js';
+import {setCoverUrl, updateDekuDealsLink} from './games.js';
 
 let timeout;
 let controller;
@@ -13,7 +13,7 @@ export function selectGame(game, results = document.getElementById('searchResult
     const set = (id, value = '') => { document.getElementById(id).value = value; };
     const releaseYear = game.first_release_date ? new Date(game.first_release_date * 1000).getFullYear() : '';
     set('titleInput', game.name);
-    set('coverUrlInput', game.cover?.image_id ? `https://images.igdb.com/igdb/image/upload/t_cover_big/${game.cover.image_id}.jpg` : '');
+    setCoverUrl(game.cover?.image_id ? `https://images.igdb.com/igdb/image/upload/t_cover_big/${game.cover.image_id}.jpg` : '');
     set('releaseYearSearch', releaseYear);
     set('releaseInput', releaseYear);
     set('igdbIdInput', game.id || '');

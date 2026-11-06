@@ -1,5 +1,68 @@
 # Games Collection – Projektkontext
 
+## Quellstand 0.10 zur GitHub-Übergabe – 06.11.2026
+
+- Der Betreiber beauftragt Commit und Push des gemeinsamen Stands für Web/Server und Android nach `main`. Server/Web meldet `APP_VERSION = '0.10'`. Android verwendet `versionName '0.10'` und `versionCode 9`. Enthalten sind eigene Cover, kontoweit synchronisierte Spielvorgaben, Web-Einstellungen mit Reitern, Serververwaltung mit SQLite-Backup und der Kartenwechsel in Android-Spieldetails.
+- 58 Backendtests mit aktuellem Quellcode im vorhandenen Podman-Image `localhost/games_collection:0.10` bestanden. Der Testcontainer lief ohne Netzwerk und verwendete ausschließlich temporäre Testdatenbanken. `git diff --check` ohne Befunde.
+- Android-Release-Prüfung `testReleaseUnitTest lintRelease assembleRelease --offline --no-daemon` erfolgreich (2 von 63 Tasks ausgeführt). Testberichte bestätigen 43 erfolgreiche JVM-Tests, Release-Lint meldet 0 Befunde. APK-Signatur v2 und Metadaten 0.10 / Code 9 erneut verifiziert. Die lokale APK liegt unter `android/app/build/outputs/apk/release/Games-Collection-0.10-release.apk`. Sicht- und Gestentest auf einem Android-Gerät stehen aus.
+- Ziel ist `origin/main` im Repository `mehmet-b-90/games_collection`. Ein Push der Serverdateien startet den Docker-Workflow für `latest`. Das nummerierte Server-Release und die GitHub-APK bleiben getrennte Veröffentlichungsschritte. Die bestehenden 0.9-Downloadlinks bleiben bis zum nächsten APK-Release gültig. Der VPS wird separat aktualisiert.
+
+## Kartenwechsel in Android-Spieldetails – 06.11.2026
+
+- Der Betreiber hat den interaktiven Entwurf freigegeben. Umgesetzt mit dem horizontalen Compose-Pager: Abgerundete Karten in den App-Farben, die aktuelle Detailkarte folgt der Geste und der benachbarte Titel gleitet gleichzeitig von der Seite herein. Langsame Gesten rasten ab rund einem Fünftel der Seitenbreite ein, kürzere federn zurück. Schnelle Wischgesten nutzen das native Schwungverhalten. Pfeile und Position der gefilterten Liste stehen unterhalb der Karten.
+- Der Titelwechsel wird erst nach dem Einrasten übernommen. Detailaktionen sind während der Bewegung und auf Nachbarkarten deaktiviert. Der Editor bleibt eine separate Ansicht. Gesperrte Titel werden weiterhin übersprungen.
+- Release-Prüfung erfolgreich: 43 JVM-Tests, Lint ohne Befunde, APK-v2-Signatur und Version 0.10 / Code 9 verifiziert. Lokale APK unter `android/app/build/outputs/apk/release/Games-Collection-0.10-release.apk`. Kein Android-Gerät verbunden. Sicht- und Gestentest in beiden Designs steht aus.
+
+## Web-Einstellungen mit Reitern – 06.11.2026
+
+- Screenshotkorrektur: Reiter haben nun identischen Abstand zu beiden horizontalen Trennlinien: Desktop oben/unten 16 px, mobil oben/unten 12 px. Gilt für beide Designs; PWA-Cache auf v11 erhöht. CSS-Regeln und `git diff --check` geprüft; keine erneute Browser-Sichtprüfung für diese reine Abstandskorrektur.
+
+- Betreiber hat den interaktiven Mockup-Entwurf freigegeben. Umgesetzt: Darstellung, Spielvorgaben, Konto und App als vier Reiter im bisherigen Kontodialog, jetzt „Einstellungen“. Freunde/Anfragen, Abmelden und Kontolöschung unter Konto; Serververwaltung bleibt separat und nur für Administratoren sichtbar.
+- Breiterer Dialog, responsive Feldgruppen und platzsparende Reiter für beide Designs. Nur der aktive Bereich ist sichtbar; Formulare bleiben beim Reiterwechsel erhalten. Pfeiltasten sowie Home/End bedienen die Reiter; ARIA-Zuordnung und Fokusführung ergänzt. Speicheraktionen erscheinen passend zum Bereich, Design weiterhin direkt gespeichert. Vorhandene Fehlerbehandlung bleibt erhalten. Installation korrekt als „Web-App installieren“ bezeichnet. PWA-Cache v10.
+- Verifiziert: 58 Backendtests bestanden im bestehenden lokalen Podman-Image mit aktuellem Quellcode, ohne Netzwerk und mit temporären Datenbanken. JS-Syntaxprüfung erfolgreich; isolierte Prüfung aller vier Reiter, Sichtbarkeit der Speicheraktionen sowie Tastaturwechsel erfolgreich. Firefox-Sichtprüfung der isoliert gerenderten echten Dialogansicht: Cinematic/Konto bei 390 px, Editorial/Spielvorgaben bei 1100 und 320 px. Dabei mobile Reiterbreiten und Plattformüberschrift korrigiert. `git diff --check` ohne Befunde.
+- Grenzen: Sichtprüfung mit lokalem Bootstrap-CSS und isolierter Tab-Initialisierung, kein vollständiger Browser-End-to-End-Test von Speicherung, Installation oder Freunde-Dialogwechsel. Kein echter Smartphone-Test. Kein Datenbankumbau, Android-Build, Commit/Push oder Deployment. Bestehende lokale Änderungen erhalten.
+
+## Standardwerte für neue Spiele – 06.11.2026
+
+- Auftrag: Titeltyp bei der Suche, Format, Status und mehrere Besitzplattformen in Web und Android einstellbar. Umsetzung kontoweit auf dem Server. Der Betreiber hat die kontoweite Synchronisierung zwischen Web und Android am 06.11.2026 nach der ersten Übergabe ausdrücklich bestätigt; die zuvor dokumentierte Implementierungsannahme ist damit bestätigt.
+- Web: Profil/Mein Konto → Standardwerte für neue Spiele. Android: Profil → Einstellungen. Explizit speichern, Fehler lassen Auswahl und Dialog bestehen. Vorgaben greifen beim neuen Hinzufügen, manuellen Anlegen und Entdecken; vorhandene Spiele und laufende Entwürfe werden nicht umgeschrieben. Ohne Konfiguration weiterhin Alle Typen/Digital/Nicht gespielt/keine Plattform.
+- Neue additive Tabelle `user_game_defaults` mit Benutzer-Fremdschlüssel und Löschkaskade; keine Änderung bestehender Tabellen. API GET/PUT `/api/account/game-defaults`, Login/CSRF und vollständige serverseitige Validierung; Session-Capability `game_defaults`. Updateweg siehe README. Kein Zugriff auf Produktivdaten.
+- Web lädt Vorgaben beim Seitenladen; Android bei Anmeldung/Verbindung/Synchronisierung und speichert den letzten Stand pro Server/Konto lokal für Offline-Nutzung. Einstellungen ändern verlangt online einen aktualisierten Server. Keine Echtzeitübertragung in bereits offene Webseiten. PWA-Cache v9.
+- Verifiziert: 58 Backendtests bestanden im vorhandenen Podman-Testimage mit aktuellem Quellcode, ohne Netzwerk und ausschließlich temporären Datenbanken; darunter additive Schemaanlage/Datenerhalt, Kontentrennung, Validierung, CSRF, Rollback und Löschkaskade. 43 Android-JVM-Tests bestanden, Release-Lint ohne Befunde, `testReleaseUnitTest lintRelease assembleRelease --offline --no-daemon` erfolgreich. APK-v2-Signatur gültig. JS-Syntax der geänderten Module geprüft; `git diff --check` ohne Befunde.
+- Lokale APK: `android/app/build/outputs/apk/release/Games-Collection-0.10-release.apk` (Version 0.10 / Code 9 unverändert). Keine Browser-/Gerätesichtprüfung, kein neuer Container-Image-Build, kein Commit/Push, keine Veröffentlichung. Vor Nutzung Server und Client gemeinsam aktualisieren; beide Designs auf Desktop/Mobil und Android noch visuell prüfen.
+
+## Serververwaltung und Datenbank-Backup – 06.11.2026
+
+- Betreiber bestätigt produktiven VPS-Betrieb mit registrierten Konten und gepflegten Sammlungen. Datenbankkompatibilität und datenerhaltende künftige Migrationen sind jetzt ausdrücklich verbindlich in `AGENTS.md` festgehalten. Kein Zugriff auf den VPS oder dessen Datenbank erfolgt.
+- Web-Zugang „Serververwaltung“ bündelt Datenbank-Backup und bestehende Benutzerverwaltung in erweiterbaren Abschnitten. Benutzerliste lädt unabhängig vom Backup; Fehler bleiben im Dialog sichtbar. Eingaben umbrechen auf kleinen Displays, Beschriftungen für assistive Technik ergänzt, Modalinstanz wird wiederverwendet. PWA-Cache v8.
+- Neuer `POST /api/admin/backup`: Login, Adminprüfung und bestehender CSRF-Schutz; SQLite-Online-Backup über separate Verbindung, einschließlich committeter WAL-Daten. Download als datierte eigenständige `.db` mit UTC-Zeit und `no-store`; temporäre Dateien werden geschlossen/entfernt. Zeitlimit für die Snapshot-Erstellung 20 Sekunden. Alle Tabellen einschließlich Cover und Vorgangsbelegen werden gesichert; Serverkonfiguration/Secrets außerhalb der DB sind nicht enthalten. Kein Schemaumbau oder Versionswechsel.
+- Verifiziert: 55 Backendtests im vorhandenen lokalen Podman-Testimage mit aktuellem Quellcode, ohne Netzwerk und ausschließlich temporären Testdatenbanken bestanden. Neue Prüfungen: Login/Admin/CSRF, verborgene Adminansicht für normale Benutzer, eigenständig geöffneter Snapshot mit vollständigem SQL-Dump-Vergleich, Integritäts-/Fremdschlüsselprüfung, weitere Schreibbarkeit und verständlicher Fehler bei fehlgeschlagener temporärer Dateiablage. `git diff --check` ohne Befunde.
+- Offen: Browser-Sichtprüfung beider Designs und Größen, Download mit realem Browser, Lastprüfung großer produktiver Datenbanken. Lokale Python-Umgebung hatte kein Flask; deshalb Containerprüfung. JavaScript-Syntaxprüfung per `node` nicht möglich, da nicht im PATH. Kein Commit/Push, Release oder Produktivdeployment. Wiederherstellungsablauf siehe README.
+
+## Podman-Start mit eigenen Covern – 06.11.2026
+
+- Der Betreiber meldete `ModuleNotFoundError: No module named 'PIL'` beim Workerstart und bestätigte anschließend die Ursache: Er baute mit kopierten Projektdateien in einem separaten Ordner, in dem noch eine ältere `requirements.txt` ohne Pillow lag.
+- Der lokale Stand führt Pillow 12.3.0 bereits in `requirements.txt`, das Dockerfile installiert die Datei vor dem Kopieren der Anwendung. Ein frischer lokaler Podman-Build des aktuellen Stands wurde erfolgreich geprüft. Der Podman-Build und die Auswahl des lokalen Images in Compose sind in der README beschrieben. Details der Verifikation stehen in `SERVER_REVIEW.md`.
+
+## Wisch-Navigation in Android-Spieldetails – 06.11.2026
+
+- In der eigenen Sammlung wechselt ein Wisch nach links zum nächsten und ein Wisch nach rechts zum vorigen sichtbaren Titel. Die aktuelle Suche, Filterung und Sortierung bestimmen die Reihenfolge. An den Listenenden bleibt der aktuelle Titel geöffnet. Jeder neu geöffnete Titel beginnt oben.
+- Die horizontale Geste ist auf die Detailansicht beschränkt, damit Eingaben im Editor und offene Speichervorgänge erhalten bleiben. Titel mit bereits versuchten, noch offenen Übertragungen werden beim Blättern übersprungen, entsprechend der bestehenden Sperre beim Öffnen aus dem Raster.
+- Release-Prüfung erfolgreich: 40 JVM-Tests, Lint ohne Befunde, APK-v2-Signatur und Version 0.10 / Code 9 verifiziert. Lokaler Build: `android/app/build/outputs/apk/release/Games-Collection-0.10-release.apk`. Gestentest in beiden Designs auf einem Android-Gerät steht aus.
+
+## Android und Server/Web auf 0.10 angehoben – 06.11.2026
+
+- Folgeauftrag zur Coverauswahl: Server/Web `APP_VERSION` und Android `versionName` auf **0.10** gesetzt. Android `versionCode` von 8 auf **9** erhöht, damit der Build eine höhere interne Versionsnummer als die veröffentlichte APK hat. Die API-Protokollversion bleibt 1.
+- Flask-Konfiguration meldet 0.10. 52 Backendtests bestanden. Android-Release-Build erfolgreich, vorhandene Berichte mit 40 bestandenen JVM-Tests (Test-Task UP-TO-DATE), Lint ohne Befunde. APK-v2-Signatur und Metadaten **0.10 / Code 9** geprüft. Lokale APK `android/app/build/outputs/apk/release/Games-Collection-0.10-release.apk`. Keine erneute Geräteprüfung oder neuer Container-Build.
+- 0.10 ist der lokale Arbeitsstand. GitHub und Server-Images sind weiterhin auf dem veröffentlichten Stand 0.9, Google Play zuletzt intern auf 0.7 / Code 4.
+
+## Eigene Cover im Web- und Android-Editor – 06.11.2026
+
+- Im lokalen Arbeitsstand öffnen beide Editoren über „Cover wählen“ die Dateiauswahl beziehungsweise Android-System-Fotoauswahl. Die Vorschau gilt für neue und bestehende Spiele. „Standardcover“ stellt den IGDB-Standard wieder her. Web akzeptiert JPEG, PNG und WebP und verkleinert die Auswahl auf maximal 800 Pixel Kantenlänge. Android verkleinert auf maximal 480 Pixel und begrenzt den JPEG-Entwurf auf 48 KiB.
+- Die additive SQLite-Tabelle `game_cover` wird beim Serverstart angelegt. Sie speichert das JPEG atomar mit dem Spiel und dem vorhandenen Idempotenzbeleg. Das Cover wird mit dem Spiel gelöscht. Die API liefert eine separate geschützte Coveradresse. Der Zugriff folgt der bestätigten Freundschaft; die bestehende IGDB-Adresse bleibt als Rückfall erhalten. Android nutzt die Offline-Warteschlange und benötigt zur Synchronisierung einen Server mit `custom_covers`. Der PWA-Cache steht auf v7.
+- Verifiziert: 52 Backendtests und 40 Android-JVM-Tests bestanden, Release-Lint ohne Befunde, lokale APK-v2-Signatur gültig. Firefox und lokaler Gunicorn mit temporärer SQLite-Datenbank prüften Auswahl einer PNG, JPEG-Vorschau, Speichern, Wiederöffnen und Standardcover mit Cinematic Dark bei 360 px und Editorial Shelf bei 1240 px. Bootstrap und Chart.js waren im isolierten Test ausgeblendet, der Dialog wurde für den Test geöffnet. Keine Sichtprüfung auf einem Android-Gerät und kein Docker-Image neu gebaut.
+- Lokaler signierter Build `android/app/build/outputs/apk/release/Games-Collection-0.9-release.apk` (0.9 / Code 8). Die Versionierung dieses Arbeitsstands entspricht dem bestehenden Projektstand. Veröffentlichung und Deployment stehen separat aus.
+
 ## Android-App 0.9 veröffentlicht – 02.11.2026
 
 - Betreiber hat eigene Beschreibung und Screenshot ergänzt und die APK angehängt. Direkt verifiziert: [Android-App v0.9](https://github.com/mehmet-b-90/games_collection/releases/tag/android-v0.9) veröffentlicht, kein Draft/Prerelease; Tag `android-v0.9` am Commit `352efc72e253d026fe880b30f4f3f861ac6cd58f`. Dessen Android-Quellcode entspricht dem geprüften Build 0.9 / Code 8; dazwischen nur Server-Workflow/Dokumentation geändert.

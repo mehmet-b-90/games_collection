@@ -1,5 +1,7 @@
 package de.gamescollection.viewer
 
+import android.content.Context
+import coil.ImageLoader
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -55,7 +57,14 @@ class ApiClient private constructor(val server: String, persistence: CookiePersi
     private var csrf = ""
     private var idempotentWrites = false
 
-    fun clearSession() { cookies.clear(); csrf = ""; idempotentWrites = false }
+    var supportsCustomCovers = false
+        private set
+
+    internal fun coverLoader(context: Context) = ImageLoader.Builder(context)
+        .okHttpClient { client }
+        .build()
+
+    fun clearSession() { cookies.clear(); csrf = ""; idempotentWrites = false; supportsCustomCovers = false }
     suspend fun session(): JSONObject {
         val value = JSONObject(request("GET", "/api/session"))
         if (value.optInt("api_version") != 1 || value.optString("csrf_token").isEmpty()) {
@@ -63,6 +72,7 @@ class ApiClient private constructor(val server: String, persistence: CookiePersi
         }
         csrf = value.getString("csrf_token")
         idempotentWrites = value.optJSONObject("capabilities")?.optBoolean("idempotent_game_writes") == true
+        supportsCustomCovers = value.optJSONObject("capabilities")?.optBoolean("custom_covers") == true
         return value
     }
     suspend fun login(username: String, password: String, remember: Boolean): JSONObject {
@@ -71,6 +81,7 @@ class ApiClient private constructor(val server: String, persistence: CookiePersi
             .put("username", username).put("password", password).put("remember", remember)))
         csrf = result.getString("csrf_token")
         idempotentWrites = result.optJSONObject("capabilities")?.optBoolean("idempotent_game_writes") == true
+        supportsCustomCovers = result.optJSONObject("capabilities")?.optBoolean("custom_covers") == true
         return result
     }
     suspend fun logout() {
@@ -84,6 +95,8 @@ class ApiClient private constructor(val server: String, persistence: CookiePersi
     suspend fun acceptFriend(id: Int) { request("PUT", "/api/friends/$id", JSONObject()) }
     suspend fun removeFriend(id: Int) { request("DELETE", "/api/friends/$id", JSONObject()) }
     suspend fun friendLibrary(id: Int): FriendLibrary = FriendLibrary.fromJson(JSONObject(request("GET", "/api/friends/$id/games")))
+    suspend fun saveGameDefaults(values: GameDefaults): GameDefaults = GameDefaults.fromJson(
+        JSONObject(request("PUT", "/api/account/game-defaults", values.json())))
     suspend fun collection(): JSONObject = JSONObject(request("GET", "/api/games"))
     suspend fun save(game: Game, operationKey: String) {
         requireIdempotency()

@@ -1,5 +1,11 @@
 # Games Collection für Android
 
+### Standardwerte (lokaler Stand 0.10)
+
+Unter **Profil → Einstellungen** Titeltyp der Suche, Format, Status und mehrere Besitzplattformen setzen und **Standardwerte speichern**. Gilt kontoweit auch im Web; benötigt den aktuellen Serverstand mit Capability `game_defaults`. Bei Anmeldung/Verbindung/Synchronisierung lädt die App die Vorgaben; pro Server/Konto gespeicherte Werte bleiben offline nutzbar. Neue Spiele aus Suche, manueller Anlage und Entdecken übernehmen die Werte. Vorhandene Spiele und Entwürfe bleiben unverändert.
+
+**Lokaler Entwicklungsstand: Android 0.10 / VersionCode 9.** Enthält die manuelle Coverauswahl.
+
 **Android 0.9 / VersionCode 8 (02.11.2026) veröffentlicht.** [Release Notes](../release-notes/android-v0.9.md). Die signierte GitHub-APK ist veröffentlicht; den verifizierten Abschluss dokumentiert `../PROJECT_CONTEXT.md`. Der Play-Test bleibt bei 0.7 / Code 4.
 
 
@@ -16,6 +22,8 @@ Lokale Korrektur vom 01.11.2026 (noch nicht in der veröffentlichten GitHub-APK)
 - Freunde und Anfragen über das Profil: gegenseitige Sammlungseinsicht nach Annahme, Titelsuche, Anfragenverwaltung und Freundschaft beenden (lokaler unveröffentlichter Stand; aktualisierter Server erforderlich)
 - Native Anmeldung, Abmeldung und optional „Eingeloggt bleiben“
 - Sammlung mit Cover-Raster, Titelsuche und Sortierung
+- Spieldetails in der eigenen Sammlung (lokaler Stand 0.10): Die Karte nach links oder rechts ziehen. Der nächste oder vorige Titel der gefilterten und sortierten Liste gleitet schon während der Geste herein. Kurze Züge federn zurück. Unter der Karte stehen Pfeile und Listenposition. Am Listenende bleibt der aktuelle Titel geöffnet.
+- Eigene Cover über **Cover wählen** aus der System-Fotoauswahl (lokaler Stand, aktualisierter Server erforderlich). Vorschau und **Standardcover** stehen im Editor bereit. Die Auswahl kann offline gespeichert und später synchronisiert werden.
 - Status direkt über den Button oben auf dem Cover ändern (lokaler Stand 0.9): antippen, „Nicht gespielt“, „Gespielt“ oder „Abgebrochen“ auswählen; offline lokal gespeichert und später synchronisiert
 - Filter nach Plattform, Status, Format, Engine, Altersfreigabe und Mindestbewertung
 - Native Statistik mit Anzahl und Prozentwerten
@@ -54,7 +62,7 @@ Die folgenden Schritte betreffen die direkte APK-Installation. Zusätzlich läuf
 
 Play- und bisherige Release-APKs haben unterschiedliche Signaturen; vor einem Wechsel den [Hinweis unten](#google-play-und-bisherige-release-apks) lesen.
 
-1. Die [APK für Android-Version 0.9 herunterladen](https://github.com/mehmet-b-90/games_collection/releases/download/android-v0.9/games_collection-v0.9.apk) und auf dem Smartphone öffnen. Bei einem aktuellen eigenen Build verwende die signierte Release-APK unter `app/build/outputs/apk/release/Games-Collection-0.9-release.apk`; zum Wechsel von der bisherigen Debug-Signatur siehe unten. Android fragt gegebenenfalls, ob die verwendete Browser- oder Datei-App APKs installieren darf.
+1. Die [APK für Android-Version 0.9 herunterladen](https://github.com/mehmet-b-90/games_collection/releases/download/android-v0.9/games_collection-v0.9.apk) und auf dem Smartphone öffnen. Bei einem aktuellen eigenen Build verwende die signierte Release-APK unter `app/build/outputs/apk/release/Games-Collection-0.10-release.apk`; zum Wechsel von der bisherigen Debug-Signatur siehe unten. Android fragt gegebenenfalls, ob die verwendete Browser- oder Datei-App APKs installieren darf.
 2. Games Collection öffnen und deine Serveradresse eingeben, beispielsweise `https://games.example.org` oder für lokale Tests `http://192.168.178.20:7000`.
 3. Bei HTTP die Option „HTTP für lokale Tests zulassen“ aktivieren. Ohne Protokollangabe ergänzt die App beim Verbinden automatisch `http://`, wenn die Option aktiviert ist, andernfalls `https://`. Ein ausdrücklich eingegebenes Protokoll bleibt erhalten; `http://` benötigt weiterhin die Freigabe. HTTPS ist für den regulären Betrieb empfohlen.
 4. Mit deinem bestehenden Games-Collection-Konto anmelden.
@@ -63,7 +71,7 @@ Unter „Profil → Einstellungen“ lassen sich Design, Posteranzahl pro Reihe 
 
 Beim Serverwechsel werden die bisherigen Anmelde-Cookies gelöscht; melde dich am neuen Server erneut an. Der Knopf `↻` lädt die Sammlung erneut.
 
-Der Downloadlink verweist auf Version 0.9 (`android-v0.9`, VersionCode 8), einschließlich Freundschaften, direktem Statuswechsel auf dem Cover und korrigierter Hinzufügen-Navigation. Das vom Betreiber hochgeladene Asset heißt `games_collection-v0.9.apk`; lokale Builds heißen weiterhin `Games-Collection-0.9-release.apk`. Hinweise zum Signaturwechsel beachten. Änderungen und Voraussetzungen stehen in den GitHub Release Notes.
+Der Downloadlink verweist auf Version 0.9 (`android-v0.9`, VersionCode 8), einschließlich Freundschaften, direktem Statuswechsel auf dem Cover und korrigierter Hinzufügen-Navigation. Das vom Betreiber hochgeladene Asset heißt `games_collection-v0.9.apk`; der aktuelle lokale Build heißt `Games-Collection-0.10-release.apk`. Hinweise zum Signaturwechsel beachten. Änderungen und Voraussetzungen stehen in den GitHub Release Notes.
 
 Das Smartphone muss den Server erreichen können, etwa im gleichen WLAN oder über ein VPN. `localhost` verweist auf dem Smartphone auf das Smartphone selbst. Im Android-Emulator ist der Hostrechner normalerweise unter `10.0.2.2` erreichbar. Die Anwendung erwartet die Serveradresse ohne Unterpfad, da die Webanwendung absolute Routen verwendet.
 
@@ -92,7 +100,7 @@ Noch nicht gespeicherte Editorentwürfe verwenden weiterhin Android-Saved-State.
 - Twitch-Client-Secret und Flask-`SECRET_KEY` bleiben ausschließlich auf dem Server. Nur Client-ID und befristetes IGDB-Zugriffstoken werden zur Laufzeit verschlüsselt auf dem Gerät gespeichert; sie sind nicht in die APK eingebaut.
 - Die API verwendet die bestehenden Flask-Sitzungs-Cookies und den vorhandenen CSRF-Schutz. Bei einer abgelaufenen Sitzung fordert die App eine erneute Anmeldung an. Ein abgelaufenes CSRF-Token wird einmal erneuert und die abgewiesene Anfrage wiederholt.
 - Sitzungscookies und CSRF-Token bleiben im Arbeitsspeicher. Nur dauerhafte Cookies für „Eingeloggt bleiben“ werden verschlüsselt im privaten App-Speicher abgelegt; der Schlüssel liegt im Android Keystore. Passwörter werden nicht gespeichert. Ohne nutzbaren Keystore bleibt die Sitzung auf den laufenden App-Prozess begrenzt. Android-Backups sind deaktiviert.
-- Die API überträgt Anmelde-Cookies nur an den eingestellten Server einschließlich Protokoll und Port. HTTP-Weiterleitungen werden nicht automatisch verfolgt. Gib daher direkt die endgültige Serveradresse an, etwa die HTTPS-Adresse statt ihrer HTTP-Weiterleitung. Cover werden separat über HTTPS von IGDB geladen.
+- Die API überträgt Anmelde-Cookies nur an den eingestellten Server einschließlich Protokoll und Port. HTTP-Weiterleitungen werden nicht automatisch verfolgt. Gib daher direkt die endgültige Serveradresse an, etwa die HTTPS-Adresse statt ihrer HTTP-Weiterleitung. IGDB-Cover werden separat über HTTPS geladen. Synchronisierte eigene Cover werden angemeldet vom Sammlungsserver geladen. Ohne Verbindung zeigt die App das IGDB-Cover, falls es verfügbar ist, oder einen Platzhalter. Noch ausstehende eigene Cover werden lokal aus der Warteschlange angezeigt.
 - HTTPS-Zertifikatsfehler werden nicht übergangen. Verwende ein Zertifikat, dem Android vertraut.
 - HTTP ist technisch für lokale Testinstallationen vorgesehen und muss im Verbindungsdialog ausdrücklich aktiviert werden. Dabei werden auch Anmeldedaten unverschlüsselt übertragen. Für HTTP muss auf dem Server `SESSION_COOKIE_SECURE=false` gelten; für HTTPS empfiehlt sich `true`.
 
@@ -133,7 +141,7 @@ export JAVA_HOME=/pfad/zum/jdk-17
 
 Alternativ kann der SDK-Pfad in der lokal ignorierten Datei `android/local.properties` als `sdk.dir=/pfad/zum/Android/Sdk` eingetragen werden. Der Gradle-Wrapper und Abhängigkeiten werden bei Bedarf heruntergeladen. Lokales `.toolchain/env.sh` nur verwenden, wenn die dazugehörigen Werkzeuge vorhanden sind.
 
-Ergebnis ausgehend vom Repository-Hauptverzeichnis: `android/app/build/outputs/apk/release/Games-Collection-0.9-release.apk`. Der Dateiname folgt automatisch der `versionName`. Aktueller Quellstand: **Version 0.9 / Code 8**. Neue Veröffentlichungen erhalten einen höheren VersionCode und eigene GitHub Release Notes.
+Ergebnis ausgehend vom Repository-Hauptverzeichnis: `android/app/build/outputs/apk/release/Games-Collection-0.10-release.apk`. Der Dateiname folgt automatisch der `versionName`. Aktueller Quellstand: **Version 0.10 / Code 9**. Neue Veröffentlichungen erhalten einen höheren VersionCode und eigene GitHub Release Notes.
 
 ### App Bundle für Google Play bauen
 
@@ -161,7 +169,7 @@ Künftige Updates mit demselben Release-Schlüssel und passender Versionsnummer 
 
 ```bash
 cd android
-adb install -r app/build/outputs/apk/release/Games-Collection-0.9-release.apk
+adb install -r app/build/outputs/apk/release/Games-Collection-0.10-release.apk
 ```
 
 Für reine Entwicklungsprüfungen bleibt `./gradlew testDebugUnitTest lintDebug assembleDebug` verfügbar; dessen Ergebnis heißt weiterhin `app/build/outputs/apk/debug/app-debug.apk`. Debug und Release haben dieselbe App-ID und können deshalb nicht als zwei getrennte Apps parallel installiert werden.

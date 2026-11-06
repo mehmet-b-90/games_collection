@@ -3,6 +3,7 @@ from flask_wtf.csrf import CSRFError
 from werkzeug.exceptions import HTTPException
 from sqlalchemy.exc import SQLAlchemyError
 from .config import configure_app
+from .covers import MAX_GAME_REQUEST_KIB
 from .database import api_error, log_exception, request_id
 from .extensions import csrf, db, login_manager
 from .models import User
@@ -12,6 +13,12 @@ def create_app():
     application = Flask(__name__)
     configure_app(application)
     db.init_app(application)
+    # Flask-WTF accesses the request body, so set the route limit before its hook.
+    @application.before_request
+    def allow_cover_payload():
+        if request.endpoint in {'games.add_game', 'games.manage_game'} and request.method in {'POST', 'PUT'}:
+            request.max_content_length = MAX_GAME_REQUEST_KIB * 1024
+
     csrf.init_app(application)
     login_manager.init_app(application)
     login_manager.login_view = 'auth.login'
@@ -67,7 +74,7 @@ def create_app():
     def handle_http_error(error):
         if request.path.startswith('/api/'):
             messages = {400: 'Die Anfrage ist ungültig.', 404: 'Der angeforderte Datensatz oder die Seite wurde nicht gefunden.',
-                        405: 'Diese Aktion ist für die Adresse nicht erlaubt.', 413: 'Die Anfrage ist zu groß (maximal 64 KiB).'}
+                        405: 'Diese Aktion ist für die Adresse nicht erlaubt.', 413: f'Die Anfrage ist zu groß (maximal {request.max_content_length // 1024} KiB).'}
             response = error.get_response()
             body, status = api_error(messages.get(error.code, 'Die Anfrage konnte nicht verarbeitet werden.'), error.code or 500)
             # Preserve protocol headers such as Allow on HTTP 405.

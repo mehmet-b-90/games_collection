@@ -1,4 +1,4 @@
-from flask import Blueprint, request
+from flask import Blueprint, request, jsonify
 from flask_login import current_user, login_required, logout_user
 from werkzeug.security import check_password_hash, generate_password_hash
 from ..database import api_error, commit_changes
@@ -114,3 +114,27 @@ def update_theme():
     current_user.ui_theme = theme
     error = commit_changes()
     return error or {'status': 'updated', 'theme': theme}
+
+
+@users_bp.route('/account/game-defaults', methods=['GET', 'PUT'])
+@login_required
+def game_defaults():
+    from ..game_defaults import get_defaults, validate_defaults
+    from ..models import UserGameDefaults
+    if request.method == 'PUT':
+        try:
+            values = validate_defaults(request.get_json(silent=True))
+        except ValueError as error:
+            return api_error(str(error))
+        record = db.session.get(UserGameDefaults, current_user.id)
+        if record is None:
+            record = UserGameDefaults(user_id=current_user.id, values=values)
+            db.session.add(record)
+        else:
+            record.values = values
+        error = commit_changes()
+        if error:
+            return error
+    response = jsonify(get_defaults(current_user.id))
+    response.headers['Cache-Control'] = 'no-store'
+    return response

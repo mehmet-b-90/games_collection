@@ -6,7 +6,43 @@ let themeSaveQueue = Promise.resolve();
 
 export function openAccountModal() {
     ['accountCurrentPassword', 'accountNewPassword', 'accountNewPasswordConfirm'].forEach(id => { document.getElementById(id).value = ''; });
-    new bootstrap.Modal(document.getElementById('accountModal')).show();
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('accountModal')).show();
+}
+
+export function initializeSettingsTabs() {
+    const modal = document.getElementById('accountModal');
+    const tabs = Array.from(modal.querySelectorAll('[role="tab"]'));
+    const hints = {
+        appearance: 'Designauswahl wird direkt übernommen.',
+        defaults: 'Vorgaben gelten für neue Spiele in Web und Android.',
+        profile: 'Aktuelles Passwort für Kontoänderungen erforderlich.',
+        app: 'Verfügbarkeit abhängig von deinem Browser.'
+    };
+    function selectTab(tab) {
+        const panelId = tab.getAttribute('aria-controls');
+        tabs.forEach(item => {
+            item.setAttribute('aria-selected', String(item === tab));
+            item.tabIndex = item === tab ? 0 : -1;
+        });
+        modal.querySelectorAll('[role="tabpanel"]').forEach(panel => {
+            panel.hidden = panel.id !== panelId;
+        });
+        document.getElementById('saveGameDefaults').hidden = panelId !== 'settings-defaults';
+        document.getElementById('accountSaveBtn').hidden = panelId !== 'settings-profile';
+        document.getElementById('settingsHint').textContent = hints[panelId.replace('settings-', '')];
+        bootstrap.Modal.getInstance(modal)?.handleUpdate();
+    }
+    tabs.forEach((tab, index) => {
+        tab.addEventListener('click', () => selectTab(tab));
+        tab.addEventListener('keydown', event => {
+            if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+            event.preventDefault();
+            const next = event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1
+                : (index + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
+            selectTab(tabs[next]);
+            tabs[next].focus();
+        });
+    });
 }
 
 function applyTheme(theme) {

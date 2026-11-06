@@ -13,6 +13,11 @@ class User(UserMixin, db.Model):
     def to_dict(self):
         return {'id': self.id, 'username': self.username, 'is_admin': self.is_admin}
 
+class UserGameDefaults(db.Model):
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), primary_key=True)
+    values = db.Column(db.JSON, nullable=False)
+
+
 class Game(db.Model):
     __table_args__ = (
         db.CheckConstraint('rating IS NULL OR (rating >= 0 AND rating <= 10)', name='rating_range'),
@@ -51,10 +56,22 @@ class Game(db.Model):
     __mapper_args__ = {'version_id_col': version}
     owned_platforms = db.relationship('GamePlatformOwnership', backref='game', lazy='selectin', cascade='all, delete-orphan', passive_deletes=True)
 
+    custom_cover = db.relationship('GameCover', lazy='selectin', uselist=False,
+                                   cascade='all, delete-orphan', passive_deletes=True)
+
     def to_dict(self):
         data = {column.name: getattr(self, column.name) for column in self.__table__.columns}
         data['owned_platform'] = ', '.join(item.platform for item in self.owned_platforms)
+        if self.custom_cover:
+            data['custom_cover_url'] = f'/api/games/{self.id}/cover/{self.custom_cover.digest}'
         return data
+
+
+class GameCover(db.Model):
+    game_id = db.Column(db.Integer, db.ForeignKey('game.id', ondelete='CASCADE'), primary_key=True)
+    digest = db.Column(db.String(64), nullable=False)
+    data = db.deferred(db.Column(db.LargeBinary, nullable=False))
+
 
 class GamePlatformOwnership(db.Model):
     __table_args__ = (db.UniqueConstraint('game_id', 'platform', name='unique_game_platform'),)

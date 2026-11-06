@@ -1,5 +1,5 @@
 const CACHE_PREFIX = 'games-collection-';
-const CACHE_NAME = `${CACHE_PREFIX}v6`;
+const CACHE_NAME = `${CACHE_PREFIX}v11`;
 const STATIC_ASSETS = [
     '/static/offline.html',
     '/static/style.css',
@@ -11,6 +11,7 @@ const STATIC_ASSETS = [
     '/static/js/admin.js',
     '/static/js/charts.js',
     '/static/js/games.js',
+    '/static/js/game-defaults.js',
     '/static/js/igdb-search.js',
     '/static/js/pwa.js',
     '/static/js/ui.js',

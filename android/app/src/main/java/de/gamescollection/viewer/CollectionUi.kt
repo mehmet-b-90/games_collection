@@ -2,20 +2,30 @@
 
 package de.gamescollection.viewer
 
+import org.json.JSONObject
+
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PagerDefaults
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -39,13 +49,13 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.hideFromAccessibility
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -65,8 +75,8 @@ import androidx.activity.compose.LocalActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
 import androidx.core.net.toUri
-import coil.compose.AsyncImage
 import java.util.Locale
+import kotlinx.coroutines.launch
 
 private val DarkColors = darkColorScheme(
     primary = Color(0xFFAA9BFF), onPrimary = Color(0xFF251457),
@@ -93,7 +103,7 @@ private val EditorialColors = lightColorScheme(
             else SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
         activity?.enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
     }
-    MaterialTheme(colorScheme = if (state.theme == "editorial") EditorialColors else DarkColors) {
+    CollectionTheme(model.coverClient, if (state.theme == "editorial") EditorialColors else DarkColors) {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             var serverDialog by rememberSaveable { mutableStateOf(false) }
             var queueOpen by rememberSaveable { mutableStateOf(false) }
@@ -187,7 +197,7 @@ private val EditorialColors = lightColorScheme(
                     model::removeFriend, model::showFriendLibrary, model::loadFriends)
             }
             if (queueOpen && state.username != null) QueueDialog(state, model::discardQueued, { queueOpen = false })
-            if (settingsOpen && state.username != null) SettingsDialog(state, model::setTheme, model::setPostersPerRow,
+            if (settingsOpen && state.username != null) SettingsDialog(state, model::setTheme, model::setPostersPerRow, model::saveGameDefaults,
                 { serverDialog = true }, { settingsOpen = false })
             if (serverDialog) Dialog(onDismissRequest = { if (!state.busy) serverDialog = false }) {
                 Surface(shape = RoundedCornerShape(24.dp)) {
@@ -207,8 +217,12 @@ private val EditorialColors = lightColorScheme(
             if (adding && state.username != null) SearchDialog(state, model.searchResults, model::search,
                 model::dismissEditor, model::selectSearchResult)
             selected?.takeIf { state.username != null }?.let { game ->
+                val collectionPage = if (tab == 0 && !edit && !adding && model.editor.pending == null) {
+                    remember(game.id, model.visibleGames, state.queue) { model.collectionDetailPage(game.id) }
+                } else null
                 GameDialog(game, state, edit, model.editor.pending != null, model::startEditing,
-                    model::dismissEditor, model::changeDraft, model::save, { model.delete(game) }, model::retryWrite)
+                    model::dismissEditor, model::changeDraft, model::pickCover, model::save, { model.delete(game) }, model::retryWrite,
+                    collectionPage = collectionPage, browse = model::browseCollection)
             }
             state.error?.let { message ->
                 AlertDialog(onDismissRequest = model::clearError, title = { Text("Hinweis") },
@@ -371,8 +385,8 @@ private val EditorialColors = lightColorScheme(
     // Round only the cover. Clipping the entire card also clips the lower text corners.
     Column(Modifier.clickable { select(game) }) {
         Box(Modifier.fillMaxWidth().aspectRatio(0.72f).clip(RoundedCornerShape(16.dp)).background(MaterialTheme.colorScheme.surfaceVariant)) {
-            if (game.cover.isNotEmpty()) AsyncImage(game.cover, "Cover von ${game.title}", Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-            else Icon(NativeIcons.Gamepad, null, Modifier.size(48.dp).align(Alignment.Center))
+            Icon(NativeIcons.Gamepad, null, Modifier.size(48.dp).align(Alignment.Center))
+            GameCoverImage(game, "Cover von ${game.title}", Modifier.fillMaxSize())
             Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = .75f)), startY = 140f)))
             Box(Modifier.padding(8.dp).align(Alignment.TopStart)) {
                 var expanded by remember { mutableStateOf(false) }
@@ -507,11 +521,52 @@ private val EditorialColors = lightColorScheme(
     }
 }
 
+@Composable private fun GameDefaultsSettings(state: ViewerState, save: (GameDefaults) -> Unit) {
+    var encoded by rememberSaveable(state.server, state.username, state.gameDefaults) {
+        mutableStateOf(state.gameDefaults.json().toString())
+    }
+    val draft = GameDefaults.fromJson(JSONObject(encoded))
+    fun change(value: GameDefaults) { encoded = value.json().toString() }
+    var platformsOpen by rememberSaveable { mutableStateOf(false) }
+    val enabled = !state.busy && state.connected && state.supportsGameDefaults
+    Text("Standardwerte für neue Spiele", style = MaterialTheme.typography.titleMedium)
+    Text("Für dein Konto in Web und Android. Beim Hinzufügen individuell änderbar.",
+        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    ChoiceField("Titeltyp bei der Suche", draft.gameType.label, IgdbGameType.entries.map { it.label }, enabled = enabled) { label ->
+        change(draft.copy(gameType = IgdbGameType.entries.first { it.label == label }))
+    }
+    ChoiceField("Format", draft.format, listOf("Digital", "Physisch"), enabled = enabled) { change(draft.copy(format = it)) }
+    ChoiceField("Status", draft.status, GAME_STATUSES, enabled = enabled) { change(draft.copy(status = it)) }
+    OutlinedButton(onClick = { platformsOpen = true }, enabled = enabled, modifier = Modifier.fillMaxWidth()) {
+        Text(if (draft.platforms.isEmpty()) "Besitzplattformen wählen" else draft.platforms.joinToString(", "))
+    }
+    Button(onClick = { save(draft) }, enabled = enabled) { Text("Standardwerte speichern") }
+    state.defaultsMessage?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+    state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+    if (!state.connected || !state.supportsGameDefaults) Text("Zum Ändern mit einem aktuellen Server verbinden. Gespeicherte Standardwerte gelten auch offline.",
+        style = MaterialTheme.typography.bodySmall)
+    if (platformsOpen) AlertDialog(onDismissRequest = { platformsOpen = false }, title = { Text("Besitzplattformen") }, text = {
+        LazyColumn(Modifier.heightIn(max = 420.dp)) {
+            items(state.platforms) { platform ->
+                Row(Modifier.fillMaxWidth().clickable(enabled = enabled) {
+                    change(draft.copy(platforms = if (platform in draft.platforms) draft.platforms - platform else draft.platforms + platform))
+                }, verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(platform in draft.platforms, null)
+                    Text(platform, modifier = Modifier.padding(vertical = 12.dp))
+                }
+            }
+        }
+    }, confirmButton = { TextButton(onClick = { platformsOpen = false }) { Text("Übernehmen") } })
+}
+
 @Composable private fun SettingsDialog(state: ViewerState, setTheme: (String) -> Unit,
-    setPostersPerRow: (Int) -> Unit, server: () -> Unit, close: () -> Unit) {
+    setPostersPerRow: (Int) -> Unit, saveDefaults: (GameDefaults) -> Unit,
+    server: () -> Unit, close: () -> Unit) {
     FullScreenDialog("Einstellungen", true, close) {
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(18.dp)) {
+            GameDefaultsSettings(state, saveDefaults)
+            HorizontalDivider()
             Text("Darstellung auf diesem Gerät", style = MaterialTheme.typography.titleMedium)
             listOf("cinematic" to "Cinematic Dark", "editorial" to "Editorial Shelf").forEach { (key, label) ->
                 Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable { setTheme(key) },
@@ -558,7 +613,7 @@ private val EditorialColors = lightColorScheme(
     close: () -> Unit, select: (Game) -> Unit) {
     var query by rememberSaveable { mutableStateOf("") }
     var year by rememberSaveable { mutableStateOf("") }
-    var gameType by rememberSaveable { mutableStateOf(IgdbGameType.ALL) }
+    var gameType by rememberSaveable { mutableStateOf(state.gameDefaults.gameType) }
     var searched by rememberSaveable { mutableStateOf(false) }
     FullScreenDialog("Spiel hinzufügen", !state.busy, close) {
         Column(Modifier.fillMaxSize().padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -582,7 +637,7 @@ private val EditorialColors = lightColorScheme(
                     Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surfaceVariant,
                         modifier = Modifier.fillMaxWidth().clickable(enabled = !state.busy) { select(game) }) {
                         Row(Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                            AsyncImage(game.cover, null, modifier = Modifier.size(48.dp, 66.dp).clip(RoundedCornerShape(8.dp)), contentScale = ContentScale.Crop)
+                            GameCoverImage(game, null, Modifier.size(48.dp, 66.dp).clip(RoundedCornerShape(8.dp)))
                             Column(Modifier.padding(start = 14.dp).weight(1f)) {
                                 Text(game.title, fontWeight = FontWeight.Bold)
                                 Text(game.release, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -608,24 +663,42 @@ private val EditorialColors = lightColorScheme(
 }
 
 @Composable private fun GameDialog(game: Game, state: ViewerState, edit: Boolean, pending: Boolean, startEditing: () -> Unit,
-    close: () -> Unit, changeDraft: (Game) -> Unit, save: (Game) -> Unit, delete: () -> Unit, retry: () -> Unit) {
+    close: () -> Unit, changeDraft: (Game) -> Unit, pickCover: (Uri) -> Unit, save: (Game) -> Unit, delete: () -> Unit,
+    retry: () -> Unit, collectionPage: CollectionDetailPage?, browse: (Int) -> Unit) {
     val context = LocalContext.current
-    val draft = game
-    val editable = !state.busy && !pending
+    val coverPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        uri?.let(pickCover)
+    }
     var platformDialog by rememberSaveable { mutableStateOf(false) }
     var confirmDelete by rememberSaveable { mutableStateOf(false) }
-    val valid = draft.title.isNotBlank() && draft.title.length <= 200 && draft.platforms.isNotEmpty()
-            && (draft.release.isEmpty() || (draft.release.length == 4 && draft.release.toIntOrNull() in 1900..2100))
-    FullScreenDialog(if (edit) if (game.id == 0) "Neues Spiel" else "Spiel bearbeiten" else "Spieldetails", !state.busy, close) {
-        LazyColumn(Modifier.fillMaxSize().padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(16.dp), contentPadding = PaddingValues(bottom = 24.dp)) {
+    val content: @Composable (Game, Boolean) -> Unit = { draft, active ->
+        val editable = active && !state.busy && !pending
+        val valid = draft.title.isNotBlank() && draft.title.length <= 200 && draft.platforms.isNotEmpty()
+                && (draft.release.isEmpty() || (draft.release.length == 4 && draft.release.toIntOrNull() in 1900..2100))
+        val scroll = key(draft.id) { rememberLazyListState() }
+        LazyColumn(Modifier.fillMaxSize().padding(horizontal = 20.dp), state = scroll,
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            contentPadding = PaddingValues(top = if (collectionPage == null) 0.dp else 20.dp, bottom = 24.dp)) {
             item {
-                Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
-                    AsyncImage(draft.cover, "Cover von ${draft.title}", modifier = Modifier.width(112.dp).aspectRatio(.72f).clip(RoundedCornerShape(16.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant), contentScale = ContentScale.Crop)
+                Row(horizontalArrangement = Arrangement.spacedBy(if (collectionPage == null) 20.dp else 14.dp)) {
+                    Box(Modifier.width(if (collectionPage == null) 112.dp else 96.dp).aspectRatio(.72f).clip(RoundedCornerShape(16.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant), contentAlignment = Alignment.Center) {
+                        Icon(NativeIcons.Gamepad, null)
+                        GameCoverImage(draft, "Cover von ${draft.title}", Modifier.fillMaxSize())
+                    }
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Text(draft.title.ifEmpty { "Dein neues Spiel" }, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                         Text(listOf(draft.release, draft.ageRating).filter { it.isNotBlank() }.joinToString(" · "), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        if (!edit) Text(draft.status + (draft.rating?.let { " · ★ $it/10" } ?: ""))
+                        if (edit) {
+                            OutlinedButton(onClick = {
+                                coverPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                            }, enabled = editable) { Text("Cover wählen") }
+                            if (draft.customCoverEdit?.isNotEmpty() ?: draft.customCoverUrl.isNotEmpty()) {
+                                TextButton(onClick = {
+                                    changeDraft(draft.copy(customCoverEdit = if (draft.customCoverUrl.isEmpty()) null else ""))
+                                }, enabled = editable) { Text("Standardcover") }
+                            }
+                        } else Text(draft.status + (draft.rating?.let { " · ★ $it/10" } ?: ""))
                     }
                 }
             }
@@ -647,21 +720,30 @@ private val EditorialColors = lightColorScheme(
                 item { Button(onClick = { save(draft.copy(title = draft.title.trim())) }, enabled = valid && editable, modifier = Modifier.fillMaxWidth()) { Text(if (state.connected) "Speichern" else "Lokal speichern") } }
             } else {
                 item { Button(onClick = startEditing, enabled = editable, modifier = Modifier.fillMaxWidth()) { Icon(Icons.Default.Edit, null); Spacer(Modifier.width(8.dp)); Text("Bearbeiten") } }
-                item { Metadata("Besitz auf Plattform", game.platforms.joinToString(", ")) }
-                item { Metadata("Format", game.format) }
+                item { Metadata("Besitz auf Plattform", draft.platforms.joinToString(", ")) }
+                item { Metadata("Format", draft.format) }
             }
             item { Metadata("Entwickler", draft.developer) }
             item { Metadata("Publisher", draft.publisher) }
             item { Metadata("Engine", draft.engine) }
             item { Metadata("Verfügbare Plattformen", draft.available) }
-            if (draft.igdbUrl.isNotEmpty()) item { OutlinedButton(onClick = { openBrowser(context, draft.igdbUrl) }, modifier = Modifier.fillMaxWidth()) { Text("Zu IGDB") } }
+            if (draft.igdbUrl.isNotEmpty()) item { OutlinedButton(enabled = active, onClick = { openBrowser(context, draft.igdbUrl) }, modifier = Modifier.fillMaxWidth()) { Text("Zu IGDB") } }
             if (draft.title.isNotBlank()) item {
-                OutlinedButton(onClick = { openBrowser(context, "https://www.dekudeals.com/search?q=${Uri.encode(draft.title)}") }, modifier = Modifier.fillMaxWidth()) { Text("Zu Deku Deals") }
+                OutlinedButton(enabled = active, onClick = { openBrowser(context, "https://www.dekudeals.com/search?q=${Uri.encode(draft.title)}") }, modifier = Modifier.fillMaxWidth()) { Text("Zu Deku Deals") }
             }
-            if (game.id != 0) item { TextButton(onClick = { confirmDelete = true }, enabled = editable) { Text("Spiel löschen", color = MaterialTheme.colorScheme.error) } }
+            if (draft.id != 0) item { TextButton(onClick = { confirmDelete = true }, enabled = editable) { Text("Spiel löschen", color = MaterialTheme.colorScheme.error) } }
             if (state.busy) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
         }
     }
+    FullScreenDialog(if (edit) if (game.id == 0) "Neues Spiel" else "Spiel bearbeiten" else "Spieldetails", !state.busy, close) {
+        if (collectionPage != null) {
+            key(collectionPage.previous?.id, game.id, collectionPage.next?.id) {
+                CollectionDetailsPager(collectionPage, game, !state.busy && !confirmDelete, browse, content)
+            }
+        } else content(game, true)
+    }
+    val editable = !state.busy && !pending
+    val draft = game
     if (platformDialog) AlertDialog(onDismissRequest = { platformDialog = false }, title = { Text("Besitz auf Plattform") }, text = {
         LazyColumn(Modifier.heightIn(max = 420.dp)) {
             items(state.platforms) { platform ->
@@ -678,6 +760,59 @@ private val EditorialColors = lightColorScheme(
         text = { Text("„${game.title}“ wird aus deiner Sammlung gelöscht.") }, confirmButton = {
             TextButton(onClick = { confirmDelete = false; delete() }) { Text("Löschen", color = MaterialTheme.colorScheme.error) }
         }, dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Abbrechen") } })
+}
+
+@Composable private fun CollectionDetailsPager(page: CollectionDetailPage, game: Game, enabled: Boolean,
+    browse: (Int) -> Unit, content: @Composable (Game, Boolean) -> Unit) {
+    val (previous, next, position, total) = page
+    val games = listOfNotNull(previous, game, next)
+    val initialPage = if (previous == null) 0 else 1
+    val pager = rememberPagerState(initialPage = initialPage, pageCount = { games.size })
+    val scope = rememberCoroutineScope()
+    val settledGame = games.getOrNull(pager.settledPage)
+    // Keep the editor target on the current game until the pager has snapped into place.
+    LaunchedEffect(settledGame?.id, enabled) {
+        if (enabled && settledGame != null && settledGame.id != game.id) browse(settledGame.id)
+    }
+    val idle = enabled && !pager.isScrollInProgress && pager.settledPage == initialPage
+    Column(Modifier.fillMaxSize()) {
+        HorizontalPager(
+            state = pager,
+            modifier = Modifier.weight(1f),
+            contentPadding = PaddingValues(horizontal = 28.dp, vertical = 6.dp),
+            pageSpacing = 12.dp,
+            beyondViewportPageCount = 1,
+            flingBehavior = PagerDefaults.flingBehavior(state = pager, snapPositionalThreshold = 0.2f),
+            userScrollEnabled = enabled && games.size > 1,
+            key = { games[it].id }
+        ) { index ->
+            val selected = index == initialPage
+            Surface(
+                modifier = Modifier.fillMaxSize().then(
+                    if (selected) Modifier else Modifier.semantics { hideFromAccessibility() }
+                ),
+                shape = RoundedCornerShape(22.dp),
+                color = MaterialTheme.colorScheme.surface,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+            ) {
+                content(games[index], idle && selected)
+            }
+        }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically) {
+            IconButton(
+                onClick = { scope.launch { pager.animateScrollToPage(initialPage - 1) } },
+                enabled = idle && previous != null
+            ) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Vorheriger Titel") }
+            Text("$position / $total", style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 10.dp).semantics { contentDescription = "Titel $position von $total" })
+            IconButton(
+                onClick = { scope.launch { pager.animateScrollToPage(initialPage + 1) } },
+                enabled = idle && next != null
+            ) { Icon(Icons.AutoMirrored.Filled.ArrowForward, "Nächster Titel") }
+        }
+    }
 }
 
 @Composable private fun Metadata(label: String, value: String) {

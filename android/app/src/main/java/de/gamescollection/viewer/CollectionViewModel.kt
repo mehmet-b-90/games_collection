@@ -2,6 +2,7 @@ package de.gamescollection.viewer
 
 import android.app.Application
 import android.content.Context
+import android.net.Uri
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -21,6 +22,8 @@ import org.json.JSONObject
 import java.io.IOException
 import javax.net.ssl.SSLException
 
+internal data class CollectionDetailPage(val previous: Game?, val next: Game?, val position: Int, val total: Int)
+
 data class ViewerState(
     val server: String = "", val username: String? = null, val busy: Boolean = false,
     val games: List<Game> = emptyList(), val platforms: List<String> = emptyList(),
@@ -28,6 +31,8 @@ data class ViewerState(
     val error: String? = null, val connected: Boolean = false,
     val igdbStatus: String = "IGDB-Zugang noch nicht eingerichtet. Einmal mit dem Server verbinden.",
     val queue: List<QueuedWrite> = emptyList(),
+    val gameDefaults: GameDefaults = GameDefaults(), val supportsGameDefaults: Boolean = false,
+    val defaultsMessage: String? = null,
     val summary: CollectionSummary = CollectionSummary()
 )
 
@@ -39,6 +44,8 @@ class CollectionViewModel(application: Application, private val savedState: Save
     private val offlineStore = OfflineStore(application)
     private var offline: OfflineCollection? = null
     private var api: ApiClient? = null
+    internal val coverClient: ApiClient? get() = api?.takeIf { sessionVerified && state.connected }
+
     private var owner: String? = null
     private var sessionVerified = false
     private var friendsJob: Job? = null
@@ -72,7 +79,7 @@ class CollectionViewModel(application: Application, private val savedState: Save
                 val cachedOwner = preferences.getString("offline_owner", null)
                 if (cachedOwner != null && cachedOwner.startsWith(state.server + "|")) {
                     offline = withContext(Dispatchers.IO) { offlineStore.read(cachedOwner) }
-                    offline?.let { owner = it.owner; state = state.copy(username = it.username); publishOffline() }
+                    offline?.let { owner = it.owner; state = state.copy(username = it.username, gameDefaults = cachedDefaults(it.owner)); publishOffline() }
                     cachedIgdb()?.let { showIgdbExpiry(it) }
                 }
             } catch (error: CancellationException) { throw error }
@@ -158,7 +165,11 @@ class CollectionViewModel(application: Application, private val savedState: Save
             editor = EditorState.restoreForOwner(savedState["editor"], savedState["editor_owner"], nextOwner)
         }
         sessionVerified = nextOwner != null
-        state = state.copy(connected = true, username = user?.text("username"))
+        val defaults = GameDefaults.fromJson(user?.optJSONObject("game_defaults"))
+        state = state.copy(connected = true, username = user?.text("username"), gameDefaults = defaults,
+            supportsGameDefaults = session.optJSONObject("capabilities")?.optBoolean("game_defaults") == true,
+            defaultsMessage = null)
+        if (nextOwner != null) preferences.edit { putString("game_defaults:$nextOwner", defaults.json().toString()) }
         if (nextOwner != null) {
             if (offline == null) offline = OfflineCollection(nextOwner, user!!.text("username"))
             preferences.edit { putString("offline_owner", nextOwner) }
@@ -174,7 +185,7 @@ class CollectionViewModel(application: Application, private val savedState: Save
         offline = null
         sessionVerified = false
         preferences.edit { remove("offline_owner") }
-        state = state.copy(queue = emptyList())
+        state = state.copy(queue = emptyList(), gameDefaults = GameDefaults(), supportsGameDefaults = false, defaultsMessage = null)
         filterJob?.cancel(); owner = null; editor = EditorState(); searchResults = emptyList()
         filter = CollectionFilter(); sort = GameSort.NEWEST; visibleGames = emptyList()
         if (!preserveDraft) { savedState.remove<String>("editor"); savedState.remove<String>("editor_owner") }
@@ -215,6 +226,7 @@ class CollectionViewModel(application: Application, private val savedState: Save
             val value = offline ?: return
             val entry = value.queue.first { it.write.key == key }
             if (entry.rejection != null) continue
+            if (!entry.write.deleting && entry.write.game.customCoverEdit != null) requireCoverSupport()
             persist(value.copy(queue = value.queue.map { if (it.write.key == key) it.copy(attempted = true) else it }))
             try {
                 val write = entry.write
@@ -281,13 +293,44 @@ class CollectionViewModel(application: Application, private val savedState: Save
         }
         updateEditor(EditorState(game = game, editing = editing, open = true))
     }
+    internal fun collectionDetailPage(gameId: Int): CollectionDetailPage? {
+        val current = visibleGames.indexOfFirst { it.id == gameId }
+        if (current < 0) return null
+        val blocked = state.queue.filter { it.attempted }.map { it.localId }.toSet()
+        val previous = (current - 1 downTo 0).firstOrNull { visibleGames[it].id !in blocked }
+        val next = (current + 1..visibleGames.lastIndex).firstOrNull { visibleGames[it].id !in blocked }
+        return CollectionDetailPage(previous?.let(visibleGames::get), next?.let(visibleGames::get),
+            current + 1, visibleGames.size)
+    }
+
+    fun browseCollection(gameId: Int) {
+        if (state.busy || !editor.open || editor.editing || editor.adding || editor.pending != null) return
+        val (previous, next) = collectionDetailPage(editor.game?.id ?: return) ?: return
+        listOfNotNull(previous, next).firstOrNull { it.id == gameId }?.let { showGame(it) }
+    }
     fun startEditing() { updateEditor(editor.copy(editing = true)) }
     fun selectSearchResult(game: Game) {
         if (!state.busy && editor.adding && editor.pending == null) {
-            updateEditor(editor.copy(game = game, editing = true))
+            updateEditor(editor.copy(game = state.gameDefaults.applyTo(game, state.platforms), editing = true))
         }
     }
     fun changeDraft(game: Game) { if (!state.busy && editor.pending == null) updateEditor(editor.copy(game = game)) }
+    fun pickCover(uri: Uri) = action {
+        val draft = editor.game?.takeIf { editor.open && editor.editing && editor.pending == null } ?: return@action
+        val image = try {
+            withContext(Dispatchers.IO) { prepareCustomCover(getApplication(), uri) }
+        } catch (error: CancellationException) {
+            throw error
+        } catch (_: Exception) {
+            error("Dieses Bild konnte nicht als Cover geladen werden. Wähle bitte ein anderes Bild.")
+        }
+        updateEditor(editor.copy(game = draft.copy(customCoverEdit = image)))
+    }
+
+    private fun requireCoverSupport() {
+        check(api?.supportsCustomCovers == true) { "Bitte aktualisiere den Games-Collection-Server, damit eigene Cover gespeichert werden können." }
+    }
+
     fun dismissEditor() {
         if (!state.busy) updateEditor(when {
             editor.pending != null -> editor.copy(open = false)
@@ -320,6 +363,7 @@ class CollectionViewModel(application: Application, private val savedState: Save
     private fun write(proposed: PendingGameWrite) = action {
         val value = offline ?: error("Bitte lade deine Sammlung zunächst einmal online.")
         val legacy = editor.pending
+        if (!proposed.deleting && proposed.game.customCoverEdit != null && state.connected) requireCoverSupport()
         val next = if (legacy != null) {
             val id = if (legacy.game.id == 0) value.nextId else legacy.game.id
             value.copy(queue = value.queue + QueuedWrite(legacy, id, attempted = true),
@@ -488,11 +532,26 @@ class CollectionViewModel(application: Application, private val savedState: Save
     fun addDiscovered(game: Game) {
         if (state.busy) return
         val existing = state.games.firstOrNull { it.igdbId == game.igdbId }
-        if (existing != null) showGame(existing) else showGame(game, editing = true)
+        if (existing != null) showGame(existing) else showGame(state.gameDefaults.applyTo(game, state.platforms), editing = true)
     }
 
     fun clearSearch() { searchResults = emptyList() }
     fun clearError() { state = state.copy(error = null) }
+    private fun cachedDefaults(account: String): GameDefaults = runCatching {
+        GameDefaults.fromJson(preferences.getString("game_defaults:$account", null)?.let(::JSONObject))
+    }.getOrDefault(GameDefaults())
+
+    fun saveGameDefaults(values: GameDefaults) = action {
+        state = state.copy(defaultsMessage = null)
+        check(state.connected && state.supportsGameDefaults) {
+            "Zum Speichern der Standardwerte bitte mit einem aktuellen Server verbinden."
+        }
+        val account = checkNotNull(owner)
+        val saved = withContext(Dispatchers.IO) { api!!.saveGameDefaults(values) }
+        preferences.edit { putString("game_defaults:$account", saved.json().toString()) }
+        state = state.copy(gameDefaults = saved, defaultsMessage = "Standardwerte gespeichert.")
+    }
+
     fun setPostersPerRow(value: Int) {
         val count = value.coerceIn(1, 3)
         preferences.edit { putInt("posters_per_row", count) }

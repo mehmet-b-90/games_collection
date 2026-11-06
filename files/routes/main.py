@@ -6,6 +6,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from ..config import PLATFORMS
 from ..extensions import db
 from ..igdb import IGDB_GAME_TYPES
+from ..game_defaults import get_defaults
 from ..models import Game
 from ..database import log_exception
 
@@ -50,4 +51,5 @@ def index():
     return render_template(
         'index.html', games=[game.to_dict() for game in games], engines=engines,
         platforms=sorted(PLATFORMS), summary=summary, igdb_game_types=IGDB_GAME_TYPES,
+        game_defaults=get_defaults(current_user.id),
     )

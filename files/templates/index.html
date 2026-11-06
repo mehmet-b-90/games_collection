@@ -31,7 +31,7 @@
 
         <div class="topbar-actions">
             {% if current_user.is_admin %}
-            <button class="icon-button admin-button" type="button" onclick="openAdminModal()" title="Benutzerverwaltung">⚙</button>
+            <button class="icon-button admin-button" type="button" onclick="openAdminModal()" title="Serververwaltung" aria-label="Serververwaltung">⚙</button>
             {% endif %}
             <button class="primary-action desktop-action" type="button" data-bs-toggle="modal" data-bs-target="#gameModal" onclick="resetForm()">
                 <span>＋</span> Spiel hinzufügen
@@ -160,7 +160,7 @@
                     onclick='openGameDetails({{ game|tojson }})'
                     onkeydown='if(event.key === "Enter" || event.key === " "){event.preventDefault();openGameDetails({{ game|tojson }})}'>
                     <div class="cover-frame">
-                        <img src="{{ game.cover_url }}" class="game-cover" alt="Cover von {{ game.title }}" onerror="this.src='https://via.placeholder.com/300x400?text=Kein+Cover'">
+                        <img src="{{ game.custom_cover_url or game.cover_url }}" class="game-cover" alt="Cover von {{ game.title }}" onerror="this.src='https://via.placeholder.com/300x400?text=Kein+Cover'">
                         <span class="status-badge">{{ game.status }}</span>
                         <div class="cinematic-overlay"><h3>{{ game.title }}</h3></div>
                     </div>
@@ -268,7 +268,12 @@
                                 <div><strong>Altersfreigabe</strong><span id="ageRatingInput">–</span></div>
                             </div>
                         </div>
-                        <div class="cover-preview-wrap"><img id="coverPreview" src="" class="d-none" alt="Cover Vorschau"><div id="coverPlaceholder">Kein Cover</div></div>
+                        <div class="cover-editor">
+                            <div class="cover-preview-wrap"><img id="coverPreview" class="d-none" alt="Covervorschau"><div id="coverPlaceholder">Kein Cover</div></div>
+                            <button type="button" class="secondary-action" id="chooseCoverBtn">Cover wählen</button>
+                            <button type="button" class="secondary-action d-none" id="resetCoverBtn">Standardcover</button>
+                            <input type="file" id="coverFileInput" class="d-none" accept="image/jpeg,image/png,image/webp" aria-label="Coverdatei">
+                        </div>
                     </div>
                     <div class="editor-grid">
                         <div class="editor-primary-fields">
@@ -278,7 +283,7 @@
                         </div>
                         <label class="platform-select">Besitz auf Plattform <small>Mehrfachauswahl möglich</small><select id="ownedPlatformInput" multiple>{% for platform in platforms %}<option value="{{ platform }}">{{ platform }}</option>{% endfor %}</select></label>
                     </div>
-                    <input type="hidden" id="coverUrlInput"><input type="hidden" id="igdbIdInput"><input type="hidden" id="igdbUrlInput">
+                    <input type="hidden" id="igdbIdInput"><input type="hidden" id="igdbUrlInput">
                 </form>
             </div>
             <div class="modal-footer mobile-grid-footer">
@@ -288,40 +293,77 @@
         </div></div>
     </div>
 
-    <div class="modal fade" id="accountModal" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered"><div class="modal-content app-modal">
-            <div class="modal-header"><div><span class="eyebrow">Persönlich</span><h2 class="modal-title">Mein Konto</h2></div><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-            <div class="modal-body account-settings">
-                <button id="openFriends" type="button" class="secondary-action" data-bs-dismiss="modal">Freunde und Anfragen</button>
-                <fieldset class="theme-picker">
+    <div class="modal fade" id="accountModal" tabindex="-1" aria-labelledby="settingsTitle">
+        <div class="modal-dialog modal-dialog-centered settings-dialog"><div class="modal-content app-modal">
+            <div class="modal-header"><div><span class="eyebrow">Persönlich</span><h2 class="modal-title" id="settingsTitle">Einstellungen</h2></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button></div>
+            <div class="settings-tabs" role="tablist" aria-label="Einstellungskategorien"><button type="button" id="settings-tab-appearance" role="tab" aria-controls="settings-appearance" aria-selected="true" tabindex="0">Darstellung</button>
+<button type="button" id="settings-tab-defaults" role="tab" aria-controls="settings-defaults" aria-selected="false" tabindex="-1">Spielvorgaben</button>
+<button type="button" id="settings-tab-profile" role="tab" aria-controls="settings-profile" aria-selected="false" tabindex="-1">Konto</button>
+<button type="button" id="settings-tab-app" role="tab" aria-controls="settings-app" aria-selected="false" tabindex="-1">App</button>
+</div>
+            <div class="modal-body account-settings"><section id="settings-appearance" class="settings-panel" role="tabpanel" aria-labelledby="settings-tab-appearance">                <fieldset class="theme-picker">
                     <legend>Darstellung</legend>
                     <label class="theme-option"><input type="radio" name="uiTheme" value="cinematic" {% if current_user.ui_theme == 'cinematic' %}checked{% endif %}><span class="theme-swatch cinematic-swatch"></span><span><strong>Cinematic Dark</strong><small>Dunkel, fokussiert und atmosphärisch</small></span></label>
                     <label class="theme-option"><input type="radio" name="uiTheme" value="editorial" {% if current_user.ui_theme == 'editorial' %}checked{% endif %}><span class="theme-swatch editorial-swatch"></span><span><strong>Editorial Shelf</strong><small>Hell, ruhig und cover-orientiert</small></span></label>
                     <p id="themeSaveStatus" class="setting-status" role="status"></p>
                 </fieldset>
-                <hr>
-                <div class="install-setting">
-                    <div><strong>Android-App</strong><small>Installiert Games Collection auf dem Startbildschirm und öffnet es ohne Browserleiste.</small><span id="installAppStatus" class="setting-status" role="status"></span></div>
+</section>
+<section id="settings-defaults" class="settings-panel" role="tabpanel" aria-labelledby="settings-tab-defaults" hidden>                <fieldset id="gameDefaultsSettings" class="defaults-settings">
+                    <legend>Standardwerte für neue Spiele</legend>
+                    <p>Für dein Konto in Web und Android. Beim Hinzufügen individuell änderbar.</p>
+                    <label>Titeltyp bei der Suche<select id="defaultGameType"><option value="">Alle Typen</option>{% for value, label in igdb_game_types.items() %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select></label>
+                    <div class="settings-field-grid"><label>Format<select id="defaultFormat"><option>Digital</option><option>Physisch</option></select></label>
+                    <label>Status<select id="defaultStatus"><option>Nicht gespielt</option><option>Gespielt</option><option>Abgebrochen</option></select></label></div>
+                    <fieldset class="default-platforms"><legend>Besitzplattformen</legend>{% for platform in platforms %}<label><input type="checkbox" name="defaultPlatform" value="{{ platform }}">{{ platform }}</label>{% endfor %}</fieldset>
+                    <p id="gameDefaultsStatus" role="status" aria-live="polite"></p>
+                </fieldset>
+                <script id="initialGameDefaults" type="application/json">{{ game_defaults | tojson }}</script>
+</section>
+<section id="settings-profile" class="settings-panel" role="tabpanel" aria-labelledby="settings-tab-profile" hidden><div class="settings-field-grid">                <label>Benutzername<input type="text" id="accountUsername" value="{{ current_user.username }}" minlength="3" maxlength="150"></label>
+                <label>Aktuelles Passwort<input type="password" id="accountCurrentPassword" autocomplete="current-password"><small>Wird zum Speichern persönlicher Daten und zum Löschen benötigt.</small></label>
+                <label><span>Neues Passwort <small>optional</small></span><input type="password" id="accountNewPassword" minlength="8" autocomplete="new-password"></label>
+                <label>Neues Passwort bestätigen<input type="password" id="accountNewPasswordConfirm" minlength="8" autocomplete="new-password"></label>
+</div><div class="settings-friends"><strong>Freunde</strong><button id="openFriends" type="button" class="secondary-action" data-bs-dismiss="modal">Freunde und Anfragen</button></div>                <button type="button" class="secondary-action account-logout-action" onclick="document.getElementById('logoutForm').requestSubmit()">↪ Abmelden</button>
+                <div class="danger-zone"><div><strong>Konto löschen</strong><small>Löscht dein Konto und deine gesamte Sammlung dauerhaft.</small></div><button type="button" class="danger-action" onclick="deleteOwnAccount()">Konto löschen</button></div>
+</section>
+<section id="settings-app" class="settings-panel" role="tabpanel" aria-labelledby="settings-tab-app" hidden>                <div class="install-setting">
+                    <div><strong>Web-App installieren</strong><small>Installiert Games Collection auf dem Startbildschirm und öffnet es ohne Browserleiste.</small><span id="installAppStatus" class="setting-status" role="status"></span></div>
                     <button type="button" class="secondary-action d-none" id="installAppBtn">App installieren</button>
                 </div>
-                <hr>
-                <label>Benutzername<input type="text" id="accountUsername" value="{{ current_user.username }}" minlength="3" maxlength="150"></label>
-                <label>Aktuelles Passwort<input type="password" id="accountCurrentPassword" autocomplete="current-password"><small>Wird zum Speichern persönlicher Daten und zum Löschen benötigt.</small></label>
-                <label>Neues Passwort <small>optional</small><input type="password" id="accountNewPassword" minlength="8" autocomplete="new-password"></label>
-                <label>Neues Passwort bestätigen<input type="password" id="accountNewPasswordConfirm" minlength="8" autocomplete="new-password"></label>
-                <button type="button" class="secondary-action account-logout-action" onclick="document.getElementById('logoutForm').requestSubmit()">↪ Abmelden</button>
-                <div class="danger-zone"><div><strong>Konto löschen</strong><small>Löscht dein Konto und deine gesamte Sammlung dauerhaft.</small></div><button type="button" class="danger-action" onclick="deleteOwnAccount()">Konto löschen</button></div>
+</section>
+</div>
+            <div class="modal-footer settings-footer">
+                <span id="settingsHint" class="setting-status">Designauswahl wird direkt übernommen.</span>
+                <button type="button" class="secondary-action" data-bs-dismiss="modal">Schließen</button>
+                <button id="saveGameDefaults" type="button" class="primary-action" hidden>Vorgaben speichern</button>
+                <button type="button" class="primary-action" id="accountSaveBtn" onclick="saveAccount()" hidden>Kontodaten speichern</button>
             </div>
-            <div class="modal-footer"><button type="button" class="secondary-action" data-bs-dismiss="modal">Abbrechen</button><button type="button" class="primary-action" id="accountSaveBtn" onclick="saveAccount()">Änderungen speichern</button></div>
         </div></div>
     </div>
 
+    {% if current_user.is_admin %}
     <div class="modal fade" id="adminModal" tabindex="-1">
         <div class="modal-dialog modal-lg modal-dialog-centered"><div class="modal-content app-modal">
-            <div class="modal-header"><div><span class="eyebrow">Administration</span><h2 class="modal-title">Benutzerverwaltung</h2></div><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-            <div class="modal-body"><div id="adminUserList" class="list-group"></div></div>
+            <div class="modal-header"><div><span class="eyebrow">Administration</span><h2 class="modal-title">Serververwaltung</h2></div><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body server-admin-body">
+                <section aria-labelledby="adminBackupHeading">
+                    <h3 id="adminBackupHeading">Datenbank-Backup</h3>
+                    <p>Alle Benutzer, Sammlungen, Freundschaften und eigenen Cover als SQLite-Datei sichern. Der Server kann dabei weiterlaufen.</p>
+                    <p class="small">Enthält private Daten und Passwort-Hashes. Bewahre das Backup geschützt auf. Serverkonfiguration und Zugangsschlüssel sind nicht enthalten.</p>
+                    <button type="button" class="primary-action" id="adminBackupBtn">Datenbank exportieren</button>
+                    <p id="adminBackupStatus" class="small mt-2 mb-0" role="status" aria-live="polite"></p>
+                </section>
+                <section aria-labelledby="adminUsersHeading">
+                    <h3 id="adminUsersHeading">Benutzerverwaltung</h3>
+                    <p>Registrierte Benutzer bearbeiten oder mit ihrer Sammlung löschen.</p>
+                    <p id="adminUsersStatus" role="status"></p>
+                    <div id="adminUserList" class="list-group"></div>
+                </section>
+            </div>
         </div></div>
     </div>
+
+    {% endif %}
 
     <form method="POST" action="{{ url_for('auth.logout') }}" id="logoutForm" class="d-none">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit">Abmelden</button>
