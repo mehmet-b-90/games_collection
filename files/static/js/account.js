@@ -29,7 +29,10 @@ export function initializeSettingsTabs() {
         });
         document.getElementById('saveGameDefaults').hidden = panelId !== 'settings-defaults';
         document.getElementById('accountSaveBtn').hidden = panelId !== 'settings-profile';
-        document.getElementById('settingsHint').textContent = hints[panelId.replace('settings-', '')];
+        const hint = hints[panelId.replace('settings-', '')];
+        const hintElement = document.getElementById('settingsHint');
+        hintElement.textContent = hint ?? '';
+        hintElement.hidden = !hint;
         bootstrap.Modal.getInstance(modal)?.handleUpdate();
     }
     tabs.forEach((tab, index) => {

@@ -29,6 +29,10 @@ import androidx.compose.ui.unit.dp
                 copies.forEachIndexed { index, copy ->
                     if (index > 0) HorizontalDivider()
                     Row(Modifier.fillMaxWidth().padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(if (copy.format == "Digital") NativeIcons.Download else NativeIcons.Disc,
+                            contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(20.dp))
+                        Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text(copy.platform, style = MaterialTheme.typography.titleSmall)
                             Text("${copy.format} · ${copy.edition.ifEmpty { "Ohne Ausgabenangabe" }}",

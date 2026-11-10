@@ -1,5 +1,25 @@
 # Games Collection – Projektkontext
 
+## Versionsanzeige und lokaler Stand 0.11 – 10.11.2026
+
+- Auf Betreiberauftrag Web/Server und Android auf 0.11 gesetzt. Android-Code von 9 auf 10 erhöht, damit der signierte Build als neuerer Stand erkannt wird. „Info“ zeigt dauerhaft die Version aus der zentralen Konfiguration an. Die Vorgabe steht in `AGENTS.md`.
+- Der Info-Reiter rendert im angemeldeten Flask-Testclient „Web-Version 0.11“. Alle 63 Backendtests mit temporären Datenbanken bestanden. Android-Release-Prüfung mit 48 JVM-Tests und Lint ohne Befunde erfolgreich. APK-Metadaten (0.11 / Code 10), der Info-Text im kompilierten Code und APK-v2-Signatur verifiziert.
+- Signierte lokale APK unter `android/app/build/outputs/apk/release/Games-Collection-0.11-release.apk`. Geräteprüfung steht aus. 0.11 ist der lokale Stand.
+
+## Projektinformationen in den Einstellungen – 10.11.2026
+
+- Web ergänzt den Reiter „Info“, Android den Eintrag „Info“ unter Profil → Einstellungen. Beide zeigen das Projektlogo, Mehmet Bennavi (mehmet-b-90) als Entwickler, den GitHub-Link, IGDB als Quelle der Spieldaten und Standardcover sowie die Version aus der jeweiligen Konfiguration. Web verwendet `APP_VERSION`, Android `BuildConfig.VERSION_NAME`.
+- Im lokalen Projekt und auf GitHub ist keine Projektlizenz angegeben. GitHub meldete für das Repository `license: null` und für den Lizenz-Endpunkt HTTP 404. Beide Ansichten zeigen diesen Stand an. Eine konkrete Lizenz setzt eine Entscheidung des Betreibers voraus.
+- Firefox am lokalen Gunicorn-Testserver mit temporärer Datenbank geprüft. Sichtprüfung in Cinematic Dark und Editorial Shelf bei 320 und 1200 px. Tastaturwechsel, Linkziele, ausgeblendete Speicheraktionen und Erhalt eines Kontodatenentwurfs geprüft. PWA-Cache v15.
+- 63 Backendtests mit temporären Datenbanken bestanden. Android-Release-Prüfung mit 48 JVM-Tests und Lint ohne Befunde erfolgreich, APK-v2-Signatur verifiziert. Lokale APK unter `android/app/build/outputs/apk/release/Games-Collection-0.10-release.apk` (0.10 / Code 9). Android-Sichtprüfung auf einem Gerät steht aus. Die Änderungen liegen lokal vor.
+
+## Formatsymbole bei Exemplaren – 10.11.2026
+
+- Auf Screenshotwunsch die Kontursymbole aus dem Entwurf ergänzt: Download für Digital, Disc für Physisch, jeweils links neben Plattform/Format/Ausgabe in „Mein Besitz“. Web-SVG und native Android-Vektoren mit gleicher Geometrie, 20 px/dp und Theme-Farbe; keine zusätzliche Iconbibliothek. Texte bleiben erhalten, Symbole sind für Screenreader dekorativ. Web fasst Symbol und Text zusammen, damit sie bei umgebrochenen Aktionsbuttons zusammenbleiben. PWA-Cache v14.
+- Verifiziert: Web-JS-Syntax und `git diff --check` erfolgreich; Firefox-Sichtprüfung der isoliert mit echtem Exemplarmodul gerenderten Liste bei Cinematic/390 px und Editorial/320 px. Android `testReleaseUnitTest lintRelease assembleRelease --offline --no-daemon` erfolgreich, 48 JVM-Tests bestanden, Lint 0 Befunde, APK-v2-Signatur gültig. Kein erneuter Backendtest für diese reine Anzeigeänderung.
+- Lokale APK: `android/app/build/outputs/apk/release/Games-Collection-0.10-release.apk`, Version 0.10 / Code 9 unverändert. Keine echte Android-Gerätesichtprüfung, kein vollständiger erneuter Web-End-to-End-Test. Markdown-Vorgaben und Exemplardokumentation ergänzt. Kein Commit/Push/Release, keine Datenbankänderung.
+
+
 ## Lokaler Projektcommit – 10.11.2026
 
 - Gemeinsamer Commit auf `main` für den vollständigen geprüften Arbeitsstand: Exemplare und datenerhaltende SQLite-Migration, Statusauswahl auf Covern, Android- und Web-Änderungen sowie README und Betriebsdokumentation. Server/Web bleibt 0.10, Android 0.10 / Code 9. Der Auftrag umfasst den lokalen Commit.

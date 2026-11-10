@@ -566,6 +566,7 @@ private fun statusIcon(status: String): ImageVector = when (status) {
 @Composable private fun SettingsDialog(state: ViewerState, setTheme: (String) -> Unit,
     setPostersPerRow: (Int) -> Unit, setShowCoverStatus: (Boolean) -> Unit, saveDefaults: (GameDefaults) -> Unit,
     server: () -> Unit, close: () -> Unit) {
+    var infoOpen by rememberSaveable { mutableStateOf(false) }
     FullScreenDialog("Einstellungen", true, close) {
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(18.dp)) {
@@ -601,6 +602,38 @@ private fun statusIcon(status: String): ImageVector = when (status) {
             Text(state.server, color = MaterialTheme.colorScheme.onSurfaceVariant)
             OutlinedCard(Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
                 ProfileAction("Serveradresse ändern", Icons.Default.Settings, !state.busy, onClick = server)
+            }
+            OutlinedCard(Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
+                ProfileAction("Info", Icons.Default.Info, true, onClick = { infoOpen = true })
+            }
+        }
+    }
+    if (infoOpen) InfoDialog { infoOpen = false }
+}
+
+@Composable private fun InfoDialog(close: () -> Unit) {
+    val context = LocalContext.current
+    FullScreenDialog("Info", true, close) {
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                BrandIcon(48.dp)
+                Column {
+                    Text("Games Collection", style = MaterialTheme.typography.titleLarge)
+                    Text("Android-Version ${BuildConfig.VERSION_NAME}", color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodySmall)
+                }
+            }
+            HorizontalDivider()
+            Metadata("Entwickler", "Mehmet Bennavi (mehmet-b-90)")
+            OutlinedCard(Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
+                ProfileAction("GitHub\ngithub.com/mehmet-b-90/games_collection", Icons.Default.Info, true,
+                    onClick = { openBrowser(context, "https://github.com/mehmet-b-90/games_collection") })
+            }
+            Metadata("Lizenz", "Für das Projekt ist keine Lizenz angegeben.")
+            OutlinedCard(Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
+                ProfileAction("IGDB\nSpieldaten und Standardcover", Icons.Default.Search, true,
+                    onClick = { openBrowser(context, "https://www.igdb.com/") })
             }
         }
     }

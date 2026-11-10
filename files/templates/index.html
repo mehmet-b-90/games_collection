@@ -317,6 +317,7 @@
 <button type="button" id="settings-tab-defaults" role="tab" aria-controls="settings-defaults" aria-selected="false" tabindex="-1">Spielvorgaben</button>
 <button type="button" id="settings-tab-profile" role="tab" aria-controls="settings-profile" aria-selected="false" tabindex="-1">Konto</button>
 <button type="button" id="settings-tab-app" role="tab" aria-controls="settings-app" aria-selected="false" tabindex="-1">App</button>
+<button type="button" id="settings-tab-info" role="tab" aria-controls="settings-info" aria-selected="false" tabindex="-1">Info</button>
 </div>
             <div class="modal-body account-settings"><section id="settings-appearance" class="settings-panel" role="tabpanel" aria-labelledby="settings-tab-appearance">                <fieldset class="theme-picker">
                     <legend>Darstellung</legend>
@@ -351,6 +352,21 @@
                     <button type="button" class="secondary-action d-none" id="installAppBtn">App installieren</button>
                 </div>
 </section>
+                <section id="settings-info" class="settings-panel" role="tabpanel" aria-labelledby="settings-tab-info" tabindex="0" hidden>
+                    <div class="settings-info-heading">
+                        <img class="brand-mark" src="{{ url_for('static', filename='icons/app-icon-192.png') }}" width="48" height="48" alt="">
+                        <div>
+                            <h3>Games Collection</h3>
+                            <p>Web-Version {{ config.APP_VERSION }}</p>
+                        </div>
+                    </div>
+                    <dl class="settings-info-list">
+                        <div><dt>Entwickler</dt><dd>Mehmet Bennavi (mehmet-b-90)</dd></div>
+                        <div><dt>GitHub</dt><dd><a href="https://github.com/mehmet-b-90/games_collection" target="_blank" rel="noopener">github.com/mehmet-b-90/games_collection</a></dd></div>
+                        <div><dt>Lizenz</dt><dd>Für das Projekt ist keine Lizenz angegeben.</dd></div>
+                        <div><dt>Spieldaten und Standardcover</dt><dd><a href="https://www.igdb.com/" target="_blank" rel="noopener">IGDB</a></dd></div>
+                    </dl>
+                </section>
 </div>
             <div class="modal-footer settings-footer">
                 <span id="settingsHint" class="setting-status">Designauswahl wird direkt übernommen.</span>

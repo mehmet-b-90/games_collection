@@ -10,6 +10,8 @@ Games Collection verwaltet deine Videospielesammlung auf einem eigenen Server. D
 
 **Neue lokale Erweiterung:** Einzelne [Exemplare pro Spiel](docs/EXEMPLARE.md) mit Plattform, Format und optionaler Ausgabe in Web und Android. Noch nicht veröffentlicht; vor einem Update den dort beschriebenen datenerhaltenden Migrationsweg beachten.
 
+Der lokale Web-Stand ist **0.11**. Unter **Einstellungen → Info** steht die Version des verbundenen Webservers.
+
 ## Server mit Docker einrichten
 
 Du brauchst **Docker mit Docker Compose**, einen Host mit **AMD64 oder ARM64**, einen freien Host-Port **7000** (Compose-Standard) und für die IGDB-Spielesuche und **Entdecken** Zugangsdaten einer Twitch-Anwendung.

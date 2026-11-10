@@ -1,5 +1,18 @@
 # Android-Codeprüfung vom 17.10.2026
 
+## Lokaler Build 0.11 – 10.11.2026
+
+Release-Prüfung mit 48 JVM-Tests und Lint ohne Befunde erfolgreich. APK-Metadaten (0.11 / Code 10), Info-Text im kompilierten Code und APK-v2-Signatur verifiziert. Die lokale APK liegt unter `android/app/build/outputs/apk/release/Games-Collection-0.11-release.apk`. Die Geräteprüfung steht aus.
+
+## Info unter Einstellungen – 10.11.2026
+
+Profil → Einstellungen → Info öffnet eine eigene Compose-Ansicht mit Projektangaben und Links zum Browser. Die App liest ihre Version aus der generierten Build-Konfiguration. Die Ansicht ist auch im Offline-Modus verfügbar. Die Release-Prüfung `testReleaseUnitTest lintRelease assembleRelease --offline --no-daemon` war erfolgreich (48 JVM-Tests, Lint ohne Befunde, gültige APK-v2-Signatur). Die Sichtprüfung auf einem Android-Gerät steht aus. Die lokale APK liegt unter `android/app/build/outputs/apk/release/Games-Collection-0.10-release.apk` (0.10 / Code 9).
+
+## Formatsymbole in der Exemplarliste – 10.11.2026
+
+Download- und Disc-Kontursymbole aus dem freigegebenen Entwurf in „Mein Besitz“, 20 dp mit Theme-Farbe und zusätzlichem Formattext. Native Vektoren ohne weitere Abhängigkeit; dekorative Symbole ohne doppelte Screenreader-Beschriftung. Releaseprüfung erfolgreich: 48 JVM-Tests, Lint 0 Befunde, signierte APK v2 gültig. Lokale APK `android/app/build/outputs/apk/release/Games-Collection-0.10-release.apk`; Version 0.10 / Code 9 unverändert, keine Veröffentlichung. Echte Android-Sichtprüfung beider Designs steht aus.
+
+
 ## Einzelne Exemplare – 10.11.2026
 
 - `GameCopy` und `GameCopies.kt` ergänzen Mein Besitz in Spieldetails/Editor, eigenes Formular mit optionaler Ausgabe, Entfernen mit Bestätigung und Wischsperre während der Bearbeitung. Gemeinsame Formbausteine und Theme-Farben. Im Spieleditor Übernahme in Entwurf, aus Details direkte dauerhafte lokale Speicherung; Netzwerkfehler verwerfen die Warteschlange nicht. Ein offener Exemplardialog bleibt nach abgelehnten Vorgängen schließbar. Wird eine zuvor offline neu angelegte Spielkarte beim direkten Exemplarspeichern synchronisiert, schließt der alte negative lokale Eintrag nach Erfolg; weitere Bearbeitungen verwenden die neu geladene Server-ID und erzeugen keine zweite Anlage.

@@ -8,6 +8,20 @@ let copies = [];
 let editing = null;
 let defaultFormat = 'Digital';
 const byId = id => document.getElementById(id);
+
+function formatIcon(format) {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('class', 'copy-format-icon');
+    svg.setAttribute('aria-hidden', 'true');
+    svg.setAttribute('focusable', 'false');
+    const path = document.createElementNS(svg.namespaceURI, 'path');
+    path.setAttribute('d', format === 'Digital'
+        ? 'M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3'
+        : 'M22 12a10 10 0 1 1-20 0 10 10 0 1 1 20 0M14 12a2 2 0 1 1-4 0 2 2 0 1 1 4 0M7 12a5 5 0 0 1 5-5M12 17a5 5 0 0 0 5-5');
+    svg.append(path);
+    return svg;
+}
 export const getCopies = () => copies.map(copy => ({...copy}));
 export const hasCopyDraft = () => editing !== null;
 
@@ -43,7 +57,9 @@ function render() {
             button.setAttribute('aria-label', `${copy.platform} · ${copy.format}: ${label}`);
             button.disabled = editing !== null; button.addEventListener('click', action); actions.append(button);
         });
-        row.append(info, actions); list.append(row);
+        const identity = document.createElement('div'); identity.className = 'copy-identity';
+        identity.append(formatIcon(copy.format), info);
+        row.append(identity, actions); list.append(row);
     });
 }
 

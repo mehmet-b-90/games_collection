@@ -1,5 +1,13 @@
 # Serverprüfung vom 19.10.2026
 
+## Lokale Web-Version 0.11 – 10.11.2026
+
+Der Info-Reiter rendert im angemeldeten Flask-Testclient „Web-Version 0.11“ aus `APP_VERSION`. Alle 63 Backendtests mit temporären Datenbanken bestanden.
+
+## Info-Reiter in den Web-Einstellungen – 10.11.2026
+
+Der fünfte Reiter liest die Web-Version aus `APP_VERSION` und zeigt die Projektangaben ohne zusätzlichen API-Aufruf. Firefox am lokalen Gunicorn-Testserver mit temporärer Datenbank geprüft. Beide Designs bei 320 und 1200 px visuell geprüft, einschließlich zweizeiliger Reiter bei schmaler Breite. Tastaturwechsel, Linkziele, ausgeblendete Speicheraktionen und Erhalt des Kontodatenentwurfs erfolgreich geprüft. PWA-Cache v15. 63 Backendtests bestanden.
+
 ## Exemplare und datenerhaltende Migration – 10.11.2026
 
 - Atomare SQLite-Startmigration mit Schreibsperre: fehlende additive Tabellen anlegen, aus jeder alten Plattformzuordnung ein Exemplar mit altem Format/leerem Ausgabefeld erzeugen, Marker gemeinsam committen. Kein Umbau/Löschen bestehender Tabellen. Wiederholte Starts übernehmen nichts doppelt; Fehler rollen Schemaanlage und Backfill zurück. API validiert höchstens 100 Exemplare, erlaubte Plattformen/Formate, Ausgabe bis 80 Zeichen sowie exakte Felder. Spielversion und Idempotenzbeleg schützen die gemeinsame Mutation.
