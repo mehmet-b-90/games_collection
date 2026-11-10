@@ -1,5 +1,11 @@
 # Games Collection für Android
 
+### Exemplare (lokaler Stand vom 10.11.2026, noch nicht veröffentlicht)
+
+Unter **Spieldetails → Mein Besitz** einzelne Exemplare hinzufügen, bearbeiten und entfernen: Plattform, Digital/Physisch und optionale Ausgabe. Der Titel bleibt eine Karte, Status und Bewertung gelten gemeinsam. In der Detailansicht speichert „Exemplar speichern“ lokal über die Offline-Warteschlange; im Spieleditor zunächst „Übernehmen“, danach das Spiel speichern. Filter verbinden Plattform und Format je Exemplar. Details und Updateablauf: [Exemplare und Datenmigration](../docs/EXEMPLARE.md).
+
+Zuerst ausstehende Änderungen synchronisieren, dann Server mit Datenübernahme aktualisieren und beide Clients wechseln. Neue Exemplarschreibvorgänge verlangen `game_copies`; die App verändert bereits versuchte alte Offline-Anfragen nicht. Keine Deinstallation zur Umstellung.
+
 ### Standardwerte (lokaler Stand 0.10)
 
 Unter **Profil → Einstellungen** Titeltyp der Suche, Format, Status und mehrere Besitzplattformen setzen und **Standardwerte speichern**. Gilt kontoweit auch im Web; benötigt den aktuellen Serverstand mit Capability `game_defaults`. Bei Anmeldung/Verbindung/Synchronisierung lädt die App die Vorgaben; pro Server/Konto gespeicherte Werte bleiben offline nutzbar. Neue Spiele aus Suche, manueller Anlage und Entdecken übernehmen die Werte. Vorhandene Spiele und Entwürfe bleiben unverändert.
@@ -30,7 +36,7 @@ Lokale Korrektur vom 01.11.2026 (noch nicht in der veröffentlichten GitHub-APK)
 - Spieldetails, Bearbeiten und Löschen mit Sicherheitsabfrage
 - Hinzufügen über IGDB mit optionalem Release-Jahr und Titeltyp oder manuell
 - Offline-Sammlung mit dauerhaft gespeicherten Änderungen und späterer Synchronisierung
-- Mehrfachauswahl der Besitzplattformen sowie Status, Format und Bewertung
+- Einzelne Exemplare mit Besitzplattform, Format und optionaler Ausgabe; gemeinsamer Spielstatus und Bewertung
 - Cinematic Dark und Editorial Shelf als lokale App-Designs
 - Einstellungen mit lokal gespeicherter Auswahl von 1–3 Postern pro Reihe (Standard: 2)
 - Externe Links zu IGDB und Deku Deals im Browser
@@ -48,11 +54,11 @@ docker compose up -d
 
 Die Datenbank im eingebundenen Verzeichnis `data/` bleibt erhalten. Der lokale Server ergänzt beim Start die Tabelle `friendship` für gegenseitige Freigaben und, falls noch nicht vorhanden, `game_write_receipt` für bestätigte Spieländerungen; bestehende Tabellen und Spiele werden nicht umgebaut oder gelöscht. Sichere bestehende Daten vor einem Serverupdate wie üblich. Neue Zugangsdaten sind nicht erforderlich.
 
-Der aktuelle Android-Quellstand benötigt zum Speichern und Löschen die vom Server gemeldete Capability `idempotent_game_writes`. Fehlt sie, fordert die App ein Serverupdate an. Bestehende Browser- und ältere Android-Clients ohne Vorgangskennung bleiben serverseitig kompatibel.
+Der aktuelle Android-Quellstand benötigt zum Speichern und Löschen die vom Server gemeldete Capability `idempotent_game_writes`. Fehlt sie, fordert die App ein Serverupdate an. Bestehende Browser- und ältere Android-Clients ohne Vorgangskennung bleiben für verlustfrei darstellbare Spiele kompatibel; komplexe Exemplarangaben sind gegen alte Besitzschreibvorgänge geschützt. Für die automatische Datenübernahme vor diesem Update den [Migrationsweg](../docs/EXEMPLARE.md#update-für-die-beiden-aktuellen-nutzer) beachten.
 
 Freunde und fremde Sammlungen benötigen eine Onlineverbindung. Sie werden getrennt von der eigenen Sammlung nur im Arbeitsspeicher gehalten und beim Schließen des Bereichs sowie Konto-/Serverwechsel verworfen. Einzelheiten: [Freundschaften](../docs/FRIENDS.md).
 
-Für lokale Serveränderungen siehe [Lokal aus dem Quellcode bauen](../README.md#lokal-aus-dem-quellcode-bauen).
+Für lokale Serveränderungen siehe [Lokal aus dem Quellcode bauen](../docs/SERVER_BETRIEB.md#lokal-aus-dem-quellcode-bauen).
 
 ## Installation und erster Start
 

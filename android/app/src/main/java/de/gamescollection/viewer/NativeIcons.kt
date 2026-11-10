@@ -9,6 +9,7 @@ import androidx.compose.ui.unit.dp
 
 /** Small app-specific vectors avoid bundling the entire extended icon catalog. */
 internal object NativeIcons {
+    val Block = icon("Block", "M12,2a10,10 0,1 0,0 20a10,10 0,1 0,0 -20zM12,4a8,8 0,0 1,6.32 12.9L7.1,5.68A8,8 0,0 1,12 4zM5.68,7.1L16.9,18.32A8,8 0,0 1,5.68 7.1z")
     val Discover = icon("Discover", "M12,2a10,10 0,1 0,0 20a10,10 0,1 0,0 -20zM12,4a8,8 0,1 1,0 16a8,8 0,1 1,0 -16zM16,8l-3,5l-5,3l3,-5z")
     val Library = icon("Library", "M3,3h8v8H3zM13,3h8v8h-8zM3,13h8v8H3zM13,13h8v8h-8z")
     val Statistics = icon("Statistics", "M4,13h4v7H4zM10,4h4v16h-4zM16,9h4v11h-4z")

@@ -18,7 +18,7 @@ def session_response():
         user = {**current_user.to_dict(), 'ui_theme': current_user.ui_theme, 'game_defaults': get_defaults(current_user.id)}
     response = jsonify({
         'api_version': 1,
-        'capabilities': {'idempotent_game_writes': True, 'friendships': True, 'custom_covers': True, 'game_defaults': True},
+        'capabilities': {'idempotent_game_writes': True, 'friendships': True, 'custom_covers': True, 'game_defaults': True, 'game_copies': True},
         'authenticated': user is not None,
         'user': user,
         'csrf_token': generate_csrf(),

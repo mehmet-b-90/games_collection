@@ -8,6 +8,13 @@ import java.util.Locale
 
 val GAME_STATUSES = listOf("Nicht gespielt", "Gespielt", "Abgebrochen")
 
+data class GameCopy(val platform: String, val format: String = "Digital", val edition: String = "") {
+    fun json() = JSONObject().put("platform", platform).put("format", format).put("edition", edition)
+    companion object {
+        fun fromJson(json: JSONObject) = GameCopy(json.getString("platform"), json.getString("format"), json.getString("edition"))
+    }
+}
+
 data class Game(
     val id: Int = 0, val version: Int = 1, val title: String,
     val cover: String = "", val release: String = "", val developer: String = "",
@@ -15,13 +22,22 @@ data class Game(
     val ageRating: String = "", val platforms: List<String> = emptyList(),
     val format: String = "Digital", val status: String = "Nicht gespielt",
     val rating: Int? = null, val igdbId: Int? = null, val igdbUrl: String = "",
-    val customCoverUrl: String = "", val customCoverEdit: String? = null
+    val customCoverUrl: String = "", val customCoverEdit: String? = null,
+    // null preserves the exact legacy payload of already attempted offline writes.
+    val copies: List<GameCopy>? = null
 ) {
+    val ownedCopies: List<GameCopy> get() = copies ?: platforms.map { GameCopy(it, format) }
+    val ownedPlatforms: List<String> get() = ownedCopies.map { it.platform }.distinct()
+    fun withCopies(values: List<GameCopy>) = copy(copies = values, platforms = values.map { it.platform }.distinct(),
+        format = values.firstOrNull()?.format ?: "Digital")
+
     fun payload() = JSONObject().apply {
         put("title", title); put("cover_url", cover); put("release_date", release)
         put("developer", developer); put("publisher", publisher); put("game_engine", engine)
         put("available_platforms", available); put("age_rating", ageRating)
-        put("owned_platform", platforms.joinToString(", ")); put("format", format)
+        if (copies == null) {
+            put("owned_platform", platforms.joinToString(", ")); put("format", format)
+        } else put("copies", JSONArray(copies.map { it.json() }))
         put("status", status); put("rating", rating ?: JSONObject.NULL)
         put("igdb_id", igdbId ?: JSONObject.NULL); put("igdb_url", igdbUrl)
         customCoverEdit?.let { put("custom_cover", it.ifEmpty { null } ?: JSONObject.NULL) }
@@ -34,12 +50,15 @@ data class Game(
             cover = json.text("cover_url"), release = json.text("release_date"),
             developer = json.text("developer"), publisher = json.text("publisher"),
             engine = json.text("game_engine"), available = json.text("available_platforms"),
-            ageRating = json.text("age_rating"), platforms = json.text("owned_platform").split(',').map { it.trim() }.filter { it.isNotEmpty() },
-            format = json.text("format"), status = json.text("status"),
+            ageRating = json.text("age_rating"), platforms = if (json.has("copies")) json.getJSONArray("copies").objects().map { it.getString("platform") }.distinct()
+                else json.text("owned_platform").split(',').map { it.trim() }.filter { it.isNotEmpty() },
+            format = if (json.has("copies")) json.getJSONArray("copies").objects().firstOrNull()?.getString("format") ?: "Digital"
+                else json.text("format"), status = json.text("status"),
             rating = if (json.isNull("rating")) null else json.getInt("rating"),
             igdbId = if (json.isNull("igdb_id")) null else json.getInt("igdb_id"), igdbUrl = json.text("igdb_url"),
             customCoverUrl = json.text("custom_cover_url"),
-            customCoverEdit = if (json.has("custom_cover")) json.text("custom_cover") else null
+            customCoverEdit = if (json.has("custom_cover")) json.text("custom_cover") else null,
+            copies = if (json.has("copies")) json.getJSONArray("copies").objects().map(GameCopy::fromJson) else null
         )
 
         fun fromIgdb(json: JSONObject): Game {
@@ -68,9 +87,10 @@ data class CollectionFilter(
 
     fun matches(game: Game): Boolean =
         listOf(game.title, game.developer, game.publisher).any { it.contains(query.trim(), ignoreCase = true) }
-                && (platform.isEmpty() || platform in game.platforms)
+                && ((platform.isEmpty() && format.isEmpty()) || game.ownedCopies.any {
+                    (platform.isEmpty() || it.platform == platform) && (format.isEmpty() || it.format == format)
+                })
                 && (status.isEmpty() || game.status == status)
-                && (format.isEmpty() || game.format == format)
                 && (engine.isEmpty() || game.engine.split(',').map { it.trim() }.contains(engine))
                 && (ageRating.isEmpty() || game.ageRating == ageRating)
                 && (minimumRating == null || game.rating?.let { it >= minimumRating } == true)

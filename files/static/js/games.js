@@ -1,3 +1,4 @@
+import {gameCopies, setCopies, getCopies, hasCopyDraft, initializeCopies} from './copies.js';
 import {applyGameDefaults} from './game-defaults.js';
 import {apiFetch, responseJson} from './api.js';
 
@@ -85,15 +86,14 @@ export function resetForm() {
 export function openGameDetails(game) {
     set('gameId', game.id); set('gameVersion', game.version); set('titleInput', game.title);
     set('releaseYearSearch', game.release_date || '');
-    set('formatSelect', game.format || 'Digital'); set('statusSelect', game.status || 'Nicht gespielt');
+    set('statusSelect', game.status || 'Nicht gespielt');
     set('ratingInput', game.rating ?? '');
     resetCover(game);
     set('releaseInput', game.release_date || ''); set('devInput', game.developer || '');
     set('pubInput', game.publisher || ''); set('engineInput', game.game_engine || '');
     set('platformsInput', game.available_platforms || ''); set('igdbIdInput', game.igdb_id || '');
     set('igdbUrlInput', game.igdb_url || ''); set('ageRatingInput', game.age_rating || '');
-    const owned = (game.owned_platform || '').split(',').map(item => item.trim());
-    Array.from(document.getElementById('ownedPlatformInput').options).forEach(option => { option.selected = owned.includes(option.value); });
+    setCopies(gameCopies(game));
     const link = document.getElementById('igdbLinkBtn');
     link.classList.toggle('d-none', !game.igdb_url);
     if (game.igdb_url) link.href = game.igdb_url;
@@ -109,12 +109,11 @@ export async function saveGame() {
     if (!title) return alert('Bitte gib einen Spieletitel ein, bevor du speicherst.');
     const rating = document.getElementById('ratingInput').value.trim();
     if (rating && (!Number.isInteger(Number(rating)) || Number(rating) < 0 || Number(rating) > 10)) return alert('Bitte gib eine ganze Bewertung zwischen 0 und 10 ein.');
-    const platforms = Array.from(document.getElementById('ownedPlatformInput').selectedOptions).map(option => option.value).join(', ');
-    if (!platforms) return alert('Bitte wähle mindestens eine Plattform aus, auf der du das Spiel besitzt.');
+    if (hasCopyDraft()) return alert('Bitte übernimm das bearbeitete Exemplar oder brich die Exemplarbearbeitung ab.');
     const id = document.getElementById('gameId').value;
     const data = {
         title, cover_url: coverUrl,
-        format: document.getElementById('formatSelect').value, owned_platform: platforms,
+        copies: getCopies(),
         status: document.getElementById('statusSelect').value, rating,
         release_date: document.getElementById('releaseInput').value,
         developer: document.getElementById('devInput').value, publisher: document.getElementById('pubInput').value,
@@ -150,6 +149,7 @@ export async function deleteGame() {
 }
 
 export function initializeGameModal() {
+    initializeCopies();
     const input = document.getElementById('coverFileInput');
     document.getElementById('chooseCoverBtn').addEventListener('click', () => {
         if (!saving) input.click();

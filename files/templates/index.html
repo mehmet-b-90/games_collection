@@ -150,24 +150,29 @@
 
             <div class="grid-container" id="gameGrid">
                 {% for game in games %}
-                <article class="game-card" tabindex="0" role="button"
+                <article class="game-card" tabindex="0" role="group"
                     data-igdb-id="{{ game.igdb_id or '' }}" data-id="{{ game.id }}" data-release="{{ game.release_date or '0' }}"
                     data-title="{{ (game.title or '') | lower }}" data-dev="{{ (game.developer or '') | lower }}"
                     data-pub="{{ (game.publisher or '') | lower }}" data-engine="{{ (game.game_engine or '') | lower }}"
                     data-platform="{{ game.owned_platform or '' }}" data-status="{{ game.status or '' }}"
-                    data-format="{{ game.format or '' }}" data-age-rating="{{ game.age_rating or '' }}"
+                    data-copies='{{ game.copies|tojson }}' data-age-rating="{{ game.age_rating or '' }}"
                     data-rating="{{ game.rating if game.rating is not none else '' }}"
                     onclick='openGameDetails({{ game|tojson }})'
-                    onkeydown='if(event.key === "Enter" || event.key === " "){event.preventDefault();openGameDetails({{ game|tojson }})}'>
+                    onkeydown='if(event.target === this && (event.key === "Enter" || event.key === " ")){event.preventDefault();openGameDetails({{ game|tojson }})}'>
                     <div class="cover-frame">
                         <img src="{{ game.custom_cover_url or game.cover_url }}" class="game-cover" alt="Cover von {{ game.title }}" onerror="this.src='https://via.placeholder.com/300x400?text=Kein+Cover'">
-                        <span class="status-badge">{{ game.status }}</span>
+                        <div class="cover-status" data-game-id="{{ game.id }}" data-version="{{ game.version }}">
+                            <span class="cover-status-icon" aria-hidden="true"></span>
+                            <select aria-label="Status von {{ game.title }} ändern">
+                                {% for status in ['Gespielt', 'Nicht gespielt', 'Abgebrochen'] %}<option value="{{ status }}" {% if game.status == status %}selected{% endif %}>{{ {"Gespielt": "✔︎", "Nicht gespielt": "✕", "Abgebrochen": "⊘"}[status] }} {{ status }}</option>{% endfor %}
+                            </select>
+                        </div>
                         <div class="cinematic-overlay"><h3>{{ game.title }}</h3></div>
                     </div>
                     <div class="game-card-body">
                         <h3>{{ game.title }}</h3>
                         <div class="game-meta">
-                            <span>{{ game.owned_platform or 'Keine Plattform' }}</span>
+                            <span>{{ game.owned_platform or 'Keine Plattform' }} · {{ game.copies|length }} {{ 'Exemplar' if game.copies|length == 1 else 'Exemplare' }}</span>
                             {% if game.rating is not none %}<strong>★ {{ game.rating }}</strong>{% endif %}
                         </div>
                     </div>
@@ -234,8 +239,8 @@
                     <div class="summary-card"><span>Plattformen</span><strong>{{ summary.platforms }}</strong></div>
                 </div>
                 <div class="stats-grid">
-                <div class="chart-card"><h3>Plattformen</h3><canvas id="platformChart"></canvas></div>
-                <div class="chart-card"><h3>Format</h3><canvas id="formatChart"></canvas></div>
+                <div class="chart-card"><h3>Plattformen · Exemplare</h3><canvas id="platformChart"></canvas></div>
+                <div class="chart-card"><h3>Format · Exemplare</h3><canvas id="formatChart"></canvas></div>
                 <div class="chart-card"><h3>Status</h3><canvas id="statusChart"></canvas></div>
                 <div class="chart-card"><h3>Engine (Top 5)</h3><canvas id="engineChart"></canvas></div>
             </div></div>
@@ -277,11 +282,23 @@
                     </div>
                     <div class="editor-grid">
                         <div class="editor-primary-fields">
-                            <label>Format<select id="formatSelect"><option>Physisch</option><option selected>Digital</option></select></label>
                             <label>Status<select id="statusSelect"><option>Nicht gespielt</option><option>Gespielt</option><option>Abgebrochen</option></select></label>
                             <label>Bewertung (0–10)<input type="number" id="ratingInput" min="0" max="10" step="1"></label>
                         </div>
-                        <label class="platform-select">Besitz auf Plattform <small>Mehrfachauswahl möglich</small><select id="ownedPlatformInput" multiple>{% for platform in platforms %}<option value="{{ platform }}">{{ platform }}</option>{% endfor %}</select></label>
+                        <section class="copies-section" aria-labelledby="copiesTitle">
+                            <div class="copies-heading"><h3 id="copiesTitle">Mein Besitz</h3><span id="copiesCount" aria-live="polite"></span></div>
+                            <div id="copiesList"></div>
+                            <button type="button" class="secondary-action" id="addCopyBtn">+ Exemplar hinzufügen</button>
+                            <fieldset id="copyEditor" hidden>
+                                <legend id="copyEditorTitle">Exemplar hinzufügen</legend>
+                                <label>Plattform<select id="copyPlatform">{% for platform in platforms %}<option value="{{ platform }}">{{ platform }}</option>{% endfor %}</select></label>
+                                <label>Format<select id="copyFormat"><option>Digital</option><option>Physisch</option></select></label>
+                                <label>Ausgabe (optional)<input id="copyEdition" maxlength="80" placeholder="z. B. Collector’s Edition"></label>
+                                <p id="copyError" role="alert"></p>
+                                <div class="copy-actions"><button type="button" class="primary-action" id="applyCopyBtn">Übernehmen</button><button type="button" class="secondary-action" id="cancelCopyBtn">Abbrechen</button></div>
+                            </fieldset>
+                            <p class="setting-status">Exemplare werden mit „Speichern“ am Spiel gesichert. Status und Bewertung gelten gemeinsam für den Titel.</p>
+                        </section>
                     </div>
                     <input type="hidden" id="igdbIdInput"><input type="hidden" id="igdbUrlInput">
                 </form>
@@ -305,6 +322,9 @@
                     <legend>Darstellung</legend>
                     <label class="theme-option"><input type="radio" name="uiTheme" value="cinematic" {% if current_user.ui_theme == 'cinematic' %}checked{% endif %}><span class="theme-swatch cinematic-swatch"></span><span><strong>Cinematic Dark</strong><small>Dunkel, fokussiert und atmosphärisch</small></span></label>
                     <label class="theme-option"><input type="radio" name="uiTheme" value="editorial" {% if current_user.ui_theme == 'editorial' %}checked{% endif %}><span class="theme-swatch editorial-swatch"></span><span><strong>Editorial Shelf</strong><small>Hell, ruhig und cover-orientiert</small></span></label>
+                    <label class="form-check form-switch mt-3"><input class="form-check-input" type="checkbox" role="switch" id="showCoverStatus" checked><span class="form-check-label">Statusauswahl auf Covern</span></label>
+                    <p class="setting-status">Status direkt in der Sammlung ändern. Gilt für diesen Browser.</p>
+                    <p id="coverStatusPreferenceMessage" class="setting-status" role="status"></p>
                     <p id="themeSaveStatus" class="setting-status" role="status"></p>
                 </fieldset>
 </section>

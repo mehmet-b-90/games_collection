@@ -89,10 +89,14 @@ fun FriendsScreen(state: FriendsState, refresh: () -> Unit, invite: (String) -> 
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             Text(game.title, style = MaterialTheme.typography.titleMedium)
                             Text("${game.release.ifEmpty { "Jahr unbekannt" }} · ${game.ageRating.ifEmpty { "Keine Altersfreigabe" }}", style = MaterialTheme.typography.bodySmall)
-                            Text(game.platforms.joinToString(", ").ifEmpty { "Keine Besitzplattform" }, style = MaterialTheme.typography.bodySmall)
-                            Text("${game.format} · ${game.status} · ★ ${game.rating ?: "–"}/10", style = MaterialTheme.typography.bodySmall)
+                            Text(game.ownedPlatforms.joinToString(", ").ifEmpty { "Keine Besitzplattform" }, style = MaterialTheme.typography.bodySmall)
+                            Text("${game.ownedCopies.size} Exemplare · ${game.status} · ★ ${game.rating ?: "–"}/10", style = MaterialTheme.typography.bodySmall)
                             var expanded by rememberSaveable(game.id) { mutableStateOf(false) }
                             TextButton(onClick = { expanded = !expanded }) { Text(if (expanded) "Weniger anzeigen" else "Weitere Spieldaten") }
+                            if (expanded) game.ownedCopies.forEach { copy ->
+                                Text("${copy.platform} · ${copy.format}" + copy.edition.takeIf { it.isNotEmpty() }?.let { " · $it" }.orEmpty(),
+                                    style = MaterialTheme.typography.bodySmall)
+                            }
                             if (expanded) listOf("Entwickler" to game.developer, "Publisher" to game.publisher,
                                 "Engine" to game.engine, "Verfügbare Plattformen" to game.available).filter { it.second.isNotEmpty() }.forEach { (label, value) ->
                                 Text("$label: $value", style = MaterialTheme.typography.bodySmall)

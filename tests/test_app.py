@@ -746,7 +746,7 @@ class GamesCollectionTestCase(unittest.TestCase):
         self.assertIn("rating >= minimumRating", ui_script.get_data(as_text=True))
         self.assertIn("platform-icon-label", ui_script.get_data(as_text=True))
         self.assertIn("'Wii U': 'Wii U'", ui_script.get_data(as_text=True))
-        self.assertIn('ownedPlatforms.includes(platform)', ui_script.get_data(as_text=True))
+        self.assertIn('copy.platform === platform', ui_script.get_data(as_text=True))
         ui_script.close()
 
         igdb_response = self.client.get('/static/js/igdb-search.js')
@@ -1076,6 +1076,147 @@ class GamesCollectionTestCase(unittest.TestCase):
         self.assertIn('Timeout', '\n'.join(logs.output))
         for malformed in (True, 5, {'organization': []}, [{'organization': [], 'rating_category': {}}]):
             self.assertEqual(get_preferred_age_rating(malformed), '')
+
+    def test_copy_migration_preserves_legacy_tables_and_is_repeatable(self):
+        from files.models import GameCopy, SchemaMigration
+        from files.migrations import migrate_game_copies
+        alice, bob, _ = self.friend_accounts()
+        key = str(uuid4())
+        self.assertEqual(alice.post('/api/games', json={'title': 'Altbestand', 'igdb_id': 123,
+            'owned_platform': 'PlayStation 4, Steam', 'format': 'Physisch', 'rating': 9},
+            headers={'Idempotency-Key': key}).status_code, 201)
+        self.assertEqual(bob.post('/api/games', json={'title': 'Anderes Konto',
+            'owned_platform': 'Switch', 'format': 'Digital'}).status_code, 201)
+        buffer = BytesIO()
+        Image.new('RGB', (4, 4), 'blue').save(buffer, format='JPEG')
+        old_game = alice.get('/api/games').json['games'][0]
+        self.assertEqual(alice.put(f"/api/games/{old_game['id']}", json={'version': old_game['version'],
+            'custom_cover': b64encode(buffer.getvalue()).decode()}).status_code, 200)
+        self.assertEqual(alice.put('/api/account/game-defaults', json={'game_type': None, 'format': 'Physisch',
+            'status': 'Gespielt', 'platforms': ['PlayStation 4']}).status_code, 200)
+        self.assertEqual(alice.post('/api/friends', json={'username': 'Böb'}).status_code, 201)
+        self.assertEqual(bob.put('/api/friends/1', json={}).status_code, 200)
+        with app.app_context():
+            # A title without ownership must survive too, without invented copies.
+            db.session.add(Game(user_id=1, title='Ohne Besitz', format='Digital'))
+            db.session.commit()
+            GameCopy.__table__.drop(db.engine)
+            SchemaMigration.__table__.drop(db.engine)
+            with db.engine.connect() as connection:
+                tables = [r[0] for r in connection.exec_driver_sql(
+                    "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")]
+                before = {t: connection.exec_driver_sql(f'SELECT * FROM "{t}"').fetchall() for t in tables}
+            db.create_all()
+            migrate_game_copies()
+            migrate_game_copies()
+            self.assertEqual(GameCopy.query.count(), 3)
+            self.assertEqual(SchemaMigration.query.count(), 1)
+            self.assertTrue(all(copy.edition == '' for copy in GameCopy.query.all()))
+            with db.engine.connect() as connection:
+                after = {t: connection.exec_driver_sql(f'SELECT * FROM "{t}"').fetchall() for t in tables}
+                self.assertEqual(connection.exec_driver_sql('PRAGMA foreign_key_check').fetchall(), [])
+                self.assertEqual(connection.exec_driver_sql('PRAGMA integrity_check').scalar(), 'ok')
+            self.assertEqual(before, after)
+        game = next(g for g in alice.get('/api/games').json['games'] if g['title'] == 'Altbestand')
+        self.assertEqual(game['copies'], [{'platform': p, 'format': 'Physisch', 'edition': ''}
+                                         for p in ['PlayStation 4', 'Steam']])
+        # A later deliberately empty copy list must not be backfilled on restart.
+        self.assertEqual(alice.put(f"/api/games/{game['id']}", json={'version': game['version'], 'copies': []}).status_code, 200)
+        with app.app_context():
+            migrate_game_copies()
+            self.assertEqual(GameCopy.query.filter_by(game_id=game['id']).count(), 0)
+
+    def test_copy_migration_failure_rolls_back_and_concurrent_start_runs_once(self):
+        from files.models import GameCopy, SchemaMigration
+        from files.migrations import migrate_game_copies
+        self.register()
+        self.add_game()
+        with app.app_context():
+            db.session.query(GameCopy).delete()
+            db.session.commit()
+            with db.engine.begin() as connection:
+                connection.exec_driver_sql("CREATE TRIGGER migration_failure BEFORE INSERT ON schema_migration BEGIN SELECT RAISE(ABORT, 'test'); END")
+            with self.assertRaises(SQLAlchemyError):
+                migrate_game_copies()
+            self.assertEqual(GameCopy.query.count(), 0)
+            self.assertEqual(SchemaMigration.query.count(), 0)
+            with db.engine.begin() as connection:
+                connection.exec_driver_sql('DROP TRIGGER migration_failure')
+        def migrate():
+            with app.app_context():
+                migrate_game_copies()
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            list(pool.map(lambda _: migrate(), range(2)))
+        with app.app_context():
+            self.assertEqual(GameCopy.query.count(), 1)
+            self.assertEqual(SchemaMigration.query.count(), 1)
+
+    def test_copies_validation_replacement_version_and_legacy_protection(self):
+        self.register()
+        copies = [dict(platform='PlayStation 4', format='Digital', edition=''),
+                  dict(platform='PlayStation 4', format='Physisch', edition="Collector's Edition")]
+        self.assertEqual(self.client.post('/api/games', json={'title': 'Doppelt', 'copies': copies}).status_code, 201)
+        game = self.client.get('/api/games').json['games'][0]
+        url = f"/api/games/{game['id']}"
+        self.assertEqual(game['copies'], copies)
+        self.assertEqual(game['owned_platform'], 'PlayStation 4')
+        self.assertTrue(self.client.get('/api/session').json['capabilities']['game_copies'])
+        for invalid in [None, {}, [True], [{**copies[0], 'extra': 1}], [{**copies[0], 'platform': []}],
+                        [{**copies[0], 'format': []}], [{**copies[0], 'edition': None}],
+                        [{**copies[0], 'edition': 'x' * 81}], [copies[0]] * 101]:
+            self.assertEqual(self.client.put(url, json={'version': 1, 'copies': invalid}).status_code, 400)
+        self.assertEqual(self.client.put(url, json={'version': 1, 'copies': copies, 'format': 'Digital'}).status_code, 400)
+        self.assertEqual(self.client.put(url, json={'version': 1, 'owned_platform': 'Steam', 'status': 'Gespielt'}).status_code, 409)
+        self.assertEqual(self.client.get('/api/games').json['games'][0], game)
+        # Status-only updates by older web clients remain safe.
+        self.assertEqual(self.client.put(url, json={'version': 1, 'status': 'Gespielt'}).status_code, 200)
+        self.assertEqual(self.client.put(url, json={'version': 1, 'copies': []}).status_code, 409)
+        self.assertEqual(self.client.put(url, json={'version': 2, 'copies': [copies[1], copies[1]]}).status_code, 200)
+        result = self.client.get('/api/games').json['games'][0]
+        self.assertEqual(result['copies'], [copies[1], copies[1]])
+        self.assertEqual(result['version'], 3)
+        self.assertEqual(self.client.put(url, json={'version': 3, 'copies': []}).status_code, 200)
+        self.assertEqual(self.client.get('/api/games').json['games'][0]['copies'], [])
+
+    def test_copy_writes_are_atomic_idempotent_and_account_bound(self):
+        from files.models import GameCopy
+        alice, bob, _ = self.friend_accounts()
+        copies = [dict(platform='Steam', format='Digital', edition='<script>test</script>')]
+        key = str(uuid4())
+        payload = {'title': 'Exemplare', 'copies': copies}
+        headers = {'Idempotency-Key': key}
+        with patch.object(db.session, 'commit', side_effect=SQLAlchemyError('test')):
+            self.assertEqual(alice.post('/api/games', json=payload, headers=headers).status_code, 503)
+        with app.app_context():
+            self.assertEqual(GameCopy.query.count(), 0)
+            self.assertEqual(GameWriteReceipt.query.count(), 0)
+        self.assertEqual(alice.post('/api/games', json=payload, headers=headers).status_code, 201)
+        self.assertEqual(alice.post('/api/games', json=payload, headers=headers).headers['Idempotency-Replayed'], '1')
+        game = alice.get('/api/games').json['games'][0]
+        url = f"/api/games/{game['id']}"
+        self.assertEqual(bob.put(url, json={'version': 1, 'copies': []}).status_code, 403)
+        self.assertNotIn('<script>test</script>', alice.get('/').text)
+        with patch.object(db.session, 'commit', side_effect=SQLAlchemyError('test')):
+            self.assertEqual(alice.put(url, json={'version': 1, 'copies': []}).status_code, 503)
+        self.assertEqual(alice.get('/api/games').json['games'][0], game)
+        self.assertEqual(alice.delete(url).status_code, 200)
+        with app.app_context():
+            self.assertEqual(GameCopy.query.count(), 0)
+
+    def test_legacy_offline_receipt_survives_copy_changes(self):
+        self.register()
+        key = str(uuid4())
+        payload = {'title': 'Altclient', 'owned_platform': 'Steam', 'format': 'Digital'}
+        self.assertEqual(self.client.post('/api/games', json=payload, headers={'Idempotency-Key': key}).status_code, 201)
+        game = self.client.get('/api/games').json['games'][0]
+        url = f"/api/games/{game['id']}"
+        # Legacy edits still work when the old schema can represent all copies.
+        self.assertEqual(self.client.put(url, json={'version': 1, 'owned_platform': 'Switch', 'format': 'Physisch'}).status_code, 200)
+        copies = [dict(platform='Switch', format='Physisch', edition='Special')]
+        self.assertEqual(self.client.put(url, json={'version': 2, 'copies': copies}).status_code, 200)
+        replay = self.client.post('/api/games', json=payload, headers={'Idempotency-Key': key})
+        self.assertEqual(replay.headers['Idempotency-Replayed'], '1')
+        self.assertEqual(self.client.get('/api/games').json['games'][0]['copies'], copies)
 
 
 if __name__ == '__main__':

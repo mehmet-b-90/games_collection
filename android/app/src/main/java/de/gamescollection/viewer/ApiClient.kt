@@ -57,6 +57,9 @@ class ApiClient private constructor(val server: String, persistence: CookiePersi
     private var csrf = ""
     private var idempotentWrites = false
 
+    var supportsGameCopies = false
+        private set
+
     var supportsCustomCovers = false
         private set
 
@@ -64,7 +67,7 @@ class ApiClient private constructor(val server: String, persistence: CookiePersi
         .okHttpClient { client }
         .build()
 
-    fun clearSession() { cookies.clear(); csrf = ""; idempotentWrites = false; supportsCustomCovers = false }
+    fun clearSession() { cookies.clear(); csrf = ""; idempotentWrites = false; supportsCustomCovers = false; supportsGameCopies = false }
     suspend fun session(): JSONObject {
         val value = JSONObject(request("GET", "/api/session"))
         if (value.optInt("api_version") != 1 || value.optString("csrf_token").isEmpty()) {
@@ -73,6 +76,7 @@ class ApiClient private constructor(val server: String, persistence: CookiePersi
         csrf = value.getString("csrf_token")
         idempotentWrites = value.optJSONObject("capabilities")?.optBoolean("idempotent_game_writes") == true
         supportsCustomCovers = value.optJSONObject("capabilities")?.optBoolean("custom_covers") == true
+        supportsGameCopies = value.optJSONObject("capabilities")?.optBoolean("game_copies") == true
         return value
     }
     suspend fun login(username: String, password: String, remember: Boolean): JSONObject {
@@ -82,6 +86,7 @@ class ApiClient private constructor(val server: String, persistence: CookiePersi
         csrf = result.getString("csrf_token")
         idempotentWrites = result.optJSONObject("capabilities")?.optBoolean("idempotent_game_writes") == true
         supportsCustomCovers = result.optJSONObject("capabilities")?.optBoolean("custom_covers") == true
+        supportsGameCopies = result.optJSONObject("capabilities")?.optBoolean("game_copies") == true
         return result
     }
     suspend fun logout() {
@@ -100,8 +105,12 @@ class ApiClient private constructor(val server: String, persistence: CookiePersi
     suspend fun collection(): JSONObject = JSONObject(request("GET", "/api/games"))
     suspend fun save(game: Game, operationKey: String) {
         requireIdempotency()
+        if (game.copies != null) requireCopySupport()
         request(if (game.id == 0) "POST" else "PUT",
             if (game.id == 0) "/api/games" else "/api/games/${game.id}", game.payload(), operationKey = operationKey)
+    }
+    fun requireCopySupport() {
+        if (!supportsGameCopies) throw ApiException(426, "Bitte aktualisiere den Server für die Verwaltung einzelner Exemplare. Deine lokalen Änderungen bleiben erhalten.")
     }
     suspend fun delete(game: Game, operationKey: String) {
         requireIdempotency()

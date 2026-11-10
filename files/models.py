@@ -55,6 +55,8 @@ class Game(db.Model):
     version = db.Column(db.Integer, nullable=False, default=1)
     __mapper_args__ = {'version_id_col': version}
     owned_platforms = db.relationship('GamePlatformOwnership', backref='game', lazy='selectin', cascade='all, delete-orphan', passive_deletes=True)
+    copies = db.relationship('GameCopy', lazy='selectin', order_by='GameCopy.id',
+                             cascade='all, delete-orphan', passive_deletes=True)
 
     custom_cover = db.relationship('GameCover', lazy='selectin', uselist=False,
                                    cascade='all, delete-orphan', passive_deletes=True)
@@ -62,9 +64,29 @@ class Game(db.Model):
     def to_dict(self):
         data = {column.name: getattr(self, column.name) for column in self.__table__.columns}
         data['owned_platform'] = ', '.join(item.platform for item in self.owned_platforms)
+        data['copies'] = [item.to_dict() for item in self.copies]
         if self.custom_cover:
             data['custom_cover_url'] = f'/api/games/{self.id}/cover/{self.custom_cover.digest}'
         return data
+
+
+class GameCopy(db.Model):
+    __table_args__ = (
+        db.CheckConstraint("format IN ('Physisch', 'Digital')", name='valid_copy_format'),
+        db.CheckConstraint('length(edition) <= 80', name='copy_edition_length'),
+    )
+    id = db.Column(db.Integer, primary_key=True)
+    game_id = db.Column(db.Integer, db.ForeignKey('game.id', ondelete='CASCADE'), nullable=False, index=True)
+    platform = db.Column(db.String(50), nullable=False)
+    format = db.Column(db.String(50), nullable=False)
+    edition = db.Column(db.String(80), nullable=False, default='', server_default='')
+
+    def to_dict(self):
+        return {'platform': self.platform, 'format': self.format, 'edition': self.edition}
+
+
+class SchemaMigration(db.Model):
+    name = db.Column(db.String(100), primary_key=True)
 
 
 class GameCover(db.Model):

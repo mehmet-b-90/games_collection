@@ -154,8 +154,9 @@ export function initializeCharts() {
     document.getElementById('statsModal').addEventListener('show.bs.modal', () => {
         const cards = Array.from(document.querySelectorAll('.game-card'));
         const split = (card, key) => (card.dataset[key] || 'Keine').split(',').map(value => value.trim()).filter(Boolean);
-        chart('platformChart', count(cards.flatMap(card => split(card, 'platform'))));
-        chart('formatChart', count(cards.map(card => card.dataset.format || 'Keine')));
+        const copies = cards.flatMap(card => JSON.parse(card.dataset.copies || '[]'));
+        chart('platformChart', count(copies.map(copy => copy.platform)));
+        chart('formatChart', count(copies.map(copy => copy.format)));
         chart('statusChart', count(cards.map(card => card.dataset.status || 'Keine')));
         const engines = Object.entries(count(cards.flatMap(card => split(card, 'engine')))).sort((a, b) => b[1] - a[1]);
         const top = Object.fromEntries(engines.slice(0, 5).map(([name, total]) => [name === 'Keine' ? 'Unbekannt' : name.replace(/\b\w/g, letter => letter.toUpperCase()), total]));

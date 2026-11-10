@@ -85,7 +85,8 @@ def create_app():
         return error
 
     with application.app_context():
-        db.create_all()
+        from .migrations import migrate_game_copies
+        migrate_game_copies()
     return application
 
 app = create_app()

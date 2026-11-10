@@ -50,12 +50,11 @@ export function applyFilters() {
     const minimumRating = Number.parseFloat(value('filterMinRating'));
     document.querySelectorAll('.game-card').forEach(card => {
         const rating = Number.parseFloat(card.dataset.rating);
-        const ownedPlatforms = (card.dataset.platform || '').split(',').map(item => item.trim()).filter(Boolean);
+        const copies = JSON.parse(card.dataset.copies || '[]');
         const matches = (card.dataset.title.includes(text) || card.dataset.dev.includes(text) || card.dataset.pub.includes(text))
             && (!engine || card.dataset.engine.includes(engine))
-            && (!platform || ownedPlatforms.includes(platform))
+            && ((!platform && !format) || copies.some(copy => (!platform || copy.platform === platform) && (!format || copy.format === format)))
             && (!status || card.dataset.status === status)
-            && (!format || card.dataset.format === format)
             && (!ageRating || (card.dataset.ageRating || '').includes(ageRating))
             && (Number.isNaN(minimumRating) || (!Number.isNaN(rating) && rating >= minimumRating));
         card.style.display = matches ? 'flex' : 'none';

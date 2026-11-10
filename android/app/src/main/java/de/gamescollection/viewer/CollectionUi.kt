@@ -197,7 +197,7 @@ private val EditorialColors = lightColorScheme(
                     model::removeFriend, model::showFriendLibrary, model::loadFriends)
             }
             if (queueOpen && state.username != null) QueueDialog(state, model::discardQueued, { queueOpen = false })
-            if (settingsOpen && state.username != null) SettingsDialog(state, model::setTheme, model::setPostersPerRow, model::saveGameDefaults,
+            if (settingsOpen && state.username != null) SettingsDialog(state, model::setTheme, model::setPostersPerRow, model::setShowCoverStatus, model::saveGameDefaults,
                 { serverDialog = true }, { settingsOpen = false })
             if (serverDialog) Dialog(onDismissRequest = { if (!state.busy) serverDialog = false }) {
                 Surface(shape = RoundedCornerShape(24.dp)) {
@@ -222,7 +222,7 @@ private val EditorialColors = lightColorScheme(
                 } else null
                 GameDialog(game, state, edit, model.editor.pending != null, model::startEditing,
                     model::dismissEditor, model::changeDraft, model::pickCover, model::save, { model.delete(game) }, model::retryWrite,
-                    collectionPage = collectionPage, browse = model::browseCollection)
+                    collectionPage = collectionPage, browse = model::browseCollection, saveCopies = model::saveCopies)
             }
             state.error?.let { message ->
                 AlertDialog(onDismissRequest = model::clearError, title = { Text("Hinweis") },
@@ -366,7 +366,7 @@ private val EditorialColors = lightColorScheme(
                 else "Keine Spiele für diese Filter gefunden.", color = MaterialTheme.colorScheme.onSurfaceVariant)
         } else LazyVerticalGrid(columns = GridCells.Fixed(state.postersPerRow), horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp), contentPadding = PaddingValues(bottom = 90.dp)) {
-            items(visible, key = { it.id }) { game -> GameCard(game, select, !state.busy, changeStatus) }
+            items(visible, key = { it.id }) { game -> GameCard(game, select, !state.busy, state.showCoverStatus, changeStatus) }
         }
     }
 }
@@ -380,7 +380,13 @@ private val EditorialColors = lightColorScheme(
     }
 }
 
-@Composable private fun GameCard(game: Game, select: (Game) -> Unit, statusEnabled: Boolean,
+private fun statusIcon(status: String): ImageVector = when (status) {
+    "Gespielt" -> Icons.Default.Check
+    "Abgebrochen" -> NativeIcons.Block
+    else -> Icons.Default.Close
+}
+
+@Composable private fun GameCard(game: Game, select: (Game) -> Unit, statusEnabled: Boolean, showCoverStatus: Boolean,
     changeStatus: (Int, String) -> Unit) {
     // Round only the cover. Clipping the entire card also clips the lower text corners.
     Column(Modifier.clickable { select(game) }) {
@@ -388,23 +394,21 @@ private val EditorialColors = lightColorScheme(
             Icon(NativeIcons.Gamepad, null, Modifier.size(48.dp).align(Alignment.Center))
             GameCoverImage(game, "Cover von ${game.title}", Modifier.fillMaxSize())
             Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = .75f)), startY = 140f)))
-            Box(Modifier.padding(8.dp).align(Alignment.TopStart)) {
+            if (showCoverStatus) Box(Modifier.padding(2.dp).align(Alignment.TopStart)) {
                 var expanded by remember { mutableStateOf(false) }
-                CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
-                    Surface(onClick = { expanded = true }, enabled = statusEnabled,
-                        modifier = Modifier.heightIn(min = 32.dp).semantics {
-                            contentDescription = "Status von ${game.title} ändern: ${game.status}"
-                        }, shape = RoundedCornerShape(12.dp), color = Color.Black.copy(alpha = .72f), contentColor = Color.White) {
-                        Row(Modifier.padding(horizontal = 8.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Text(game.status, fontSize = 10.sp, maxLines = 2, overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.weight(1f, fill = false))
-                            Icon(Icons.Default.ArrowDropDown, null, Modifier.size(16.dp))
-                        }
+                IconButton(onClick = { expanded = true }, enabled = statusEnabled,
+                    modifier = Modifier.size(48.dp).semantics {
+                        contentDescription = "Status von ${game.title} ändern: ${game.status}"
+                    }) {
+                    Box(Modifier.size(32.dp).clip(RoundedCornerShape(10.dp))
+                        .background(Color.Black.copy(alpha = .85f)), contentAlignment = Alignment.Center) {
+                        Icon(statusIcon(game.status), null, Modifier.size(18.dp), tint = Color.White)
                     }
                 }
                 DropdownMenu(expanded = expanded && statusEnabled, onDismissRequest = { expanded = false }) {
                     GAME_STATUSES.forEach { status ->
                         DropdownMenuItem(text = { Text(status) },
+                            leadingIcon = { Icon(statusIcon(status), null) },
                             trailingIcon = { if (status == game.status) Icon(Icons.Default.Check, "Aktueller Status") },
                             onClick = {
                                 expanded = false
@@ -418,13 +422,13 @@ private val EditorialColors = lightColorScheme(
         Column(Modifier.fillMaxWidth().padding(start = 4.dp, end = 4.dp, top = 8.dp, bottom = 4.dp),
             verticalArrangement = Arrangement.spacedBy(3.dp)) {
             Text(game.title, maxLines = 2, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleSmall)
-            Text(game.platforms.joinToString(" · "), maxLines = 2, overflow = TextOverflow.Ellipsis,
+            Text(game.ownedPlatforms.joinToString(" · ") + " · ${game.ownedCopies.size} Exemplare", maxLines = 2, overflow = TextOverflow.Ellipsis,
                 color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
         }
     }
 }
 
-@Composable private fun ChoiceField(label: String, value: String, options: List<String>, modifier: Modifier = Modifier,
+@Composable internal fun ChoiceField(label: String, value: String, options: List<String>, modifier: Modifier = Modifier,
     enabled: Boolean = true, compact: Boolean = false, select: (String) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     Box(modifier) {
@@ -560,7 +564,7 @@ private val EditorialColors = lightColorScheme(
 }
 
 @Composable private fun SettingsDialog(state: ViewerState, setTheme: (String) -> Unit,
-    setPostersPerRow: (Int) -> Unit, saveDefaults: (GameDefaults) -> Unit,
+    setPostersPerRow: (Int) -> Unit, setShowCoverStatus: (Boolean) -> Unit, saveDefaults: (GameDefaults) -> Unit,
     server: () -> Unit, close: () -> Unit) {
     FullScreenDialog("Einstellungen", true, close) {
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
@@ -576,6 +580,15 @@ private val EditorialColors = lightColorScheme(
                 }
             }
             HorizontalDivider()
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f).padding(end = 12.dp)) {
+                    Text("Statusauswahl auf Covern", style = MaterialTheme.typography.titleSmall)
+                    Text("Status direkt in der Sammlung ändern", style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Switch(checked = state.showCoverStatus, onCheckedChange = setShowCoverStatus,
+                    modifier = Modifier.semantics { contentDescription = "Statusauswahl auf Covern" })
+            }
             Text("Poster pro Reihe", style = MaterialTheme.typography.titleMedium)
             Text("Wähle, wie viele Titel nebeneinander angezeigt werden. Die Postergröße passt sich an die Bildschirmbreite an.",
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -650,7 +663,7 @@ private val EditorialColors = lightColorScheme(
     }
 }
 
-@Composable private fun FullScreenDialog(title: String, dismissible: Boolean, close: () -> Unit, content: @Composable () -> Unit) {
+@Composable internal fun FullScreenDialog(title: String, dismissible: Boolean, close: () -> Unit, content: @Composable () -> Unit) {
     Dialog(onDismissRequest = { if (dismissible) close() }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             Scaffold(containerColor = MaterialTheme.colorScheme.background, topBar = {
@@ -664,16 +677,29 @@ private val EditorialColors = lightColorScheme(
 
 @Composable private fun GameDialog(game: Game, state: ViewerState, edit: Boolean, pending: Boolean, startEditing: () -> Unit,
     close: () -> Unit, changeDraft: (Game) -> Unit, pickCover: (Uri) -> Unit, save: (Game) -> Unit, delete: () -> Unit,
-    retry: () -> Unit, collectionPage: CollectionDetailPage?, browse: (Int) -> Unit) {
+    retry: () -> Unit, collectionPage: CollectionDetailPage?, browse: (Int) -> Unit, saveCopies: (Game) -> Unit) {
     val context = LocalContext.current
     val coverPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         uri?.let(pickCover)
     }
-    var platformDialog by rememberSaveable { mutableStateOf(false) }
+    var copyIndex by rememberSaveable(game.id) { mutableStateOf<Int?>(null) }
+    var removingCopy by rememberSaveable(game.id) { mutableStateOf<Int?>(null) }
+    var savingCopy by remember { mutableStateOf<List<GameCopy>?>(null) }
+    val copyWriteBlocked = state.queue.any { it.localId == game.id && it.attempted }
+    LaunchedEffect(state.busy, game, savingCopy) {
+        if (!state.busy && savingCopy != null && game.ownedCopies == savingCopy) {
+            copyIndex = null; removingCopy = null; savingCopy = null
+        }
+    }
+    fun updateCopies(copies: List<GameCopy>) {
+        val changed = game.withCopies(copies)
+        if (edit) { changeDraft(changed); copyIndex = null; removingCopy = null }
+        else { savingCopy = copies; saveCopies(changed) }
+    }
     var confirmDelete by rememberSaveable { mutableStateOf(false) }
     val content: @Composable (Game, Boolean) -> Unit = { draft, active ->
-        val editable = active && !state.busy && !pending
-        val valid = draft.title.isNotBlank() && draft.title.length <= 200 && draft.platforms.isNotEmpty()
+        val editable = active && !state.busy && !pending && !copyWriteBlocked
+        val valid = draft.title.isNotBlank() && draft.title.length <= 200 && draft.ownedCopies.size <= 100
                 && (draft.release.isEmpty() || (draft.release.length == 4 && draft.release.toIntOrNull() in 1900..2100))
         val scroll = key(draft.id) { rememberLazyListState() }
         LazyColumn(Modifier.fillMaxSize().padding(horizontal = 20.dp), state = scroll,
@@ -706,22 +732,20 @@ private val EditorialColors = lightColorScheme(
                 Text("Der Ausgang der Änderung ist unklar. Prüfe denselben Vorgang erneut, bevor du den Entwurf änderst.")
                 Button(onClick = retry, modifier = Modifier.fillMaxWidth()) { Text("Vorgang erneut prüfen") }
             }
+            item {
+                GameCopiesList(draft.ownedCopies, editable,
+                    add = { copyIndex = -1 }, edit = { copyIndex = it }, remove = { removingCopy = it })
+            }
             if (edit) {
                 item { FormTextField(draft.title, { changeDraft(draft.copy(title = it)) }, label = "Spieletitel", singleLine = false,
                     enabled = editable, modifier = Modifier.fillMaxWidth()) }
                 item { FormTextField(draft.release, { changeDraft(draft.copy(release = it.filter(Char::isDigit).take(4))) }, label = "Release-Jahr",
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), enabled = editable, modifier = Modifier.fillMaxWidth()) }
-                item { ChoiceField("Format", draft.format, listOf("Digital", "Physisch"), enabled = editable) { changeDraft(draft.copy(format = it)) } }
                 item { ChoiceField("Status", draft.status, GAME_STATUSES, enabled = editable) { changeDraft(draft.copy(status = it)) } }
                 item { ChoiceField("Bewertung", draft.rating?.toString() ?: "Nicht bewertet", listOf("Nicht bewertet") + (0..10).map { it.toString() }, enabled = editable) { changeDraft(draft.copy(rating = it.toIntOrNull())) } }
-                item { OutlinedButton(onClick = { platformDialog = true }, enabled = editable, modifier = Modifier.fillMaxWidth()) {
-                    Text(if (draft.platforms.isEmpty()) "Besitzplattformen wählen (Pflichtfeld)" else "Besitz: ${draft.platforms.joinToString(", ")}")
-                } }
                 item { Button(onClick = { save(draft.copy(title = draft.title.trim())) }, enabled = valid && editable, modifier = Modifier.fillMaxWidth()) { Text(if (state.connected) "Speichern" else "Lokal speichern") } }
             } else {
                 item { Button(onClick = startEditing, enabled = editable, modifier = Modifier.fillMaxWidth()) { Icon(Icons.Default.Edit, null); Spacer(Modifier.width(8.dp)); Text("Bearbeiten") } }
-                item { Metadata("Besitz auf Plattform", draft.platforms.joinToString(", ")) }
-                item { Metadata("Format", draft.format) }
             }
             item { Metadata("Entwickler", draft.developer) }
             item { Metadata("Publisher", draft.publisher) }
@@ -738,24 +762,29 @@ private val EditorialColors = lightColorScheme(
     FullScreenDialog(if (edit) if (game.id == 0) "Neues Spiel" else "Spiel bearbeiten" else "Spieldetails", !state.busy, close) {
         if (collectionPage != null) {
             key(collectionPage.previous?.id, game.id, collectionPage.next?.id) {
-                CollectionDetailsPager(collectionPage, game, !state.busy && !confirmDelete, browse, content)
+                CollectionDetailsPager(collectionPage, game, !state.busy && !confirmDelete && copyIndex == null && removingCopy == null, browse, content)
             }
         } else content(game, true)
     }
-    val editable = !state.busy && !pending
-    val draft = game
-    if (platformDialog) AlertDialog(onDismissRequest = { platformDialog = false }, title = { Text("Besitz auf Plattform") }, text = {
-        LazyColumn(Modifier.heightIn(max = 420.dp)) {
-            items(state.platforms) { platform ->
-                Row(Modifier.fillMaxWidth().clickable(enabled = editable) {
-                    changeDraft(draft.copy(platforms = if (platform in draft.platforms) draft.platforms - platform else draft.platforms + platform))
-                }, verticalAlignment = Alignment.CenterVertically) {
-                    Checkbox(platform in draft.platforms, null)
-                    Text(platform, modifier = Modifier.padding(vertical = 12.dp))
-                }
-            }
+    val editable = !state.busy && !pending && !copyWriteBlocked
+    copyIndex?.let { index ->
+        key(game.id, index) {
+            GameCopyEditor(game.title, game.ownedCopies.getOrNull(index), state.platforms,
+                state.gameDefaults.format, editable, edit, dismissible = !state.busy, close = { copyIndex = null }, save = { value ->
+                    val copies = game.ownedCopies.toMutableList()
+                    if (index < 0) copies.add(value) else copies[index] = value
+                    updateCopies(copies)
+                })
         }
-    }, confirmButton = { TextButton(onClick = { platformDialog = false }) { Text("Übernehmen") } })
+    }
+    removingCopy?.let { index ->
+        AlertDialog(onDismissRequest = { if (!state.busy) removingCopy = null }, title = { Text("Exemplar entfernen?") },
+            text = { Text("Der Spieleintrag mit Bewertung und Status bleibt erhalten.") },
+            confirmButton = { TextButton(enabled = editable, onClick = {
+                updateCopies(game.ownedCopies.filterIndexed { position, _ -> position != index })
+            }) { Text("Entfernen") } },
+            dismissButton = { TextButton(enabled = !state.busy, onClick = { removingCopy = null }) { Text("Abbrechen") } })
+    }
     if (confirmDelete) AlertDialog(onDismissRequest = { confirmDelete = false }, title = { Text("Spiel löschen?") },
         text = { Text("„${game.title}“ wird aus deiner Sammlung gelöscht.") }, confirmButton = {
             TextButton(onClick = { confirmDelete = false; delete() }) { Text("Löschen", color = MaterialTheme.colorScheme.error) }

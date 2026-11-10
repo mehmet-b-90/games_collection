@@ -8,7 +8,7 @@ data class GameDefaults(val gameType: IgdbGameType = IgdbGameType.ALL,
     val format: String = "Digital", val status: String = "Nicht gespielt",
     val platforms: List<String> = emptyList()) {
     fun applyTo(game: Game, allowedPlatforms: List<String>): Game = if (game.id != 0) game else
-        game.copy(format = format, status = status, platforms = platforms.filter { it in allowedPlatforms })
+        game.copy(status = status).withCopies(platforms.filter { it in allowedPlatforms }.map { GameCopy(it, format) })
 
     fun json(): JSONObject = JSONObject().put("game_type", gameType.id ?: JSONObject.NULL)
         .put("format", format).put("status", status).put("platforms", JSONArray(platforms))

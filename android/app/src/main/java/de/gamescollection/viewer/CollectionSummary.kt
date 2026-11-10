@@ -19,15 +19,15 @@ data class CollectionSummary(
             fun MutableMap<String, Int>.count(value: String) { this[value] = getOrDefault(value, 0) + 1 }
             games.forEachIndexed { index, game ->
                 if (index % 128 == 0) checkpoint()
-                game.platforms.forEach { platforms.count(it) }
-                statuses.count(game.status); formats.count(game.format)
+                game.ownedCopies.forEach { platforms.count(it.platform); formats.count(it.format) }
+                statuses.count(game.status)
                 engineCounts.count(game.engine.ifEmpty { "Unbekannt" })
                 game.engine.split(',').map { it.trim() }.filter { it.isNotEmpty() }.forEach { engines.add(it) }
                 if (game.ageRating.isNotEmpty()) ages.add(game.ageRating)
                 game.rating?.let { ratingSum += it; ratingCount++ }
             }
-            val groups = listOf("Plattformen · Besitzzuordnungen" to platforms, "Status" to statuses,
-                "Format" to formats, "Engine" to engineCounts).map { (title, counts) ->
+            val groups = listOf("Plattformen · Exemplare" to platforms, "Status" to statuses,
+                "Format · Exemplare" to formats, "Engine" to engineCounts).map { (title, counts) ->
                 GameDistribution(title, counts.entries.sortedByDescending { it.value }.map { it.key to it.value }, counts.values.sum())
             }
             checkpoint()

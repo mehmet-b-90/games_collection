@@ -27,7 +27,7 @@ internal data class CollectionDetailPage(val previous: Game?, val next: Game?, v
 data class ViewerState(
     val server: String = "", val username: String? = null, val busy: Boolean = false,
     val games: List<Game> = emptyList(), val platforms: List<String> = emptyList(),
-    val theme: String = "cinematic", val postersPerRow: Int = 2,
+    val theme: String = "cinematic", val postersPerRow: Int = 2, val showCoverStatus: Boolean = true,
     val error: String? = null, val connected: Boolean = false,
     val igdbStatus: String = "IGDB-Zugang noch nicht eingerichtet. Einmal mit dem Server verbinden.",
     val queue: List<QueuedWrite> = emptyList(),
@@ -59,6 +59,7 @@ class CollectionViewModel(application: Application, private val savedState: Save
     private var filterJob: Job? = null
     var state by mutableStateOf(ViewerState(server = preferences.getString("server", "").orEmpty(),
         theme = preferences.getString("native_theme", "cinematic").orEmpty(),
+        showCoverStatus = preferences.getBoolean("show_cover_status", true),
         postersPerRow = preferences.getInt("posters_per_row", 2).coerceIn(1, 3)))
         private set
     var searchResults by mutableStateOf<List<Game>>(emptyList())
@@ -128,7 +129,7 @@ class CollectionViewModel(application: Application, private val savedState: Save
             if (changed || api == null) {
                 if (changed) {
                     resetAccount()
-                    state = ViewerState(server = normalized, busy = true, theme = state.theme, postersPerRow = state.postersPerRow)
+                    state = ViewerState(server = normalized, busy = true, theme = state.theme, postersPerRow = state.postersPerRow, showCoverStatus = state.showCoverStatus)
                 }
                 val previous = api
                 api = null
@@ -226,6 +227,7 @@ class CollectionViewModel(application: Application, private val savedState: Save
             val value = offline ?: return
             val entry = value.queue.first { it.write.key == key }
             if (entry.rejection != null) continue
+            if (!entry.write.deleting && entry.write.game.copies != null) api!!.requireCopySupport()
             if (!entry.write.deleting && entry.write.game.customCoverEdit != null) requireCoverSupport()
             persist(value.copy(queue = value.queue.map { if (it.write.key == key) it.copy(attempted = true) else it }))
             try {
@@ -357,12 +359,27 @@ class CollectionViewModel(application: Application, private val savedState: Save
         persist(next)
         if (state.connected) synchronize()
     }
-    fun save(game: Game) { write(PendingGameWrite(game)) }
+    fun save(game: Game) { write(PendingGameWrite(game.withCopies(game.ownedCopies))) }
+    fun saveCopies(game: Game) = action {
+        val value = offline ?: error("Bitte lade deine Sammlung zunächst einmal online.")
+        if (state.connected) api!!.requireCopySupport()
+        persist(value.enqueue(game.withCopies(game.ownedCopies), deleting = false))
+        updateEditor(editor.copy(game = game, editing = false))
+        if (state.connected) synchronize()
+        val current = state.games.firstOrNull { it.id == game.id }
+        if (current != null) updateEditor(editor.copy(game = current))
+        else if (game.id < 0 && state.queue.none { it.localId == game.id }) {
+            // A synced local creation now has a server ID. Do not keep its obsolete
+            // negative ID open: another edit would otherwise enqueue a second create.
+            updateEditor(EditorState())
+        }
+    }
     fun delete(game: Game) { write(PendingGameWrite(game, deleting = true)) }
     fun retryWrite() { editor.pending?.let(::write) }
     private fun write(proposed: PendingGameWrite) = action {
         val value = offline ?: error("Bitte lade deine Sammlung zunächst einmal online.")
         val legacy = editor.pending
+        if (legacy == null && !proposed.deleting && proposed.game.copies != null && state.connected) api!!.requireCopySupport()
         if (!proposed.deleting && proposed.game.customCoverEdit != null && state.connected) requireCoverSupport()
         val next = if (legacy != null) {
             val id = if (legacy.game.id == 0) value.nextId else legacy.game.id
@@ -550,6 +567,11 @@ class CollectionViewModel(application: Application, private val savedState: Save
         val saved = withContext(Dispatchers.IO) { api!!.saveGameDefaults(values) }
         preferences.edit { putString("game_defaults:$account", saved.json().toString()) }
         state = state.copy(gameDefaults = saved, defaultsMessage = "Standardwerte gespeichert.")
+    }
+
+    fun setShowCoverStatus(value: Boolean) {
+        preferences.edit { putBoolean("show_cover_status", value) }
+        state = state.copy(showCoverStatus = value)
     }
 
     fun setPostersPerRow(value: Int) {

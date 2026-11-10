@@ -27,3 +27,6 @@ initializeFriends();
 
 import {initializeGameDefaults} from './game-defaults.js';
 initializeGameDefaults();
+
+import {initializeCoverStatus} from './cover-status.js';
+initializeCoverStatus();

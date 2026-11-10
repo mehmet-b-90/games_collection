@@ -1,5 +1,19 @@
 # Android-Codeprüfung vom 17.10.2026
 
+## Einzelne Exemplare – 10.11.2026
+
+- `GameCopy` und `GameCopies.kt` ergänzen Mein Besitz in Spieldetails/Editor, eigenes Formular mit optionaler Ausgabe, Entfernen mit Bestätigung und Wischsperre während der Bearbeitung. Gemeinsame Formbausteine und Theme-Farben. Im Spieleditor Übernahme in Entwurf, aus Details direkte dauerhafte lokale Speicherung; Netzwerkfehler verwerfen die Warteschlange nicht. Ein offener Exemplardialog bleibt nach abgelehnten Vorgängen schließbar. Wird eine zuvor offline neu angelegte Spielkarte beim direkten Exemplarspeichern synchronisiert, schließt der alte negative lokale Eintrag nach Erfolg; weitere Bearbeitungen verwenden die neu geladene Server-ID und erzeugen keine zweite Anlage.
+- Nullbare Exemplarliste unterscheidet historische Payloads von neuen Anfragen. Bereits versuchte alte Offline-Vorgänge behalten Kennung und Inhalt; normale neue Bearbeitungen verwenden Exemplare. `game_copies` schützt vor Schreiben an einen zu alten Server, vor Markierung als versucht. Gespeicherte Sammlungen/Entwürfe aus alten Versionen bleiben lesbar. Filter verbinden Plattform und Format je Exemplar; Statistik zählt Besitzexemplare, Titelkennzahlen unverändert. Freunde lesen Exemplare ohne eigene Offlineübernahme.
+- `testReleaseUnitTest lintRelease assembleRelease --offline --no-daemon` erfolgreich; **48 JVM-Tests**, keine Fehler/übersprungenen Tests, **Lint 0 Befunde**. Neue Tests prüfen JSON-/Entwurfs-/Offline-Roundtrip einschließlich identischer Exemplare und leerer Liste, exakten historischen Payload samt UUID nach Wiederherstellung, kombinierte Filter, Server-Capability und Zählweise. APK-v2-Signatur gültig; Version 0.10 / Code 9 unverändert.
+- Lokale APK: `android/app/build/outputs/apk/release/Games-Collection-0.10-release.apk`. Keine Installation oder Veröffentlichung. Offen: echte Geräteprüfung beider Designs, Rotation/Prozesswiederherstellung im Exemplareditor, Tastatur/TalkBack, Offline-Neustart, Antwortverlust und Konflikte. Bestehende Gradle-/SDK-Hinweise bleiben. Updateablauf für beide Nutzer: [Exemplare](docs/EXEMPLARE.md).
+
+
+## Statussymbole und Anzeigeschalter – 10.11.2026
+
+- Freigegebener Entwurf umgesetzt: weiße Statussymbole, 32-dp-Hintergrund mit 48-dp-Trefffläche, Symbol plus Text im Menü; lokaler Schalter unter Darstellung, auch nach Serverwechsel erhalten. Bestehender Offline-Schreibpfad unverändert.
+- Release-Build, 43 JVM-Tests und Lint erfolgreich (0 Befunde); APK-v2-Signatur verifiziert. Lokale APK `android/app/build/outputs/apk/release/Games-Collection-0.10-release.apk`, unverändert 0.10 / Code 9, nicht veröffentlicht.
+- Offen: Geräteprüfung in beiden Designs, Anzeige nach App-Neustart sowie Statuswechsel online/offline und mit TalkBack. Build/Lint ersetzen diese Prüfung nicht.
+
 ## Animierter Kartenwechsel in Spieldetails – 06.11.2026
 
 - Freigegebenen Entwurf mit dem horizontalen Compose-Pager umgesetzt. Die Detailkarten bewegen sich direkt mit der Geste. Beim Einrasten wird der tatsächlich angezeigte Titel über den vorhandenen Öffnungspfad übernommen. Pfeile und Positionsanzeige ergänzen die Geste.

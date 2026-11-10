@@ -1,35 +1,70 @@
 # Games Collection
 
-### Standardwerte für neue Spiele (lokaler Stand 0.10)
-
-Im Web unter **Profil → Mein Konto → Standardwerte für neue Spiele**, in Android unter **Profil → Einstellungen**: Titeltyp für die Suche, Format, Status und Besitzplattformen wählen und **Standardwerte speichern**. Die Werte gelten für das Konto in beiden Clients und werden beim Hinzufügen einschließlich Entdecken vorbelegt. Vorhandene Spiele und offene Entwürfe bleiben unverändert. Leere Plattformauswahl ist als Vorgabe erlaubt; beim Speichern eines Spiels bleibt mindestens eine Besitzplattform erforderlich.
-
-Web übernimmt Änderungen aus anderen Clients nach Neuladen, Android beim Verbinden/Anmelden/Synchronisieren. Android verwendet offline die zuletzt geladenen kontogebundenen Vorgaben; Änderungen an den Einstellungen benötigen eine Verbindung zum aktualisierten Server.
-
-**Datenerhaltender Updateweg:** Vor dem Serverupdate ein konsistentes Datenbank-Backup erstellen (Serververwaltung). Den neuen Server mit demselben persistenten Datenverzeichnis starten; die Startinitialisierung ergänzt die fehlende Tabelle `user_game_defaults` automatisch. Keine Tabellen löschen und keine Datenbank neu erstellen. Bestehende Benutzer-/Spieletabellen bleiben unverändert; Datenerhalt wird durch einen Kompatibilitätstest abgesichert. Anschließend `/health`, Anmeldung, vorhandene Sammlung und Speichern/Laden der Vorgaben prüfen. Clients danach aktualisieren. Ein älterer Server unterstützt das Speichern dieser Vorgaben noch nicht.
-
-**Lokaler Entwicklungsstand: Server/Web 0.10 und Android 0.10 / VersionCode 9.** Enthält die manuelle Coverauswahl.
-
-**Server/Web 0.9 ist veröffentlicht (02.11.2026).** [Server-Release](https://github.com/mehmet-b-90/games_collection/releases/tag/server-v0.9) · [Release Notes](release-notes/server-0.9.md). Docker-Images `:0.9` und `:latest` für AMD64/ARM64 geprüft. Android ebenfalls als direkte GitHub-APK **0.9 / VersionCode 8** veröffentlicht; Play-Test weiterhin **0.7 / Code 4**. Verifizierter Abschluss und Digests: `PROJECT_CONTEXT.md`. Die zentrale Serverversion steht in `files/config.py` als `APP_VERSION`; die API-Protokollversion bleibt 1.
-
-
-### Freunde und freigegebene Sammlungen (Server/Web seit 0.9)
-
-Im Web über **Freunde** oder **Profil → Freunde und Anfragen**, in Android über **Profil → Freunde und Anfragen** erreichbar. Den genauen Benutzernamen eines Kontos auf demselben Server eingeben und eine Anfrage senden. Erst nach Annahme können beide die gesamte gespeicherte Sammlung des anderen ansehen und nach Titeln durchsuchen, einschließlich Besitzplattformen, persönlicher Bewertung, Status und weiterer Spieldaten. Bearbeiten oder Löschen fremder Spiele ist nicht erlaubt. Anfragen lassen sich ablehnen/zurückziehen; „Freundschaft beenden“ entzieht beiden den Zugriff für weitere Abrufe.
-
-Benötigt Server/Web 0.9; Android benötigt den ebenfalls veröffentlichten Clientstand 0.9. Beim Serverstart wird ausschließlich die neue Tabelle `friendship` samt Constraints und Indizes ergänzt. Bestehende Benutzer-/Spieletabellen werden nicht verändert; vorhandene Daten vor einem Update wie üblich sichern. Keine zusätzlichen Zugangsdaten oder IGDB-Abfragen erforderlich. Fremde Sammlungen sind online abrufbar und werden nicht im Offline-Sammlungsspeicher abgelegt. Bereits angezeigte Daten werden ohne erneuten Abruf nicht aus der Ferne entfernt. Technischer Vertrag und Prüfergebnisse: [docs/FRIENDS.md](docs/FRIENDS.md).
-
-### Entdecken / Aktuell beliebt
-
-Seit Version 0.8 zeigen Web und Android im eigenen Reiter **Entdecken** bis zu 100 nach IGDB-Aufrufen beliebte Titel. „+ Hinzufügen“ öffnet den Editor; die Sammlung und ihre Filter bleiben getrennt. Der neue Serverendpunkt `/api/discover` benötigt die vorhandenen Twitch-/IGDB-Zugangsdaten. Rangliste täglich im Serverprozess gecached; keine zusätzliche Konfiguration oder Datenbankmigration. Entdecken ist seit 0.8 enthalten; der Titeltypfilter kommt mit 0.8.1. Details: [PopScore](design/popscore/README.md).
-
 <img src="design/brand/github-icon-512.png" width="128" height="128" alt="Games Collection – Controller mit drei Spielcovern">
 
-Games Collection ist eine selbst gehostete Webanwendung zur Verwaltung einer persönlichen Videospielesammlung. Die IGDB-Suche liefert Spieldaten und Standardcover. Die Anwendung bietet zwei Designs, Filter, Statistiken, Benutzerkonten und eine installierbare PWA-Oberfläche.
+Games Collection verwaltet deine Videospielesammlung auf einem eigenen Server. Die Webanwendung und die native Android-App greifen auf dasselbe Konto und dieselbe Sammlung zu.
 
-Dank Docker Container ist die Einrichtung einfach.
+- **Web** · Im Browser nutzbar und als Web-App installierbar. Spiele mit Besitzplattformen, Status und Bewertung verwalten, die Sammlung filtern und Statistiken ansehen.
+- **Android** · Native App mit Kotlin und Jetpack Compose. Die eigene Sammlung bleibt offline verfügbar. Änderungen werden lokal vorgemerkt und können später synchronisiert werden.
+- **In beiden Apps** · Die Designs **Cinematic Dark** und **Editorial Shelf**, Spielesuche mit Daten und Covern von IGDB, beliebte Spiele unter **Entdecken** und Lesefreigabe für bestätigte Freunde. Mit Web bzw. Android ab Version 0.10 kommen eigene Cover und kontoweite Vorgaben für neue Spiele hinzu.
 
-## Einblicke in die Webanwendung
+**Neue lokale Erweiterung:** Einzelne [Exemplare pro Spiel](docs/EXEMPLARE.md) mit Plattform, Format und optionaler Ausgabe in Web und Android. Noch nicht veröffentlicht; vor einem Update den dort beschriebenen datenerhaltenden Migrationsweg beachten.
+
+## Server mit Docker einrichten
+
+Du brauchst **Docker mit Docker Compose**, einen Host mit **AMD64 oder ARM64**, einen freien Host-Port **7000** (Compose-Standard) und für die IGDB-Spielesuche und **Entdecken** Zugangsdaten einer Twitch-Anwendung.
+
+### 1. Twitch-Anwendung für IGDB registrieren
+
+Melde dich mit einem Twitch-Konto mit aktivierter Zwei-Faktor-Authentifizierung im Entwicklerportal an. Registriere eine Anwendung mit dem Client-Typ **Confidential**. Für das Pflichtfeld der OAuth-Weiterleitungsadresse genügt eine localhost-Adresse wie `http://localhost`. Öffne anschließend die Verwaltung der Anwendung, kopiere die **Client ID** und erzeuge ein **Client Secret**. Der Server verwendet beide Werte, um automatisch ein Zugriffstoken abzurufen. [Twitch Developer Portal](https://dev.twitch.tv/console/apps) · [IGDB-Anleitung](https://api-docs.igdb.com/#account-creation)
+
+### 2. Konfiguration anlegen
+
+```bash
+git clone https://github.com/mehmet-b-90/games_collection.git
+cd games_collection
+cp .env.example .env
+mkdir -p data
+openssl rand -hex 32
+```
+
+Öffne `.env` und trage die erzeugte Zeichenfolge als `SECRET_KEY` ein. Sie dient der Anwendung zum Signieren von Sitzungen und CSRF-Tokens. Übernimm die Twitch-Werte in die beiden übrigen Zugangsfelder. Halte `.env` privat.
+
+```dotenv
+SECRET_KEY=hier-den-zufallswert-eintragen
+TWITCH_CLIENT_ID=hier-die-client-id-eintragen
+TWITCH_CLIENT_SECRET=hier-das-client-secret-eintragen
+SESSION_COOKIE_SECURE=false
+```
+
+Für lokale HTTP-Tests bleibt `SESSION_COOKIE_SECURE=false`. Für den öffentlichen Betrieb stelle HTTPS über einen Reverse-Proxy bereit und setze `SESSION_COOKIE_SECURE=true`. Der Container benötigt Schreibzugriff auf `./data` (standardmäßig UID/GID `1000:1000`). Auf SELinux-Systemen kann für den Bind-Mount `./data:/app/data:Z` nötig sein.
+
+### 3. Starten und Konto anlegen
+
+```bash
+docker compose pull
+docker compose up -d
+docker compose ps
+```
+
+Compose lädt `ghcr.io/mehmet-b-90/games_collection:latest`. Öffne [http://localhost:7000](http://localhost:7000) direkt auf dem Server oder verwende von einem anderen Gerät die erreichbare Serveradresse. Das erste registrierte Konto erhält Administratorrechte. Die SQLite-Datenbank bleibt in `./data/database.db` erhalten.
+
+### Updates und Backups
+
+Erstelle vor einem Update ein konsistentes Datenbank-Backup. Ab Server 0.10 findest du den Export unter **Serververwaltung → Datenbank exportieren**. Führe danach erneut `docker compose pull` und `docker compose up -d` aus. Verwende dieselbe `.env` und dasselbe `data/`-Verzeichnis weiter. Prüfe anschließend `/health`, die Anmeldung und deine Sammlung.
+
+[Server-Release 0.10](https://github.com/mehmet-b-90/games_collection/releases/tag/server-v0.10) · [Wiederherstellung, lokale Builds und Fehlerdiagnose](docs/SERVER_BETRIEB.md)
+
+## Android-App installieren
+
+1. Die [signierte Android-App 0.9 als APK herunterladen](https://github.com/mehmet-b-90/games_collection/releases/download/android-v0.9/games_collection-v0.9.apk) und auf einem Gerät mit Android 8.0 oder neuer installieren.
+2. In der App die vom Smartphone erreichbare URL deines Games-Collection-Servers eingeben und dich mit deinem Web-Konto anmelden.
+
+[Android-Anleitung und APK-Build](android/README.md) · [Interner Google-Play-Test](android/PLAY_STORE.md)
+
+## Screenshots
+
+### Webanwendung
 
 Die Sammlung im Browser mit den Designs **Cinematic Dark** und **Editorial Shelf**:
 
@@ -43,181 +78,7 @@ Anmeldung, Spielverwaltung mit IGDB-Daten und Sammlungsstatistik:
 | --- | --- | --- |
 | <img src="docs/screenshots/desktop-login.png" alt="Anmeldung im Browser" width="280"> | <img src="docs/screenshots/desktop-spiel-hinzufuegen.png" alt="Spiel im Browser mit IGDB-Daten hinzufügen" width="280"> | <img src="docs/screenshots/desktop-statistik.png" alt="Sammlungsstatistik im Browser" width="280"> |
 
-## Eigene Cover im Editor
-
-Im neuen lokalen Stand **Cover wählen** anklicken und eine JPEG-, PNG- oder WebP-Datei von der Festplatte auswählen. Die Vorschau zeigt das Bild vor dem Speichern. Mit **Standardcover** lässt sich das IGDB-Cover wiederherstellen, sofern eines vorliegt. Die Funktion gilt beim Anlegen und Bearbeiten eines Spiels.
-
-Eigene Cover werden zusammen mit der Sammlung in `database.db` gesichert. Der aktualisierte Server ergänzt beim Start die Tabelle `game_cover`. Falls ein Reverse-Proxy die Anfragegröße begrenzt, sollte er für Spieländerungen mindestens 600 KiB zulassen. Die lokale Funktion benötigt den aktualisierten Serverstand.
-
-## IGDB-Suche
-
-Seit Version 0.8.1 lässt sich die Suche im Spieleditor neben dem optionalen Release-Jahr nach **Titeltyp** eingrenzen. Das Dropdown unter dem Release-Feld bietet **Alle Typen**, Spielevollversion, DLC, Erweiterung, Bundle und weitere IGDB-Typen. Die Zuordnung stammt von IGDB; auch Sondereditionen können als Spielevollversion gelten. Titel, Jahr und Typ werden gemeinsam gesucht. Der Filter wird nicht am Sammlungseintrag gespeichert. Dafür ist ein Serverupdate auf 0.8.1 erforderlich.
-
-## Voraussetzungen
-
-- Docker Engine
-- Docker Compose (optional)
-- Twitch-/IGDB-Zugangsdaten für die Spielesuche
-
-## Einrichtung
-
-1. Beispieldatei für die Konfiguration kopieren:
-
-   ```bash
-   cp .env.example .env
-   ```
-
-2. Die Werte in `.env` entsprechend dem Abschnitt [Konfiguration](#konfiguration) eintragen.
-
-3. Fertiges Image aus der GitHub Container Registry laden und starten:
-
-   ```bash
-   docker compose pull
-   docker compose up -d
-   ```
-
-4. `http://localhost:7000` öffnen. Der zuerst angelegte Benutzer erhält Administratorrechte.
-
-Die SQLite-Datenbank wird im lokalen Verzeichnis `data/` abgelegt.
-
-## Docker-Image und Updates
-
-**Server-Release 0.8.1:** [Release Notes](release-notes/server-0.8.1.md), Tag `server-v0.8.1`, Image `ghcr.io/mehmet-b-90/games_collection:0.8.1` für AMD64/ARM64. `latest` wird nach erfolgreichem Docker-Workflow auf `main` aktualisiert.
-
-Das Server-Image liegt unter `ghcr.io/mehmet-b-90/games_collection`. Es unterstützt `linux/amd64` (übliche PCs/Server) und `linux/arm64` (beispielsweise ARM-NAS und Raspberry Pi mit 64-Bit-System). Docker wählt die passende Architektur automatisch.
-
-```bash
-docker pull ghcr.io/mehmet-b-90/games_collection:latest
-```
-
-Für eine feste Server-Version den Eintrag `image:` direkt in `docker-compose.yaml` auf `ghcr.io/mehmet-b-90/games_collection:0.8.1` setzen. Das Image lässt sich auch separat herunterladen:
-
-```bash
-docker pull ghcr.io/mehmet-b-90/games_collection:0.8.1
-```
-
-`latest` folgt dem zuletzt erfolgreich veröffentlichten Serverstand von `main`. Mit der mitgelieferten Compose-Datei aktualisierst du eine bestehende Installation so:
-
-```bash
-docker compose pull
-docker compose up -d
-```
-
-Die vorhandene `.env` und das eingebundene Verzeichnis `data/` werden weiterverwendet. Vor Updates eine Sicherung der SQLite-Datenbank erstellen; eine laufende SQLite-Datenbank mit WAL nicht durch bloßes Kopieren nur der Datei `database.db` sichern.
-
-Der Container läuft standardmäßig mit UID/GID `1000:1000`. Das eingebundene `data/` muss für diesen Benutzer schreibbar sein. Bei einer Neuinstallation das Verzeichnis vorher anlegen und passende Besitzrechte setzen. Auf SELinux-Systemen wie Fedora kann für den Bind-Mount zusätzlich `./data:/app/data:Z` erforderlich sein.
-
-### Lokal aus dem Quellcode bauen
-
-Für eigene Änderungen zuerst den Eintrag `image:` in `docker-compose.yaml` auf `games-collection:local` setzen und anschließend das lokale Image bauen und starten:
-
-```bash
-docker build -t games-collection:local .
-docker compose up -d --pull never
-```
-
-Der Docker-Buildkontext enthält ausschließlich Dockerfile, `requirements.txt` und die Anwendung unter `files/`. Lokale Konfiguration, Datenbank, Git-Verlauf und Android-Werkzeuge werden nicht an den Builder übertragen.
-
-Mit Podman den lokalen Build als `localhost/games-collection:local` markieren und diesen Namen im Compose-Eintrag `image:` verwenden:
-
-```bash
-podman build --format docker -t localhost/games-collection:local .
-podman compose up -d --pull never --force-recreate games_collection
-```
-
-Bei `ModuleNotFoundError: No module named 'PIL'` enthält der gestartete Container die neue Cover-Abhängigkeit nicht. Pillow steht in `requirements.txt` und wird beim Image-Build installiert. Wenn der lokale Quellcode in ein vorhandenes Image eingebunden wird, den Mount für `/app/files` beim Test mit dem frisch gebauten Image weglassen. Ein Neustart des alten Containers übernimmt die neue Abhängigkeit nicht.
-
-## Konfiguration
-
-Die Anwendung liest ihre Konfiguration aus der Datei `.env`. Die Datei enthält Geheimnisse und darf deshalb nicht in das Repository aufgenommen oder öffentlich weitergegeben werden.
-
-```env
-SECRET_KEY=ein-langer-zufaelliger-wert
-TWITCH_CLIENT_ID=deine-twitch-client-id
-TWITCH_CLIENT_SECRET=dein-twitch-client-secret
-SESSION_COOKIE_SECURE=false
-```
-
-### Flask-Schlüssel
-
-`SECRET_KEY` gehört zur lokalen Flask-Anwendung und **nicht** zur IGDB-API. Flask verwendet diesen Wert, um unter anderem Sitzungs-Cookies und CSRF-Tokens kryptografisch zu signieren. Dadurch kann der Server erkennen, ob diese Werte nachträglich verändert wurden.
-
-Für jede Installation sollte ein eigener, langer und zufälliger Schlüssel verwendet werden. Mit Python lässt sich ein geeigneter Wert so erzeugen:
-
-```bash
-python3 -c "import secrets; print(secrets.token_hex(32))"
-```
-
-Alternativ kann OpenSSL verwendet werden:
-
-```bash
-openssl rand -hex 32
-```
-
-Beide Befehle erzeugen 32 kryptografisch sichere Zufallsbytes und geben sie als 64 Hexadezimalzeichen aus. Der ausgegebene Wert wird anschließend ohne Anführungszeichen hinter `SECRET_KEY=` in die `.env`-Datei eingetragen.
-
-Wird `SECRET_KEY` bei einer laufenden Installation geändert, werden bestehende Benutzersitzungen ungültig und die Benutzer müssen sich erneut anmelden.
-
-### IGDB-Authentifizierung
-
-IGDB verwendet die Anwendungsverwaltung und OAuth-Authentifizierung von Twitch. Für die Spielesuche benötigt Games Collection daher genau zwei Zugangsdaten einer registrierten Twitch-Anwendung:
-
-- `TWITCH_CLIENT_ID`: die öffentliche Kennung der registrierten Anwendung
-- `TWITCH_CLIENT_SECRET`: das geheime Kennwort der Anwendung
-
-Ein Twitch- oder IGDB-Benutzername und das persönliche Kontopasswort werden **nicht** benötigt und dürfen nicht in `.env` eingetragen werden.
-
-Beim ersten Zugriff auf die Spielesuche sendet der Server Client-ID und Client-Secret an den OAuth-Dienst von Twitch. Mit dem OAuth-Verfahren `client_credentials` erhält er ein zeitlich begrenztes Access-Token. Anschließend sendet Games Collection dieses Token zusammen mit der Client-ID an IGDB. Das Token wird vorübergehend im Arbeitsspeicher zwischengespeichert und nach Ablauf automatisch neu angefordert.
-
-```text
-Client-ID + Client-Secret
-          │
-          ▼
-    Twitch OAuth
-          │
-          ▼
-zeitlich begrenztes Access-Token
-          │
-          ▼
-       IGDB API
-```
-
-Die Client-ID und das Client-Secret können nach der Registrierung einer Anwendung im [Twitch Developer Portal](https://dev.twitch.tv/console/apps) erzeugt werden. Weitere Details beschreibt die [IGDB-API-Dokumentation](https://api-docs.igdb.com/).
-
-### Sichere Cookies
-
-`SESSION_COOKIE_SECURE` bestimmt, ob der Browser das Sitzungs-Cookie ausschließlich über HTTPS übertragen darf:
-
-- `false`: für lokale Tests über `http://localhost:7000`
-- `true`: für den produktiven Betrieb über HTTPS, beispielsweise hinter Caddy
-
-Für eine öffentlich oder im Netzwerk erreichbare Installation mit HTTPS sollte der Wert auf `true` gesetzt werden.
-
-## Fehlerdiagnose im Serverbetrieb
-
-Bei Datenbank- oder unerwarteten Serverfehlern zeigt die Anwendung eine deutsche Meldung mit Fehler-ID. Dieselbe ID steht im Betreiber-Log; API-Antworten enthalten zusätzlich `request_id` und den Header `X-Request-ID`.
-
-```bash
-docker compose logs --since=30m games_collection
-```
-
-Im Log nach der gemeldeten ID suchen. Datenbankfehler liefern HTTP 503; Schreibkonflikte liefern 409 und erfordern einen erneuten Abruf des Datensatzes. SQL-Parameter werden in Datenbank-Tracebacks ausgeblendet. Die Ergebnisse und Grenzen der aktuellen Prüfung stehen in [SERVER_REVIEW.md](SERVER_REVIEW.md).
-
-## Android-App
-
-[Android-App 0.9 direkt als APK herunterladen](https://github.com/mehmet-b-90/games_collection/releases/download/android-v0.9/games_collection-v0.9.apk)
-
-Die Android-App wird als signierte Release-APK bereitgestellt und unterstützt Android 8.0 oder neuer. Bei der Installation muss gegebenenfalls die Installation aus dieser Quelle zugelassen werden. Für die Verbindung benötigt der Server die JSON-API dieser Projektversion.
-
-Seit **20.10.2026** ist Version **0.7 / Code 4** zusätzlich in einem **internen Google-Play-Test** aktiv; eine öffentliche Store-Veröffentlichung ist noch nicht erfolgt. Der Test ist nur für ausgewählte Google-Konten über den Teilnahme-Link verfügbar. Status und nächste Schritte stehen in [Google Play](android/PLAY_STORE.md).
-
-Die Play-Version verwendet auf Wunsch einen Google-App-Signaturschlüssel und kann die bisherige direkt verteilte Release-APK nicht unmittelbar aktualisieren. Vor einem bewussten Installationswechsel alle ausstehenden Offline-Änderungen synchronisieren und den [Signaturhinweis](android/README.md#google-play-und-bisherige-release-apks) beachten.
-
-Im Ordner [`android/`](android/README.md) liegt eine eigenständige native Android-App mit Kotlin und Jetpack Compose. Sammlung, Filter, Statistik, Anmeldung und Spielverwaltung werden direkt in der App dargestellt. Die App kommuniziert per JSON-API mit dem Docker-Server; eine WebView wird nicht verwendet. Die beiden Designs Cinematic Dark und Editorial Shelf stehen auch nativ zur Verfügung. Vor der ersten Verbindung muss der Server auf das Image dieser Projektversion aktualisiert werden. Hinweise zur Installation, zum APK-Build und zu HTTPS stehen in der [Android-Anleitung](android/README.md).
-
-Der aktuelle Android-Quellstand enthält zusätzliche Stabilitätskorrekturen für Entwürfe, HTTP-Abbruch und große Sammlungen. Für sicheres Wiederholen von Spieländerungen muss auch der Server aktualisiert werden; er ergänzt eine Tabelle für Vorgangsbelege. Version 0.7 enthält diese Korrekturen, die Offline-Sammlung und direkte IGDB-Suche. Für die Tokenbereitstellung den Server auf diesen Quellstand aktualisieren. Beim Wechsel von einer Debug-APK den Signaturhinweis in der Android-Anleitung beachten.
-
-### Einblicke in die Android-App
+### Android-App
 
 Anmeldung, Sammlung, IGDB-Suche, Spielverwaltung und Statistik auf dem Smartphone. Die Vorschaubilder lassen sich für die vollständige Ansicht öffnen.
 
@@ -228,25 +89,3 @@ Anmeldung, Sammlung, IGDB-Suche, Spielverwaltung und Statistik auf dem Smartphon
 | Spiel hinzufügen | Statistik |
 | --- | --- |
 | <a href="docs/screenshots/android-spiel-hinzufuegen.jpg"><img src="docs/screenshots/android-spiel-hinzufuegen.jpg" alt="Android-App: Spiel hinzufügen" width="240"></a> | <a href="docs/screenshots/android-statistik.jpg"><img src="docs/screenshots/android-statistik.jpg" alt="Android-App: Statistik" width="240"></a> |
-
-## Technischer Aufbau
-
-- Flask und Gunicorn
-- SQLAlchemy mit SQLite
-- Bootstrap sowie modulares JavaScript
-- Docker Compose
-- PWA mit Service Worker und Web-App-Manifest
-
-### Künftige Server-Releases
-
-Seit 25.10.2026 lösen Tags nach `server-v<VERSION>` (z. B. `server-v0.9`) die Server-Veröffentlichung aus. Bestehende `docker-v*`-Tags bleiben unverändert. Release Notes werden aus [der Vorlage](release-notes/TEMPLATE.md) als `release-notes/server-<VERSION>.md` angelegt: Titel „Games Collection v<VERSION>“, Abschnitt „Neue Funktion“; das veröffentlichte Image mit Digest ergänzt der Workflow. Neue GitHub Releases erhalten das Label **Latest**. Dieses Label ändert nicht das Docker-Image-Tag `latest`, das weiterhin `main` folgt.
-
-## Datenbank sichern und wiederherstellen
-
-Administratoren öffnen im Web über das Zahnrad die **Serververwaltung**. Dort stehen **Datenbank exportieren** und die **Benutzerverwaltung** gemeinsam bereit. Der Export erstellt im laufenden Betrieb einen konsistenten SQLite-Snapshot und lädt `Games-Collection-Backup-<Datum>_<Zeit>_UTC.db` herunter. Prüfe nach dem Download, dass die Datei tatsächlich gespeichert wurde.
-
-Das Backup enthält sämtliche Konten (einschließlich Passwort-Hashes), Sammlungen, Besitzplattformen, Freundschaften, eigene Cover und Vorgangsbelege. Geschützt und getrennt vom VPS aufbewahren. `.env`, Server-/Proxykonfiguration und sonstige Dateien außerhalb der Datenbank müssen separat gesichert werden. Der Download ist nicht verschlüsselt; für produktiven Fernzugriff HTTPS verwenden.
-
-Eine Wiederherstellung erfolgt bewusst außerhalb der Weboberfläche: alle auf die Datenbank zugreifenden Serverinstanzen stoppen, den aktuellen Datenbestand einschließlich eventuell vorhandener `database.db-wal` und `database.db-shm` separat sichern und die Backup-Datei im Datenverzeichnis als `database.db` bereitstellen. Alte WAL-/SHM-Dateien dürfen nicht mit der wiederhergestellten Datei kombiniert werden. Dateieigentümer und Berechtigungen passend zum Container erhalten. Zunächst mit einer Kopie und zur Sicherung passender Serverversion prüfen, danach Konten und Sammlungen kontrollieren. Bei Compose liegt die Datenbank standardmäßig unter `./data/database.db`. Eine Wiederherstellung setzt alle Daten auf den Sicherungszeitpunkt zurück; neuere Änderungen sind darin nicht enthalten.
-
-Der produktive Datenbestand muss bei Updates erhalten bleiben. Diese Verwaltungsfunktion verändert das Schema nicht. `create_all()` ersetzt keine Migration bestehender Tabellen; künftige Schemaänderungen benötigen einen datenerhaltenden, geprüften Upgradeweg.

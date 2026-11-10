@@ -9,7 +9,8 @@ from ..config import PLATFORMS
 from ..extensions import db
 from ..idempotency import idempotent_game_write
 from ..igdb import IGDB_GAME_TYPES, get_igdb_token, get_preferred_age_rating, log_upstream_failure
-from ..models import Game, GameCover, GamePlatformOwnership
+from ..models import Game, GameCover
+from ..ownership import legacy_copies, set_copies
 from ..popscore import IGDB_GAME_FIELDS, PopScoreError, popular_games
 from ..validation import validate_game_payload, validate_integer
 from .friends import pair_with
@@ -142,12 +143,15 @@ def add_game():
         game_data = validate_game_payload(data, creating=True)
     except ValueError as error:
         return api_error(str(error))
-    platforms = game_data.pop('owned_platform')
+    copies = game_data.pop('copies', None)
+    if copies is None:
+        copies = [{'platform': p, 'format': game_data.get('format', 'Digital'), 'edition': ''}
+                  for p in game_data.pop('owned_platform')]
     cover = game_data.pop('custom_cover', None)
     game = Game(user_id=current_user.id, **game_data)
     if cover is not None:
         set_custom_cover(game, cover)
-    game.owned_platforms = [GamePlatformOwnership(platform=platform) for platform in platforms]
+    set_copies(game, copies)
     db.session.add(game)
     error = commit_changes('Dieses IGDB-Spiel ist bereits in deiner Sammlung.')
     return error or ({'status': 'success'}, 201)
@@ -178,18 +182,18 @@ def manage_game(game_id):
         return api_error('Das Spiel wurde zwischenzeitlich geändert. Bitte lade die Seite neu.', 409)
     if not game_data:
         return api_error('Keine Änderungen übermittelt.')
-    platforms = game_data.pop('owned_platform', None)
+    copies = game_data.pop('copies', None)
+    if copies is None and ('owned_platform' in game_data or 'format' in game_data):
+        try:
+            copies = legacy_copies(game, game_data)
+        except ValueError as error:
+            return api_error(str(error), 409)
     if 'custom_cover' in game_data:
         set_custom_cover(game, game_data.pop('custom_cover'))
     for key, value in game_data.items():
         setattr(game, key, value)
-    if platforms is not None:
-        requested = set(platforms)
-        for ownership in list(game.owned_platforms):
-            if ownership.platform not in requested:
-                game.owned_platforms.remove(ownership)
-        existing = {ownership.platform for ownership in game.owned_platforms}
-        game.owned_platforms.extend(GamePlatformOwnership(platform=p) for p in platforms if p not in existing)
+    if copies is not None:
+        set_copies(game, copies)
     # Relationship-only changes must also participate in optimistic locking.
     game.version = expected_version + 1
     return commit_changes('Dieses IGDB-Spiel ist bereits in deiner Sammlung.') or {'status': 'updated'}

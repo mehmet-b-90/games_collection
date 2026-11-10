@@ -43,7 +43,9 @@ Gilt für das gesamte Repository. Stand: 20.10.2026. Technische Bestandsaufnahme
 
 - Eigene Cover seit Auftrag vom 06.11.2026 im Spieleditor beider Clients anbieten. Android verwendet die System-Fotoauswahl, Web die Dateiauswahl. Vorschau und „Standardcover“ erhalten. Eigene Cover mit der Spieländerung speichern und nur Eigentümern sowie bestätigten Freunden ausliefern. Die IGDB-Adresse bleibt als Standard erhalten.
 
-- Android-Status seit Auftrag vom 02.11.2026: Statuslabel über dem Cover der eigenen Sammlung als kompakter Button (sichtbare Mindesthöhe 32 dp seit Screenshotkorrektur vom selben Tag) mit Auswahl „Nicht gespielt“, „Gespielt“, „Abgebrochen“; direkt speichern über bestehende Offline-Warteschlange/Synchronisierung. Cover öffnet weiterhin Details, fremde Sammlungen bleiben schreibgeschützt.
+- Statusauswahl seit freigegebenem Entwurf vom 10.11.2026: Web (PC/Mobil) und Android verwenden in beiden Designs weiße monochrome Symbole auf dunklem Hintergrund: Haken = Gespielt, Kreuz = Nicht gespielt, Verbotssymbol = Abgebrochen. Statusnamen erscheinen in der geöffneten Auswahl. Unter Darstellung ein-/ausblendbar, standardmäßig an; Implementierung speichert die Anzeige lokal im Browser bzw. Gerät. Keine Änderung der gespeicherten Spielstatus beim Ausblenden. Android nutzt weiterhin die Offline-Warteschlange, Web die bestehende versionierte API. Fremde Sammlungen bleiben schreibgeschützt.
+
+- Historisch, Symbolgestaltung durch Auftrag vom 10.11.2026 ersetzt: Android-Status seit Auftrag vom 02.11.2026: Statuslabel über dem Cover der eigenen Sammlung als kompakter Button (sichtbare Mindesthöhe 32 dp seit Screenshotkorrektur vom selben Tag) mit Auswahl „Nicht gespielt“, „Gespielt“, „Abgebrochen“; direkt speichern über bestehende Offline-Warteschlange/Synchronisierung. Cover öffnet weiterhin Details, fremde Sammlungen bleiben schreibgeschützt.
 
 - Web-Statistik seit Folgeauftrag vom 02.11.2026: direkt unter dem Dialogkopf und vor den Diagrammen drei kompakte Kennzahlenkarten „Spiele“, „Ø Bewertung“, „Plattformen“ analog zu Android; in beiden Designs auch mobil nebeneinander. Werte beziehen sich auf die gesamte eigene Sammlung, nicht auf aktive Filter; fehlende persönliche Bewertungen als „–“.
 
@@ -60,6 +62,13 @@ Gilt für das gesamte Repository. Stand: 20.10.2026. Technische Bestandsaufnahme
 - Bei Coverkarten keine Texte an Rundungen abschneiden. Plattformnamen und Logos nicht überlagern; wo kein Logo vorhanden ist, lesbare Kurzbezeichnung verwenden. Keine Garantie auf echte Logos für jede Plattform.
 - Im Web-Spieleditor steht auf Desktop links Format → Status → Bewertung, rechts eine höhere Plattformauswahl. Suchvorschläge und Buttonbeschriftungen müssen mobil ausreichend Platz erhalten.
 - Statistikbeschriftungen lesbar halten; Prozentwerte in Klammern, auch innerhalb ausreichend großer Tortenstücke.
+
+## Exemplare seit Auftrag vom 10.11.2026
+
+- Ein Titel bleibt ein Spieleintrag, darunter einzelne Exemplare aus Besitzplattform, Digital/Physisch und optionaler Ausgabe. Identische Exemplare sind erlaubt, maximal 100 pro Titel, Ausgabe höchstens 80 Zeichen. Auch ohne verbleibende Exemplare bleibt der Titel erhalten. Status, Bewertung und Cover gelten gemeinsam; IGDB-verfügbare Plattformen bleiben getrennt. Die bisherigen getrennten Format-/Besitzplattformfelder im Spieleditor sind dadurch ersetzt.
+- Additive, transaktionale Startmigration nach `docs/EXEMPLARE.md`: je alter Besitzplattform ein Exemplar mit bisherigem Format und leerer Ausgabe. Keine Datenbankneuerstellung. Migrationsbeleg und Übernahme atomar; keine erneute Übernahme beim Neustart. Exemplare sind maßgeblich, alte Felder nur eine abgeleitete Übergangsdarstellung.
+- Betreiberbestätigung: aktuell zwei Nutzer (Betreiber und Schwager), beide wechseln auf den neuen Client; kein geplanter dauerhafter Mischbetrieb. Updatefolge: Offline-Änderungen synchronisieren, Backup, Serverupgrade, beide Clients aktualisieren/Web neu laden. Bereits versuchte Offline-Anfragen bleiben dennoch unverändert wiederholbar; alte Anfragen dürfen komplexe Exemplare nicht überschreiben. Alte Server nicht schreibend parallel oder als ungeprüften Downgrade betreiben.
+- Filter verbinden Plattform und Format am selben Exemplar. Spielanzahl und Bewertungsdurchschnitt zählen Titel, Plattform-/Formatdiagramme zählen Exemplare. Kontoweite Standardwerte erzeugen nur bei neuen Spielen je Vorgabeplattform ein Exemplar.
 
 ## Code und Datenkonsistenz
 

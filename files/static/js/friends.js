@@ -1,3 +1,4 @@
+import {gameCopies} from './copies.js';
 import {apiFetch, responseJson} from './api.js';
 
 export function initializeFriends() {
@@ -43,9 +44,10 @@ export function initializeFriends() {
             card.append(cover, node('h3', game.title),
                 node('p', `${game.release_date || 'Jahr unbekannt'} · ${game.age_rating || 'Keine Altersfreigabe'}`),
                 node('p', game.owned_platform || 'Keine Besitzplattform'),
-                node('p', `${game.format} · ${game.status} · ★ ${game.rating ?? '–'}/10`));
+                node('p', `${gameCopies(game).length} Exemplare · ${game.status} · ★ ${game.rating ?? '–'}/10`));
             const details = node('details');
-            details.append(node('summary', 'Weitere Spieldaten'));
+            details.append(node('summary', 'Exemplare und Spieldaten'));
+            gameCopies(game).forEach(copy => details.append(node('p', `${copy.platform} · ${copy.format}${copy.edition ? ` · ${copy.edition}` : ''}`)));
             [['Entwickler', game.developer], ['Publisher', game.publisher], ['Engine', game.game_engine],
                 ['Verfügbare Plattformen', game.available_platforms]].forEach(([label, value]) => {
                 if (value) details.append(node('p', `${label}: ${value}`));

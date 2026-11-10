@@ -1,14 +1,12 @@
+import {setCopies} from './copies.js';
 import {apiFetch, responseJson} from './api.js';
 
 let defaults = JSON.parse(document.getElementById('initialGameDefaults').textContent);
 
 export function applyGameDefaults() {
     document.getElementById('gameTypeSearch').value = defaults.game_type ?? '';
-    document.getElementById('formatSelect').value = defaults.format;
+    setCopies(defaults.platforms.map(platform => ({platform, format: defaults.format, edition: ''})), defaults.format);
     document.getElementById('statusSelect').value = defaults.status;
-    Array.from(document.getElementById('ownedPlatformInput').options).forEach(option => {
-        option.selected = defaults.platforms.includes(option.value);
-    });
 }
 
 export function initializeGameDefaults() {

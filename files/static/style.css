@@ -147,7 +147,6 @@ input:not([type="range"]):not([type="radio"]):not([type="checkbox"]):focus, sele
 .cover-frame { position: relative; overflow: hidden; }
 .game-cover { display: block; width: 100%; aspect-ratio: 3/4; object-fit: cover; transition: transform 300ms ease; }
 .game-card:hover .game-cover { transform: scale(1.025); }
-.status-badge { position: absolute; top: 10px; left: 10px; z-index: 4; max-width: calc(100% - 54px); padding: 5px 8px; overflow: hidden; border-radius: 999px; color: #fff; background: rgba(7, 12, 19, .72); backdrop-filter: blur(8px); font-size: .67rem; text-overflow: ellipsis; white-space: nowrap; }
 .cinematic-overlay { position: absolute; inset: 35% 0 0; display: flex; align-items: end; padding: 16px 14px; background: linear-gradient(transparent, rgba(3, 8, 14, .96)); }
 .cinematic-overlay h3 { margin: 0; color: #fff; font-size: .96rem; line-height: 1.25; }
 .game-card-body { display: none; padding: 12px; }
@@ -185,7 +184,6 @@ html[data-ui-theme="editorial"] .game-card:hover { border: 0; box-shadow: none; 
 html[data-ui-theme="editorial"] .cover-frame { border-radius: var(--radius-sm); box-shadow: 0 8px 18px rgba(48, 37, 27, .16); }
 html[data-ui-theme="editorial"] .cinematic-overlay { display: none; }
 html[data-ui-theme="editorial"] .game-card-body { display: block; }
-html[data-ui-theme="editorial"] .status-badge { display: none; }
 html[data-ui-theme="editorial"] .platform-icons { position: static; flex-direction: row; flex-wrap: wrap; align-items: center; min-height: 25px; margin: -4px 3px 0; padding-top: 7px; border-top: 1px solid color-mix(in srgb, var(--border) 72%, transparent); }
 html[data-ui-theme="editorial"] .platform-icon-badge { width: 24px; height: 24px; color: #28231e; background: rgba(255,255,255,.92); border-color: rgba(42,35,29,.18); box-shadow: 0 2px 5px rgba(48,37,27,.18); }
 html[data-ui-theme="editorial"] .platform-icon-badge.has-image { border-color: transparent; background: transparent; box-shadow: none; }
@@ -293,7 +291,7 @@ body.vh-100 .form-check-label { cursor: pointer; }
     .collection-toolbar h2 { font-size: 1.25rem; }.sort-control > span { display: none; }.sort-control select { min-width: 155px; }
     .grid-container { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 13px; }
     .game-card { border-radius: 12px; }.cinematic-overlay { padding: 13px 10px; }.cinematic-overlay h3 { font-size: .8rem; }
-    .status-badge { font-size: .58rem; }.platform-icon-badge { width: 23px; height: 23px; }.platform-icon { width: 21px; height: 21px; }
+    .platform-icon-badge { width: 23px; height: 23px; }.platform-icon { width: 21px; height: 21px; }
     html[data-ui-theme="editorial"] .game-card-body { padding: 9px 3px; }
     .stats-grid { grid-template-columns: 1fr; }
     .stats-summary { gap: 8px; }
@@ -417,3 +415,29 @@ html[data-ui-theme="editorial"] .discovery-heading h1 { font-family: Georgia, se
     .settings-footer .setting-status { flex-basis: 100%; }
     .settings-panel .default-platforms { grid-template-columns: 1fr; }
 }
+
+/* Compact monochrome status picker, shared by both collection designs. */
+.cover-status { position: absolute; top: 2px; left: 2px; z-index: 5; width: 44px; height: 44px; display: grid; place-items: center; }
+.cover-status-icon { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 10px; color: #fff; background: rgba(7, 12, 19, .85); pointer-events: none; }
+.cover-status-icon svg { width: 18px; height: 18px; }
+.cover-status select { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; font-size: 16px; }
+.cover-status:focus-within .cover-status-icon { outline: 2px solid #fff; outline-offset: 2px; }
+.cover-status:has(select:disabled) { opacity: .55; }
+.hide-cover-status .cover-status { display: none; }
+
+/* Individual copies belong to one game, including on narrow editor screens. */
+.copies-section { min-width: 0; display: grid; gap: 14px; align-content: start; }
+.copies-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.copies-heading h3 { margin: 0; font-size: 1rem; }
+#copiesCount, .copy-description span { color: var(--text-muted); font-size: .85rem; }
+#copiesList { border-radius: 16px; background: var(--surface-muted); padding: 0 14px; }
+#copiesList:empty { display: none; }
+.copy-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 14px 0; }
+.copy-row + .copy-row { border-top: 1px solid var(--border); }
+.copy-description { display: grid; gap: 5px; min-width: 0; overflow-wrap: anywhere; }
+.copy-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.copy-actions button { min-height: 44px; }
+#copyEditor { display: grid; gap: 14px; min-width: 0; border: 1px solid var(--border); border-radius: 16px; padding: 16px; }
+#copyEditor[hidden] { display: none; }
+#copyEditor legend { float: none; width: auto; font-size: 1rem; padding: 0 4px; }
+#copyError { color: var(--danger); margin: 0; }

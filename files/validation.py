@@ -7,7 +7,7 @@ GAME_TEXT_FIELDS = {
     'publisher': 1000, 'game_engine': 1000, 'available_platforms': 2000,
     'igdb_url': 500, 'age_rating': 50,
 }
-GAME_ALLOWED_FIELDS = set(GAME_TEXT_FIELDS) | {'igdb_id', 'owned_platform', 'format', 'rating', 'status', 'version', 'custom_cover'}
+GAME_ALLOWED_FIELDS = set(GAME_TEXT_FIELDS) | {'igdb_id', 'owned_platform', 'format', 'rating', 'status', 'version', 'custom_cover', 'copies'}
 VALID_AGE_RATINGS = {
     'USK 0', 'USK 6', 'USK 12', 'USK 16', 'USK 18',
     'PEGI 3', 'PEGI 7', 'PEGI 12', 'PEGI 16', 'PEGI 18',
@@ -65,6 +65,24 @@ def validate_game_payload(data, creating=False):
     if creating and 'title' not in data:
         raise ValueError('"title" ist erforderlich.')
     cleaned = {}
+    if 'copies' in data:
+        if 'format' in data or 'owned_platform' in data:
+            raise ValueError('Exemplare und alte Besitzfelder dürfen nicht gemeinsam übermittelt werden.')
+        copies = data['copies']
+        if not isinstance(copies, list) or len(copies) > 100:
+            raise ValueError('"copies" muss eine Liste mit höchstens 100 Exemplaren sein.')
+        cleaned['copies'] = []
+        for copy in copies:
+            if not isinstance(copy, dict) or set(copy) != {'platform', 'format', 'edition'}:
+                raise ValueError('Jedes Exemplar benötigt genau Plattform, Format und Ausgabe.')
+            if not isinstance(copy['platform'], str) or copy['platform'] not in PLATFORMS:
+                raise ValueError('Ungültige Besitzplattform im Exemplar.')
+            if not isinstance(copy['format'], str) or copy['format'] not in {'Digital', 'Physisch'}:
+                raise ValueError('Das Exemplarformat muss Digital oder Physisch sein.')
+            if not isinstance(copy['edition'], str):
+                raise ValueError('Die Ausgabe muss Text sein.')
+            edition = validate_text(copy['edition'], 'edition', 80) or ''
+            cleaned['copies'].append({**copy, 'edition': edition})
     for field, maximum in GAME_TEXT_FIELDS.items():
         if field in data:
             cleaned[field] = validate_text(data[field], field, maximum, field == 'title')
@@ -100,7 +118,7 @@ def validate_game_payload(data, creating=False):
         if invalid:
             raise ValueError(f'Ungültige Besitzplattform: {", ".join(sorted(invalid))}.')
         cleaned['owned_platform'] = list(dict.fromkeys(selected))
-    elif creating:
+    elif creating and 'copies' not in data:
         raise ValueError('"owned_platform" ist erforderlich.')
     if 'rating' in data:
         rating = data['rating']

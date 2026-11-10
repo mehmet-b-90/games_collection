@@ -9,7 +9,7 @@ class GameDefaultsTest {
         val defaults = GameDefaults(IgdbGameType.MAIN_GAME, "Physisch", "Gespielt", listOf("Steam", "Obsolete"))
         val game = Game(title = "Titel", igdbId = 123, available = "PC", cover = "cover")
         val result = defaults.applyTo(game, listOf("Steam"))
-        assertEquals(game.copy(format = "Physisch", status = "Gespielt", platforms = listOf("Steam")), result)
+        assertEquals(game.copy(status = "Gespielt").withCopies(listOf(GameCopy("Steam", "Physisch"))), result)
         assertNull(result.rating)
     }
 
