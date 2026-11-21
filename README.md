@@ -63,8 +63,6 @@ Compose lädt `ghcr.io/mehmet-b-90/games_collection:latest`. Öffne [http://loca
 
 Erstelle vor einem Update ein konsistentes Datenbank-Backup. Ab Server 0.10 findest du den Export unter **Serververwaltung → Datenbank exportieren**. Führe danach erneut `docker compose pull` und `docker compose up -d` aus. Verwende dieselbe `.env` und dasselbe `data/`-Verzeichnis weiter. Prüfe anschließend `/health`, die Anmeldung und deine Sammlung.
 
-[Server-Release 0.10](https://github.com/mehmet-b-90/games_collection/releases/tag/server-v0.10) · [Wiederherstellung, lokale Builds und Fehlerdiagnose](docs/SERVER_BETRIEB.md)
-
 ## Android-App installieren
 
 1. Die signierte Android-App als APK (unter Releases) herunterladen und auf einem Gerät mit Android 8.0 oder neuer installieren.
