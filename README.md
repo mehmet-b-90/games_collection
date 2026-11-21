@@ -67,7 +67,7 @@ Erstelle vor einem Update ein konsistentes Datenbank-Backup. Ab Server 0.10 find
 
 ## Android-App installieren
 
-1. Die [signierte Android-App 0.9 als APK herunterladen](https://github.com/mehmet-b-90/games_collection/releases/download/android-v0.9/games_collection-v0.9.apk) und auf einem Gerät mit Android 8.0 oder neuer installieren.
+1. Die signierte Android-App als APK (unter Releases) herunterladen und auf einem Gerät mit Android 8.0 oder neuer installieren.
 2. In der App die vom Smartphone erreichbare URL deines Games-Collection-Servers eingeben und dich mit deinem Web-Konto anmelden.
 
 [Android-Anleitung und APK-Build](android/README.md) · [Interner Google-Play-Test](android/PLAY_STORE.md)
