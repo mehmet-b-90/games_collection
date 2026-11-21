@@ -6,7 +6,8 @@ import java.time.Instant
 import java.time.ZoneOffset
 import java.util.Locale
 
-val GAME_STATUSES = listOf("Nicht gespielt", "Gespielt", "Abgebrochen")
+internal const val PLAYED_STATUS = "Gespielt"
+val GAME_STATUSES = listOf("Nicht gespielt", PLAYED_STATUS, "Abgebrochen")
 
 data class GameCopy(val platform: String, val format: String = "Digital", val edition: String = "") {
     fun json() = JSONObject().put("platform", platform).put("format", format).put("edition", edition)
@@ -24,10 +25,13 @@ data class Game(
     val rating: Int? = null, val igdbId: Int? = null, val igdbUrl: String = "",
     val customCoverUrl: String = "", val customCoverEdit: String? = null,
     // null preserves the exact legacy payload of already attempted offline writes.
-    val copies: List<GameCopy>? = null
+    val copies: List<GameCopy>? = null,
+    val playtimeMinutes: Int? = null,
+    val playtimeEdited: Boolean = false
 ) {
     val ownedCopies: List<GameCopy> get() = copies ?: platforms.map { GameCopy(it, format) }
     val ownedPlatforms: List<String> get() = ownedCopies.map { it.platform }.distinct()
+    val writesPlaytime: Boolean get() = playtimeEdited && status == PLAYED_STATUS
     fun withCopies(values: List<GameCopy>) = copy(copies = values, platforms = values.map { it.platform }.distinct(),
         format = values.firstOrNull()?.format ?: "Digital")
 
@@ -39,6 +43,7 @@ data class Game(
             put("owned_platform", platforms.joinToString(", ")); put("format", format)
         } else put("copies", JSONArray(copies.map { it.json() }))
         put("status", status); put("rating", rating ?: JSONObject.NULL)
+        if (writesPlaytime) put("playtime_minutes", playtimeMinutes ?: JSONObject.NULL)
         put("igdb_id", igdbId ?: JSONObject.NULL); put("igdb_url", igdbUrl)
         customCoverEdit?.let { put("custom_cover", it.ifEmpty { null } ?: JSONObject.NULL) }
         if (id != 0) put("version", version)
@@ -58,7 +63,9 @@ data class Game(
             igdbId = if (json.isNull("igdb_id")) null else json.getInt("igdb_id"), igdbUrl = json.text("igdb_url"),
             customCoverUrl = json.text("custom_cover_url"),
             customCoverEdit = if (json.has("custom_cover")) json.text("custom_cover") else null,
-            copies = if (json.has("copies")) json.getJSONArray("copies").objects().map(GameCopy::fromJson) else null
+            copies = if (json.has("copies")) json.getJSONArray("copies").objects().map(GameCopy::fromJson) else null,
+            playtimeMinutes = if (json.isNull("playtime_minutes")) null else json.getInt("playtime_minutes"),
+            playtimeEdited = json.optBoolean("playtime_edited")
         )
 
         fun fromIgdb(json: JSONObject): Game {

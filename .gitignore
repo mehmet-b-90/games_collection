@@ -1,4 +1,5 @@
 .env
+Changelog.txt
 data/
 **/__pycache__/
 *.py[cod]

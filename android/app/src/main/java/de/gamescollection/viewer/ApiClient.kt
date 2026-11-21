@@ -57,26 +57,37 @@ class ApiClient private constructor(val server: String, persistence: CookiePersi
     private var csrf = ""
     private var idempotentWrites = false
 
-    var supportsGameCopies = false
-        private set
+    private var supportsGameCopies = false
 
     var supportsCustomCovers = false
         private set
+
+    private var supportsGamePlaytime = false
 
     internal fun coverLoader(context: Context) = ImageLoader.Builder(context)
         .okHttpClient { client }
         .build()
 
-    fun clearSession() { cookies.clear(); csrf = ""; idempotentWrites = false; supportsCustomCovers = false; supportsGameCopies = false }
+    fun clearSession() {
+        cookies.clear()
+        csrf = ""
+        readCapabilities(null)
+    }
+
+    private fun readCapabilities(capabilities: JSONObject?) {
+        idempotentWrites = capabilities?.optBoolean("idempotent_game_writes") == true
+        supportsCustomCovers = capabilities?.optBoolean("custom_covers") == true
+        supportsGameCopies = capabilities?.optBoolean("game_copies") == true
+        supportsGamePlaytime = capabilities?.optBoolean("game_playtime") == true
+    }
+
     suspend fun session(): JSONObject {
         val value = JSONObject(request("GET", "/api/session"))
         if (value.optInt("api_version") != 1 || value.optString("csrf_token").isEmpty()) {
             throw ApiException(426, "Der Server unterstützt diese App noch nicht. Bitte aktualisiere Games Collection.")
         }
         csrf = value.getString("csrf_token")
-        idempotentWrites = value.optJSONObject("capabilities")?.optBoolean("idempotent_game_writes") == true
-        supportsCustomCovers = value.optJSONObject("capabilities")?.optBoolean("custom_covers") == true
-        supportsGameCopies = value.optJSONObject("capabilities")?.optBoolean("game_copies") == true
+        readCapabilities(value.optJSONObject("capabilities"))
         return value
     }
     suspend fun login(username: String, password: String, remember: Boolean): JSONObject {
@@ -84,15 +95,24 @@ class ApiClient private constructor(val server: String, persistence: CookiePersi
         val result = JSONObject(request("POST", "/api/session", JSONObject()
             .put("username", username).put("password", password).put("remember", remember)))
         csrf = result.getString("csrf_token")
-        idempotentWrites = result.optJSONObject("capabilities")?.optBoolean("idempotent_game_writes") == true
-        supportsCustomCovers = result.optJSONObject("capabilities")?.optBoolean("custom_covers") == true
-        supportsGameCopies = result.optJSONObject("capabilities")?.optBoolean("game_copies") == true
+        readCapabilities(result.optJSONObject("capabilities"))
         return result
     }
     suspend fun logout() {
         try { request("DELETE", "/api/session") } finally { clearSession() }
     }
     suspend fun igdbCredentials(): JSONObject = JSONObject(request("POST", "/api/igdb-token", JSONObject()))
+    suspend fun wishes() = JSONObject(request("GET", "/api/wishlist?client=android"))
+        .getJSONArray("items").objects().map { item -> WishEntry(Game.fromIgdb(item.getJSONObject("game")),
+            WishRelease.parse(item.getJSONObject("release")), item.getBoolean("notify"), item.getBoolean("stale"),
+            item.getBoolean("released")) }
+    suspend fun wishOptions(id: Int) = JSONObject(request("GET", "/api/wishlist/$id/options"))
+        .getJSONArray("options").objects().map(WishRelease::parse)
+    suspend fun saveWish(id: Int, release: WishRelease) {
+        request("PUT", "/api/wishlist/$id", JSONObject().put("platform", release.platform).put("region", release.region))
+    }
+    suspend fun removeWish(id: Int) { request("DELETE", "/api/wishlist/$id", JSONObject()) }
+    suspend fun seenWish(id: Int) { request("POST", "/api/wishlist/$id/seen", JSONObject().put("client", "android")) }
     suspend fun discover(): DiscoveryFeed = DiscoveryFeed.fromJson(JSONObject(request("GET", "/api/discover")))
     suspend fun friends(): List<Friend> = JSONObject(request("GET", "/api/friends"))
         .getJSONArray("friends").objects().map(Friend::fromJson)
@@ -103,14 +123,17 @@ class ApiClient private constructor(val server: String, persistence: CookiePersi
     suspend fun saveGameDefaults(values: GameDefaults): GameDefaults = GameDefaults.fromJson(
         JSONObject(request("PUT", "/api/account/game-defaults", values.json())))
     suspend fun collection(): JSONObject = JSONObject(request("GET", "/api/games"))
+    suspend fun igdbPlaytime(id: Int): JSONObject = JSONObject(request("GET", "/api/igdb/playtime/$id"))
+
     suspend fun save(game: Game, operationKey: String) {
         requireIdempotency()
-        if (game.copies != null) requireCopySupport()
+        requireGameWriteSupport(game)
         request(if (game.id == 0) "POST" else "PUT",
             if (game.id == 0) "/api/games" else "/api/games/${game.id}", game.payload(), operationKey = operationKey)
     }
-    fun requireCopySupport() {
-        if (!supportsGameCopies) throw ApiException(426, "Bitte aktualisiere den Server für die Verwaltung einzelner Exemplare. Deine lokalen Änderungen bleiben erhalten.")
+    fun requireGameWriteSupport(game: Game) {
+        if (game.copies != null && !supportsGameCopies) throw ApiException(426, "Bitte aktualisiere den Server für die Verwaltung einzelner Exemplare. Deine lokalen Änderungen bleiben erhalten.")
+        if (game.writesPlaytime && !supportsGamePlaytime) throw ApiException(426, "Bitte aktualisiere den Server, damit eigene Spielzeiten gespeichert werden können.")
     }
     suspend fun delete(game: Game, operationKey: String) {
         requireIdempotency()

@@ -154,7 +154,7 @@
                     data-igdb-id="{{ game.igdb_id or '' }}" data-id="{{ game.id }}" data-release="{{ game.release_date or '0' }}"
                     data-title="{{ (game.title or '') | lower }}" data-dev="{{ (game.developer or '') | lower }}"
                     data-pub="{{ (game.publisher or '') | lower }}" data-engine="{{ (game.game_engine or '') | lower }}"
-                    data-platform="{{ game.owned_platform or '' }}" data-status="{{ game.status or '' }}"
+                    data-status="{{ game.status or '' }}"
                     data-copies='{{ game.copies|tojson }}' data-age-rating="{{ game.age_rating or '' }}"
                     data-rating="{{ game.rating if game.rating is not none else '' }}"
                     onclick='openGameDetails({{ game|tojson }})'
@@ -167,13 +167,18 @@
                                 {% for status in ['Gespielt', 'Nicht gespielt', 'Abgebrochen'] %}<option value="{{ status }}" {% if game.status == status %}selected{% endif %}>{{ {"Gespielt": "✔︎", "Nicht gespielt": "✕", "Abgebrochen": "⊘"}[status] }} {{ status }}</option>{% endfor %}
                             </select>
                         </div>
-                        <div class="cinematic-overlay"><h3>{{ game.title }}</h3></div>
+                        <div class="cover-caption">
+                            {% if game.rating is not none %}<strong class="cover-rating">★ {{ game.rating }}</strong>{% endif %}
+                            <h3 class="game-card-title" title="{{ game.title }}">{{ game.title }}</h3>
+                        </div>
                     </div>
                     <div class="game-card-body">
-                        <h3>{{ game.title }}</h3>
+                        <h3 class="game-card-title" title="{{ game.title }}">{{ game.title }}</h3>
+                        {% set owned_platforms = game.copies | map(attribute='platform') | unique | join(' · ') %}
+                        {% set copy_count = game.copies | length %}
                         <div class="game-meta">
-                            <span>{{ game.owned_platform or 'Keine Plattform' }} · {{ game.copies|length }} {{ 'Exemplar' if game.copies|length == 1 else 'Exemplare' }}</span>
-                            {% if game.rating is not none %}<strong>★ {{ game.rating }}</strong>{% endif %}
+                            <span class="card-platforms" title="{{ owned_platforms }}">{{ owned_platforms or 'Keine Besitzplattform' }}</span>
+                            <span>{{ copy_count }} {{ 'Exemplar' if copy_count == 1 else 'Exemplare' }}</span>
                         </div>
                     </div>
                 </article>
@@ -208,7 +213,16 @@
                 <div id="friendLibraryGrid" class="discovery-grid"></div>
             </section>
         </main>
+        <aside id="wishNotices" aria-live="polite"></aside>
         <main class="discovery-main" id="discover" hidden aria-labelledby="discoverTitle">
+            <nav class="wish-tabs" aria-label="Entdecken">
+                <button class="secondary-action" type="button" data-discovery-tab="popular" aria-pressed="true">Aktuell beliebt</button>
+                <button class="secondary-action" type="button" data-discovery-tab="wish" aria-pressed="false">Wunschliste</button>
+            </nav>
+            <section id="wishPanel" hidden><header class="discovery-heading"><h1>Wunschliste</h1>
+                <button id="wishRetry" class="secondary-action" type="button">Aktualisieren</button></header>
+                <p id="wishStatus" role="status"></p><div id="wishGrid"></div></section>
+            <section id="popularPanel">
             <header class="discovery-heading">
                 <div><span class="section-kicker">Entdecken</span><h1 id="discoverTitle">Aktuell beliebt</h1>
                 <p>Die meistbesuchten Spiele auf IGDB · täglich aktualisiert</p></div>
@@ -216,7 +230,7 @@
             </header>
             <p id="discoverStatus" role="status" aria-live="polite"></p>
             <div id="discoverGrid" class="discovery-grid" aria-busy="false"></div>
-            <p class="discovery-credit">Powered by <a href="https://www.igdb.com/" target="_blank" rel="noopener noreferrer">IGDB PopScore</a></p>
+            <p class="discovery-credit">Powered by <a href="https://www.igdb.com/" target="_blank" rel="noopener noreferrer">IGDB PopScore</a></p></section>
         </main>
     </div>
 
@@ -224,6 +238,7 @@
     <nav class="mobile-nav" aria-label="Mobile Navigation">
         <a data-view="collection" class="active" href="#collectionTop" aria-current="page"><span>▦</span>Sammlung</a>
         <a href="#discover" data-view="discover"><span>◇</span>Entdecken</a>
+        <a href="#friends" data-view="friends"><span aria-hidden="true">♧</span>Freunde</a>
         <button type="button" data-collection-filter data-bs-toggle="collapse" data-bs-target="#filterPanel"><span>⌕</span>Filter</button>
         <button type="button" data-bs-toggle="modal" data-bs-target="#statsModal"><span>▥</span>Statistik</button>
         <button type="button" onclick="openAccountModal()"><span>●</span>Profil</button>
@@ -248,7 +263,7 @@
     </div>
 
     <div class="modal fade" id="gameModal" tabindex="-1">
-        <div class="modal-dialog modal-lg modal-dialog-centered"><div class="modal-content app-modal">
+        <div class="modal-dialog game-editor-dialog modal-dialog-centered"><div class="modal-content app-modal">
             <div class="modal-header"><div><span class="eyebrow">Bibliothek</span><h2 class="modal-title" id="modalTitle">Spiel</h2></div><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
             <div class="modal-body">
                 <form id="gameForm">
@@ -280,9 +295,21 @@
                             <input type="file" id="coverFileInput" class="d-none" accept="image/jpeg,image/png,image/webp" aria-label="Coverdatei">
                         </div>
                     </div>
+                    <section class="igdb-playtime" id="igdbPlaytime" aria-labelledby="igdbPlaytimeTitle" aria-live="polite" hidden>
+                        <h3 id="igdbPlaytimeTitle">Spielzeit laut IGDB</h3>
+                        <dl id="igdbPlaytimeValues" hidden></dl>
+                        <p id="igdbPlaytimeError" class="setting-status" hidden></p>
+                    </section>
                     <div class="editor-grid">
                         <div class="editor-primary-fields">
                             <label>Status<select id="statusSelect"><option>Nicht gespielt</option><option>Gespielt</option><option>Abgebrochen</option></select></label>
+                            <fieldset class="playtime-fields" id="personalPlaytime" hidden disabled>
+                                <legend>Eigene Spielzeit <small>(optional)</small></legend>
+                                <div>
+                                    <label>Stunden<input type="number" id="playtimeHours" min="0" max="999999" step="1" inputmode="numeric"></label>
+                                    <label>Minuten<input type="number" id="playtimeMinutes" min="0" max="59" step="1" inputmode="numeric"></label>
+                                </div>
+                            </fieldset>
                             <label>Bewertung (0–10)<input type="number" id="ratingInput" min="0" max="10" step="1"></label>
                         </div>
                         <section class="copies-section" aria-labelledby="copiesTitle">
@@ -297,7 +324,7 @@
                                 <p id="copyError" role="alert"></p>
                                 <div class="copy-actions"><button type="button" class="primary-action" id="applyCopyBtn">Übernehmen</button><button type="button" class="secondary-action" id="cancelCopyBtn">Abbrechen</button></div>
                             </fieldset>
-                            <p class="setting-status">Exemplare werden mit „Speichern“ am Spiel gesichert. Status und Bewertung gelten gemeinsam für den Titel.</p>
+                            <p class="setting-status">Exemplare werden zusammen mit dem Spiel gespeichert. Status, Bewertung und Spielzeit gelten gemeinsam für den Titel.</p>
                         </section>
                     </div>
                     <input type="hidden" id="igdbIdInput"><input type="hidden" id="igdbUrlInput">
@@ -305,7 +332,7 @@
             </div>
             <div class="modal-footer mobile-grid-footer">
                 <div class="external-actions"><button type="button" class="danger-action d-none" id="deleteBtn" onclick="deleteGame()">Löschen</button><a id="igdbLinkBtn" href="#" target="_blank" rel="noopener" class="secondary-action d-none">Zu IGDB</a><a id="dekuDealsBtn" href="#" target="_blank" rel="noopener" class="secondary-action deku-action d-none" title="Preisverlauf bei Deku Deals öffnen">Zu Deku Deals</a></div>
-                <div class="save-actions"><button type="button" class="secondary-action" data-bs-dismiss="modal">Abbrechen</button><button type="button" class="primary-action" id="gameSaveBtn" onclick="saveGame()">Speichern</button></div>
+                <div class="save-actions"><button type="button" class="secondary-action" data-bs-dismiss="modal">Abbrechen</button><span id="gameWishAction" hidden></span><button type="button" class="primary-action" id="gameSaveBtn" onclick="saveGame()">Speichern</button></div>
             </div>
         </div></div>
     </div>
@@ -323,6 +350,14 @@
                     <legend>Darstellung</legend>
                     <label class="theme-option"><input type="radio" name="uiTheme" value="cinematic" {% if current_user.ui_theme == 'cinematic' %}checked{% endif %}><span class="theme-swatch cinematic-swatch"></span><span><strong>Cinematic Dark</strong><small>Dunkel, fokussiert und atmosphärisch</small></span></label>
                     <label class="theme-option"><input type="radio" name="uiTheme" value="editorial" {% if current_user.ui_theme == 'editorial' %}checked{% endif %}><span class="theme-swatch editorial-swatch"></span><span><strong>Editorial Shelf</strong><small>Hell, ruhig und cover-orientiert</small></span></label>
+                    <label class="cover-title-setting">Spieltitel in der Sammlung
+                        <select id="coverTitlePosition" aria-describedby="coverTitleHint">
+                            <option value="below">Unter dem Cover</option>
+                            <option value="inside">Im Cover</option>
+                        </select>
+                    </label>
+                    <p id="coverTitleHint" class="setting-status">Gilt für beide Designs in diesem Browser.</p>
+                    <p id="coverTitlePreferenceMessage" class="setting-status" role="status" hidden></p>
                     <label class="form-check form-switch mt-3"><input class="form-check-input" type="checkbox" role="switch" id="showCoverStatus" checked><span class="form-check-label">Statusauswahl auf Covern</span></label>
                     <p class="setting-status">Status direkt in der Sammlung ändern. Gilt für diesen Browser.</p>
                     <p id="coverStatusPreferenceMessage" class="setting-status" role="status"></p>
@@ -344,7 +379,8 @@
                 <label>Aktuelles Passwort<input type="password" id="accountCurrentPassword" autocomplete="current-password"><small>Wird zum Speichern persönlicher Daten und zum Löschen benötigt.</small></label>
                 <label><span>Neues Passwort <small>optional</small></span><input type="password" id="accountNewPassword" minlength="8" autocomplete="new-password"></label>
                 <label>Neues Passwort bestätigen<input type="password" id="accountNewPasswordConfirm" minlength="8" autocomplete="new-password"></label>
-</div><div class="settings-friends"><strong>Freunde</strong><button id="openFriends" type="button" class="secondary-action" data-bs-dismiss="modal">Freunde und Anfragen</button></div>                <button type="button" class="secondary-action account-logout-action" onclick="document.getElementById('logoutForm').requestSubmit()">↪ Abmelden</button>
+</div>
+                <button type="button" class="secondary-action account-logout-action" onclick="document.getElementById('logoutForm').requestSubmit()">↪ Abmelden</button>
                 <div class="danger-zone"><div><strong>Konto löschen</strong><small>Löscht dein Konto und deine gesamte Sammlung dauerhaft.</small></div><button type="button" class="danger-action" onclick="deleteOwnAccount()">Konto löschen</button></div>
 </section>
 <section id="settings-app" class="settings-panel" role="tabpanel" aria-labelledby="settings-tab-app" hidden>                <div class="install-setting">

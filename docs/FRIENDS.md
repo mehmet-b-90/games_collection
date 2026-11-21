@@ -4,7 +4,7 @@ Server/Web seit 02.11.2026 als **0.9** veröffentlicht (`server-v0.9`, Images `:
 
 ## Nutzung
 
-- Web: eigener Bereich **Freunde**, mobil über **Profil → Freunde und Anfragen**.
+- Web: **Freunde** direkt in der Desktop- und Mobilnavigation. Dezente Linien trennen Freunde, erhaltene und gesendete Anfragen.
 - Android: **Profil → Freunde und Anfragen**, native Compose-Oberfläche in beiden App-Designs.
 - Anfrage über den genauen Benutzernamen eines registrierten Kontos auf demselben Server. Die bestehende Normalisierung ignoriert Groß-/Kleinschreibung und äußere Leerzeichen. Kein Benutzerverzeichnis und keine unvollständige Namenssuche.
 - Getrennte Listen für Freunde, erhaltene und gesendete Anfragen. Nur der Empfänger kann annehmen; beide Seiten können eine Anfrage entfernen. Gegenseitige Anfragen werden nicht automatisch angenommen.

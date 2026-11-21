@@ -1,5 +1,21 @@
 # Android-Codeprüfung vom 17.10.2026
 
+## Lokale Version 0.12 – 21.11.2026
+
+Der signierte Release-Build mit `testReleaseUnitTest lintRelease assembleRelease --offline --no-daemon` war erfolgreich. 49 JVM-Tests bestanden, Lint meldete keine Befunde. APK-Signatur v2, Metadaten 0.12 / Code 11 und Info-Text im kompilierten APK-Code geprüft. Die Sichtprüfung auf einem Android-Gerät steht aus. Lokale APK unter `android/app/build/outputs/apk/release/Games-Collection-0.12-release.apk`.
+
+## Spielzeit – 21.11.2026
+
+Die Spieldetails und der Editor laden IGDB-Richtwerte beim aktiven Titel über den Sammlungsserver. Bei „Gespielt“ zeigt der Editor optionale Stunden- und Minutenfelder. Die eigene Zeit bleibt offline lesbar. Änderungen laufen über die bestehende Warteschlange und werden nur mit `game_playtime`-Capability übertragen. Der JSON-Test prüft gespeicherte Werte, explizites Leeren, unveränderte bereits versuchte Anfragen nach Wiederherstellung und den Erhalt der bestätigten Zeit nach einem Statuswechsel.
+
+`testReleaseUnitTest lintRelease assembleRelease --offline --no-daemon` erfolgreich. 49 JVM-Tests, Release-Lint ohne Befunde und APK-v2-Signatur gültig. Lokale APK 0.11 / Code 10 unter `android/app/build/outputs/apk/release/Games-Collection-0.11-release.apk`. Geräteprüfung der beiden Designs und der Tastatureingabe steht aus.
+
+## Sammlungskarten und Titelposition – 21.11.2026
+
+„Spieltitel in der Sammlung“ unter Profil → Einstellungen → Darstellung auf diesem Gerät schaltet den Titel in beiden Designs zwischen unterhalb des Covers (Standard) und einer kontrastierten Einblendung im Cover um. Die App speichert die Auswahl lokal in den Darstellungseinstellungen und übernimmt sie beim Serverwechsel. Die Exemplarzahl steht in einer eigenen Zeile unter den Besitzplattformen.
+
+`testReleaseUnitTest lintRelease assembleRelease --offline --no-daemon` erfolgreich. 48 JVM-Tests, Release-Lint ohne Befunde. Signatur nach APK Signature Scheme v2 und Metadaten 0.11 / Code 10 verifiziert. Lokale APK unter `android/app/build/outputs/apk/release/Games-Collection-0.11-release.apk`. Offen bleibt die Sichtprüfung in beiden Designs auf einem Android-Gerät, insbesondere mit drei Postern pro Reihe und großer Schrift.
+
 ## Lokaler Build 0.11 – 10.11.2026
 
 Release-Prüfung mit 48 JVM-Tests und Lint ohne Befunde erfolgreich. APK-Metadaten (0.11 / Code 10), Info-Text im kompilierten Code und APK-v2-Signatur verifiziert. Die lokale APK liegt unter `android/app/build/outputs/apk/release/Games-Collection-0.11-release.apk`. Die Geräteprüfung steht aus.

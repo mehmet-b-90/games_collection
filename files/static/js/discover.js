@@ -1,3 +1,4 @@
+import {wishButton, initializeWishlist} from './wishlist.js';
 import {apiFetch, responseJson} from './api.js';
 import {resetForm} from './games.js';
 import {selectGame} from './igdb-search.js';
@@ -18,6 +19,12 @@ export function initializeDiscovery() {
         if (className) el.className = className;
         return el;
     };
+    function openEditor(game) {
+        resetForm();
+        selectGame(game);
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('gameModal')).show();
+    }
+    initializeWishlist(openEditor);
     function render(games) {
         grid.replaceChildren();
         games.forEach(game => {
@@ -43,16 +50,13 @@ export function initializeDiscovery() {
                 : 'Noch keine IGDB-Bewertung', 'discovery-rating'));
             if (owned.has(game.id)) card.append(node('span', '✓ In Sammlung', 'discovery-owned'));
             else {
-                const button = node('button', '+ Hinzufügen', 'secondary-action');
+                const button = node('button', 'Zur Sammlung hinzufügen', 'secondary-action');
                 button.type = 'button';
                 button.setAttribute('aria-label', `${game.name} zur Sammlung hinzufügen`);
-                button.addEventListener('click', () => {
-                    resetForm();
-                    selectGame(game);
-                    bootstrap.Modal.getOrCreateInstance(document.getElementById('gameModal')).show();
-                });
+                button.addEventListener('click', () => openEditor(game));
                 card.append(button);
             }
+            card.append(wishButton(game));
             grid.append(card);
         });
     }

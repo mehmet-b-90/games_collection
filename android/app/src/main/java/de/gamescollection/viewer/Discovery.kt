@@ -44,7 +44,7 @@ data class DiscoveryFeed(val games: List<PopularGame>, val stale: Boolean, val u
 data class DiscoveryState(val feed: DiscoveryFeed? = null, val loading: Boolean = false, val error: String? = null)
 
 @Composable
-fun DiscoveryScreen(discovery: DiscoveryState, state: ViewerState, retry: () -> Unit, add: (Game) -> Unit) {
+internal fun DiscoveryScreen(wishlist: Wishlist, discovery: DiscoveryState, state: ViewerState, retry: () -> Unit, add: (Game) -> Unit) {
     val owned = remember(state.games) { state.games.mapNotNull { it.igdbId }.toSet() }
     val feed = discovery.feed
     val stamp = remember(feed?.updatedAt) {
@@ -90,11 +90,12 @@ fun DiscoveryScreen(discovery: DiscoveryState, state: ViewerState, retry: () -> 
                 Text(popular.igdbRating?.let { "IGDB ★ ${String.format(Locale.GERMAN, "%.1f", it)} / 10" }
                     ?: "Noch keine IGDB-Bewertung", style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
+                WishButton(popular.game, wishlist)
                 if (popular.game.igdbId in owned) Text("✓ In Sammlung", color = MaterialTheme.colorScheme.primary,
                     style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(vertical = 12.dp))
                 else OutlinedButton(onClick = { add(popular.game) }, enabled = !state.busy,
                     contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp), modifier = Modifier.fillMaxWidth()) {
-                    Text("+ Hinzufügen", style = MaterialTheme.typography.labelMedium)
+                    Text("Zur Sammlung hinzufügen", style = MaterialTheme.typography.labelMedium)
                 }
             }
         }

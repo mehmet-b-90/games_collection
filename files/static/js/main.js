@@ -2,7 +2,7 @@ import {initializeUi, resetFilters, setQuickFilter} from './ui.js';
 import {initializeCharts} from './charts.js';
 import {initializeIgdbSearch} from './igdb-search.js';
 import {deleteGame, initializeGameModal, openGameDetails, resetForm, saveGame} from './games.js';
-import {deleteOwnAccount, initializeSettingsTabs, initializeThemePicker, openAccountModal, saveAccount} from './account.js';
+import {deleteOwnAccount, initializeCoverTitlePosition, initializeSettingsTabs, initializeThemePicker, openAccountModal, saveAccount} from './account.js';
 import {openAdminModal} from './admin.js';
 import {initializePwa} from './pwa.js';
 
@@ -11,6 +11,7 @@ Object.assign(window, {
     openAccountModal, saveAccount, deleteOwnAccount, openAdminModal
 });
 
+initializeCoverTitlePosition();
 initializeUi();
 initializeCharts();
 initializeIgdbSearch();

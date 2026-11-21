@@ -1,6 +1,7 @@
 import os
 
-APP_VERSION = '0.11'
+APP_VERSION = '0.12'
+MAX_PLAYTIME_MINUTES = 59_999_999
 
 PLATFORMS = {
     'Amazon Games', 'Battle.net', 'EA app', 'Epic Games Store', 'GOG.com',

@@ -10,6 +10,65 @@ let customCover; // undefined keeps the stored cover, null restores the standard
 let coverSelection = 0;
 let readingCover = false;
 let saving = false;
+let playtimeRequest;
+let storedPlaytime = null;
+
+const igdbDurations = [
+    ['hastily', 'Hauptgeschichte'], ['normally', 'Mit Nebeninhalten'], ['completely', '100 % Abschluss']
+];
+
+function formatIgdbPlaytime(seconds) {
+    if (seconds < 60) return '< 1 min';
+    const minutes = Math.round(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+    return [hours && `${hours} h`, minutes % 60 && `${minutes % 60} min`].filter(Boolean).join(' ');
+}
+
+export async function refreshIgdbPlaytime(id) {
+    playtimeRequest?.abort();
+    const panel = document.getElementById('igdbPlaytime');
+    const values = document.getElementById('igdbPlaytimeValues');
+    const message = document.getElementById('igdbPlaytimeError');
+    panel.hidden = values.hidden = message.hidden = true;
+    values.replaceChildren();
+    if (!Number.isSafeInteger(id) || id <= 0) return;
+
+    const controller = new AbortController();
+    playtimeRequest = controller;
+    try {
+        const response = await apiFetch(`/api/igdb/playtime/${id}`, {signal: controller.signal});
+        const durations = await responseJson(response, 'IGDB-Spielzeiten sind derzeit nicht verfügbar.');
+        if (controller.signal.aborted) return;
+        for (const [field, label] of igdbDurations) {
+            const seconds = durations[field];
+            if (!Number.isSafeInteger(seconds) || seconds <= 0) continue;
+            const entry = document.createElement('div');
+            const term = document.createElement('dt');
+            const value = document.createElement('dd');
+            term.textContent = label;
+            value.textContent = formatIgdbPlaytime(seconds);
+            entry.append(term, value);
+            values.append(entry);
+        }
+        panel.hidden = values.hidden = values.childElementCount === 0;
+    } catch {
+        if (controller.signal.aborted) return;
+        message.textContent = 'IGDB-Spielzeiten sind derzeit nicht verfügbar.';
+        panel.hidden = message.hidden = false;
+    }
+}
+
+function updatePlaytimeVisibility() {
+    const field = document.getElementById('personalPlaytime');
+    field.hidden = field.disabled = document.getElementById('statusSelect').value !== 'Gespielt';
+}
+
+function resetPlaytime(minutes = null) {
+    storedPlaytime = minutes;
+    set('playtimeHours', minutes === null ? '' : Math.floor(minutes / 60));
+    set('playtimeMinutes', minutes === null ? '' : minutes % 60);
+    updatePlaytimeVisibility();
+}
 
 function renderCover() {
     const url = customCover === undefined ? storedCoverUrl || coverUrl : customCover || coverUrl;
@@ -71,9 +130,19 @@ export function updateDekuDealsLink(title = '') {
         : '#';
 }
 
+function clearWishAction() {
+    const slot = document.getElementById('gameWishAction');
+    slot.hidden = true;
+    slot.replaceChildren();
+}
+
 export function resetForm() {
+    clearWishAction();
+    document.getElementById('gameSaveBtn').textContent = 'Zur Sammlung hinzufügen';
     document.getElementById('gameForm').reset();
     applyGameDefaults();
+    resetPlaytime();
+    refreshIgdbPlaytime();
     resetCover();
     ['gameId', 'gameVersion', 'igdbIdInput', 'igdbUrlInput', 'releaseInput', 'devInput', 'pubInput', 'engineInput', 'platformsInput', 'ageRatingInput']
         .forEach(id => set(id));
@@ -84,10 +153,14 @@ export function resetForm() {
 }
 
 export function openGameDetails(game) {
+    clearWishAction();
+    document.getElementById('gameSaveBtn').textContent = 'Speichern';
     set('gameId', game.id); set('gameVersion', game.version); set('titleInput', game.title);
     set('releaseYearSearch', game.release_date || '');
     set('statusSelect', game.status || 'Nicht gespielt');
     set('ratingInput', game.rating ?? '');
+    resetPlaytime(game.playtime_minutes ?? null);
+    refreshIgdbPlaytime(game.igdb_id);
     resetCover(game);
     set('releaseInput', game.release_date || ''); set('devInput', game.developer || '');
     set('pubInput', game.publisher || ''); set('engineInput', game.game_engine || '');
@@ -121,6 +194,13 @@ export async function saveGame() {
         igdb_id: document.getElementById('igdbIdInput').value, igdb_url: document.getElementById('igdbUrlInput').value,
         age_rating: document.getElementById('ageRatingInput').value
     };
+    if (data.status === 'Gespielt') {
+        const hours = document.getElementById('playtimeHours');
+        const minutes = document.getElementById('playtimeMinutes');
+        if (!hours.reportValidity() || !minutes.reportValidity()) return;
+        const total = hours.value || minutes.value ? Number(hours.value) * 60 + Number(minutes.value) : null;
+        if (total !== storedPlaytime) data.playtime_minutes = total;
+    }
     if (customCover !== undefined) data.custom_cover = customCover && customCover.split(',')[1];
     if (id) data.version = document.getElementById('gameVersion').value;
     saving = true;
@@ -150,6 +230,7 @@ export async function deleteGame() {
 
 export function initializeGameModal() {
     initializeCopies();
+    document.getElementById('statusSelect').addEventListener('change', updatePlaytimeVisibility);
     const input = document.getElementById('coverFileInput');
     document.getElementById('chooseCoverBtn').addEventListener('click', () => {
         if (!saving) input.click();
@@ -186,8 +267,12 @@ export function initializeGameModal() {
             }
         }
     });
-    document.getElementById('gameModal').addEventListener('hidden.bs.modal', () => resetCover());
+    document.getElementById('gameModal').addEventListener('hidden.bs.modal', () => {
+        resetCover();
+        refreshIgdbPlaytime();
+    });
     document.getElementById('titleInput').addEventListener('input', event => {
+        clearWishAction();
         updateDekuDealsLink(event.target.value);
     });
     document.getElementById('gameModal').addEventListener('shown.bs.modal', () => {

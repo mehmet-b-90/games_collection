@@ -8,11 +8,11 @@ from ..database import api_error, commit_changes
 from ..config import PLATFORMS
 from ..extensions import db
 from ..idempotency import idempotent_game_write
-from ..igdb import IGDB_GAME_TYPES, get_igdb_token, get_preferred_age_rating, log_upstream_failure
+from ..igdb import IGDB_GAME_TYPES, game_time_to_beat, get_igdb_token, get_preferred_age_rating, log_upstream_failure
 from ..models import Game, GameCover
 from ..ownership import legacy_copies, set_copies
 from ..popscore import IGDB_GAME_FIELDS, PopScoreError, popular_games
-from ..validation import validate_game_payload, validate_integer
+from ..validation import validate_game_payload, validate_integer, validate_playtime_status
 from .friends import pair_with
 
 games_bp = Blueprint('games', __name__, url_prefix='/api')
@@ -132,6 +132,20 @@ def search_igdb():
         game['mapped_age_rating'] = get_preferred_age_rating(game.get('age_ratings', []))
     return jsonify(results)
 
+
+@games_bp.get('/igdb/playtime/<int:igdb_id>')
+@login_required
+def igdb_playtime(igdb_id):
+    if not 0 < igdb_id <= 2**63 - 1 or request.args:
+        return api_error('Ungültige IGDB-Spielzeitabfrage.')
+    try:
+        times = game_time_to_beat(igdb_id)
+    except (requests.RequestException, ValueError) as error:
+        log_upstream_failure('IGDB-Spielzeitabruf fehlgeschlagen', error)
+        return api_error('IGDB-Spielzeiten sind derzeit nicht verfügbar.', 502)
+    return jsonify(times)
+
+
 @games_bp.route('/games', methods=['POST'])
 @login_required
 @idempotent_game_write
@@ -141,6 +155,7 @@ def add_game():
         return api_error('Es wird ein JSON-Objekt erwartet.')
     try:
         game_data = validate_game_payload(data, creating=True)
+        validate_playtime_status(game_data)
     except ValueError as error:
         return api_error(str(error))
     copies = game_data.pop('copies', None)
@@ -180,6 +195,10 @@ def manage_game(game_id):
         return api_error('Die Versionsnummer des Spiels fehlt.')
     if game.version != expected_version:
         return api_error('Das Spiel wurde zwischenzeitlich geändert. Bitte lade die Seite neu.', 409)
+    try:
+        validate_playtime_status(game_data, game.status)
+    except ValueError as error:
+        return api_error(str(error))
     if not game_data:
         return api_error('Keine Änderungen übermittelt.')
     copies = game_data.pop('copies', None)

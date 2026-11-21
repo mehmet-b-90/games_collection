@@ -86,6 +86,26 @@ export function initializeThemePicker() {
     });
 }
 
+export function initializeCoverTitlePosition() {
+    const select = document.getElementById('coverTitlePosition');
+    const message = document.getElementById('coverTitlePreferenceMessage');
+    const apply = () => { document.documentElement.dataset.coverTitlePosition = select.value; };
+    try {
+        if (localStorage.getItem('coverTitlePosition') === 'inside') select.value = 'inside';
+    } catch { /* Use the default if storage is unavailable. */ }
+    apply();
+    select.addEventListener('change', () => {
+        apply();
+        try {
+            localStorage.setItem('coverTitlePosition', select.value);
+            message.hidden = true;
+        } catch {
+            message.textContent = 'Die Einstellung gilt vorübergehend. Der Browser konnte sie nicht dauerhaft speichern.';
+            message.hidden = false;
+        }
+    });
+}
+
 export async function saveAccount() {
     const username = document.getElementById('accountUsername').value.trim();
     const currentPassword = document.getElementById('accountCurrentPassword').value;

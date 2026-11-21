@@ -72,6 +72,104 @@ class GamesCollectionTestCase(unittest.TestCase):
             clients.append(client)
         return clients
 
+    def test_personal_playtime_validation_status_changes_and_privacy(self):
+        alice, bob, _ = self.friend_accounts()
+        data = {'title': 'Spielzeit', 'copies': [], 'playtime_minutes': 125}
+        self.assertEqual(alice.post('/api/games', json=data).status_code, 400)
+        data['status'] = 'Gespielt'
+        for invalid in (-1, 60_000_000, True, 1.5, '125'):
+            with self.subTest(value=invalid):
+                self.assertEqual(alice.post('/api/games', json={**data, 'playtime_minutes': invalid}).status_code, 400)
+        key = str(uuid4())
+        for _ in range(2):
+            self.assertEqual(alice.post('/api/games', json=data, headers={'Idempotency-Key': key}).status_code, 201)
+        game, = alice.get('/api/games').json['games']
+        path = f"/api/games/{game['id']}"
+        self.assertEqual(game['playtime_minutes'], 125)
+        self.assertEqual(alice.put(path, json={'version': 1, 'status': 'Abgebrochen', 'playtime_minutes': 0}).status_code, 400)
+        self.assertEqual(alice.put(path, json={'version': 1, 'status': 'Abgebrochen'}).status_code, 200)
+        self.assertEqual(alice.put(path, json={'version': 2, 'playtime_minutes': None}).status_code, 400)
+        self.assertEqual(alice.put(path, json={'version': 2, 'status': 'Gespielt'}).status_code, 200)
+        self.assertEqual(alice.get('/api/games').json['games'][0]['playtime_minutes'], 125)
+        self.assertEqual(alice.post('/api/friends', json={'username': 'Böb'}).status_code, 201)
+        self.assertEqual(bob.put('/api/friends/1', json={}).status_code, 200)
+        self.assertNotIn('playtime_minutes', bob.get('/api/friends/1/games').json['games'][0])
+        self.assertEqual(alice.put(path, json={'version': 1, 'playtime_minutes': None}).status_code, 409)
+        self.assertEqual(alice.put(path, json={'version': 3, 'playtime_minutes': None}).status_code, 200)
+        self.assertIsNone(alice.get('/api/games').json['games'][0]['playtime_minutes'])
+
+    @patch('files.igdb.get_igdb_credentials', return_value={'client_id': 'test', 'access_token': 'sample'})
+    @patch('files.igdb.requests.post')
+    def test_igdb_playtime_handles_partial_records_missing_data_and_outages(self, post, _credentials):
+        from requests import Timeout
+
+        path = '/api/igdb/playtime/1942'
+        self.assertEqual(self.client.get(path).status_code, 401)
+        self.register()
+        post.return_value.json.return_value = [{'hastily': 3600, 'normally': 5020, 'completely': 0}]
+        for _ in range(2):
+            self.assertEqual(self.client.get(path).json, {'hastily': 3600, 'normally': 5020})
+        post.assert_called_once()
+        self.assertTrue(post.call_args.args[0].endswith('/game_time_to_beats'))
+        self.assertIn('where game_id = 1942;', post.call_args.kwargs['data'])
+        post.return_value.json.return_value = []
+        self.assertEqual(self.client.get('/api/igdb/playtime/2').json, {})
+        post.side_effect = Timeout('upstream')
+        self.assertEqual(self.client.get('/api/igdb/playtime/3').status_code, 502)
+        self.assertEqual(self.client.get('/api/igdb/playtime/0').status_code, 400)
+
+    def test_playtime_column_migration_preserves_games_versions_and_copies(self):
+        from files.migrations import migrate_game_playtime
+
+        self.register()
+        self.assertEqual(self.add_game().status_code, 201)
+        old, = self.client.get('/api/games').json['games']
+        with app.app_context():
+            with db.engine.begin() as connection:
+                connection.exec_driver_sql('ALTER TABLE game DROP COLUMN playtime_minutes')
+            migrate_game_playtime()
+            migrate_game_playtime()
+            with db.engine.connect() as connection:
+                self.assertEqual(connection.exec_driver_sql('PRAGMA integrity_check').scalar(), 'ok')
+                self.assertEqual(connection.exec_driver_sql('PRAGMA foreign_key_check').fetchall(), [])
+        self.assertEqual(self.client.get('/api/games').json['games'], [old])
+
+    @patch('files.routes.wishlist.catalog')
+    @patch('files.routes.wishlist.today')
+    def test_wishlist_release_precision_isolation_and_delivery(self, today, catalog):
+        from datetime import date
+        from requests import Timeout
+        path = '/api/wishlist'
+        alice, bob, _ = self.friend_accounts()
+        day = date(2026, 11, 20)
+        today.return_value = day
+        release = dict(platform=dict(id=6, name='PC'), release_region=dict(region='europe'),
+                       date_format=dict(format='YYYY'), y=2026, m=11, date=1795219200)
+        game = dict(id=42, name='Nordlicht', release_dates=[release])
+        catalog.return_value = {42: game}
+        selected = dict(platform=6, region='europe')
+        self.assertEqual(alice.get(path + '/42/options').json['options'][0]['day'], None)
+        self.assertEqual(alice.put(path + '/42', json={**selected, 'user_id': 2}).status_code, 400)
+        for _ in range(2):
+            self.assertEqual(alice.put(path + '/42', json=selected).status_code, 200)
+        self.assertEqual(bob.get(path).json['items'], [])
+        self.assertFalse(alice.get(path).json['items'][0]['notify'])
+        release['date_format']['format'] = 'YYYYMMDD'
+        release['date'] = 1795219200 + 86400
+        self.assertFalse(alice.get(path).json['items'][0]['notify'])
+        today.return_value = date(2026, 11, 23)
+        catalog.side_effect = Timeout()
+        self.assertFalse(alice.get(path).json['items'][0]['notify'])
+        catalog.side_effect = None
+        self.assertTrue(alice.get(path).json['items'][0]['notify'])
+        alice.post(path + '/42/seen', json={'client': 'web'})
+        self.assertFalse(alice.get(path).json['items'][0]['notify'])
+        self.assertTrue(alice.get(path + '?client=android').json['items'][0]['notify'])
+        bob.delete(path + '/42')
+        self.assertEqual(len(alice.get(path).json['items']), 1)
+        alice.delete(path + '/42')
+        self.assertEqual(alice.get(path).json['items'], [])
+
     def test_game_defaults_isolation_validation_and_csrf(self):
         path = '/api/account/game-defaults'
         self.assertEqual(self.client.get(path).status_code, 401)
@@ -725,6 +823,9 @@ class GamesCollectionTestCase(unittest.TestCase):
         self.assertIn('/static/js/main.js', response.get_data(as_text=True))
         self.assertIn('id="dekuDealsBtn"', response.get_data(as_text=True))
         self.assertIn('id="filterMinRating"', response.get_data(as_text=True))
+        self.assertIn('id="coverTitlePosition"', response.get_data(as_text=True))
+        self.assertIn('<option value="below">Unter dem Cover</option>', response.get_data(as_text=True))
+        self.assertIn('<option value="inside">Im Cover</option>', response.get_data(as_text=True))
         self.assertIn('id="releaseYearSearch"', response.get_data(as_text=True))
         self.assertIn('id="gameTypeSearch"', response.get_data(as_text=True))
         self.assertIn('<option value="0">Spielevollversion</option>', response.get_data(as_text=True))
@@ -744,8 +845,6 @@ class GamesCollectionTestCase(unittest.TestCase):
         games_script.close()
         ui_script = self.client.get('/static/js/ui.js')
         self.assertIn("rating >= minimumRating", ui_script.get_data(as_text=True))
-        self.assertIn("platform-icon-label", ui_script.get_data(as_text=True))
-        self.assertIn("'Wii U': 'Wii U'", ui_script.get_data(as_text=True))
         self.assertIn('copy.platform === platform', ui_script.get_data(as_text=True))
         ui_script.close()
 

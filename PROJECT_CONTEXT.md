@@ -1,5 +1,73 @@
 # Games Collection – Projektkontext
 
+## Lokale Version 0.12 – 21.11.2026
+
+Auf Betreiberauftrag stehen Server/Web und Android lokal auf **0.12**. Android verwendet **VersionCode 11**. Aktuelle Versionshinweise und lokale APK-Pfade sind abgeglichen.
+
+Flask rendert im Info-Reiter „Web-Version 0.12“. Alle 67 Backendtests bestanden im vorhandenen Podman-Image mit aktuellem Quellcode, temporären Datenbanken und deaktiviertem Netzwerk.
+
+Der signierte Release-Build mit `testReleaseUnitTest lintRelease assembleRelease --offline --no-daemon` war erfolgreich. 49 JVM-Tests bestanden, Lint meldete keine Befunde. APK-Signatur v2, Metadaten 0.12 / Code 11 und Info-Text im kompilierten APK-Code geprüft. Die Sichtprüfung auf einem Android-Gerät steht aus. Lokale APK unter `android/app/build/outputs/apk/release/Games-Collection-0.12-release.apk`. Die Änderung ist lokal.
+
+## Dialog „Spiel hinzufügen“ im Web – 21.11.2026
+
+Der Spieleeditor nutzt auf breiten Bildschirmen bis zu 1.000 px und behält einen seitlichen Fensterabstand. Auf Desktop passen Links und Aktionen gemeinsam in eine Fußzeile. Auf schmalen Mobilansichten bis 380 px erhält die Hauptaktion bei sichtbarer Wunschlistenaktion eine eigene Zeile, damit Beschriftungen lesbar bleiben. Die eigene Spielzeit erscheint bei „Gespielt“ zwischen Status und Bewertung, auch in der Tab-Reihenfolge. PWA-Cache v24.
+
+Chromium prüfte beide Designs mit temporärer Datenbank und simulierten IGDB-Antworten bei 320, 390, 700, 991, 992 und 1.569 px. Geprüft wurden der Einstieg über die Suche und über Entdecken, die Fußzeile ohne Überlauf, die einzeilige Desktop-Fußzeile, Tastaturreihenfolge und Sichtbarkeit bei allen drei Statuswerten. Speichern und Wiederöffnen der eigenen Spielzeit und der Bewertung in beiden Designs bestätigt. Desktop- und Mobil-Screenshots gesichtet. Alle 67 Backendtests, Syntaxprüfung des Service Workers und `git diff --check` erfolgreich.
+
+Screenshot-Folgekorrektur: Die Cover-Spalte beansprucht oberhalb von 680 px ein Viertel der Inhaltsbreite, begrenzt auf 145 bis 240 px. Dadurch nehmen Titelsuche, Release-Jahr, Titeltyp und Metadaten auf breiten Bildschirmen weniger Platz ein. Bis 680 px misst die Vorschau 92 px. Das Coverformat bleibt 3:4. PWA-Cache v25.
+
+Chromium prüfte beide Designs bei 320, 390, 680, 681, 768, 992 und 1.569 px. Platzhalter und geladenes Cover nutzen dieselben Maße. Felder und Vorschau passen ohne Überlappung in den Dialog. Suche, Entdecken und Speicherung erneut geprüft, Desktop- und Mobil-Screenshots gesichtet. 67 Backendtests, Syntaxprüfung des Service Workers und `git diff --check` erfolgreich.
+
+## Web-Freundesansicht – 21.11.2026
+
+„Freunde und Anfragen“ aus Einstellungen → Konto entfernt. Auf Desktop führt der vorhandene Reiter „Freunde“ zum Bereich. Auf Mobilgeräten übernimmt ein direkter Eintrag in der unteren Navigation den bisherigen Zugang über Konto. Zwei dezente Linien in der Designfarbe für Rahmen trennen die drei Abschnitte auch bei leeren Listen. PWA-Cache v23.
+
+Chromium prüfte beide Designs bei 320 und 1366 px mit temporärer Testdatenbank. Kontoreiter ohne Freundeszeile, aktiver Freundesreiter, zwei Trennlinien und Navigation ohne horizontalen Überlauf bestätigt. Screenshots gesichtet. JavaScript-Syntax und `git diff --check` geprüft.
+
+## Spielzeit – 21.11.2026
+
+Web und Android zeigen beim Öffnen eines IGDB-Titels verfügbare Durchschnittswerte für Hauptgeschichte, Spielen mit Nebeninhalten und 100 % Abschluss. Der gemeinsame Server-Endpunkt ruft die Sekundenwerte bei Bedarf ab, auch für bereits gespeicherte Titel. Die Clients zeigen sie in Stunden und Minuten an. Ein Live-Abruf über die lokale API bestätigte alle drei Werte für „The Witcher 3: Wild Hunt“. [IGDB-Dokumentation](https://api-docs.igdb.com/#game-time-to-beat)
+
+Bei „Gespielt“ kann der Benutzer seine eigene Spielzeit in Stunden und Minuten erfassen oder leeren. Der Server ergänzt beim Start die optionale SQLite-Spalte `game.playtime_minutes`. Die Angabe bleibt bei Statuswechseln im Konto gespeichert und steht nach der Synchronisierung in beiden Clients zur Verfügung. Die Freigabe an Freunde enthält dieses Feld nicht. Die Android-App kann die eigene Zeit offline bearbeiten und verlangt für die Übertragung einen Server mit `game_playtime`-Capability. PWA-Cache v22.
+
+67 Backendtests und 49 Android-JVM-Tests bestanden. Chromium prüfte beide Designs bei 320 und 1366 px. Das lokale Podman-Testimage startete erfolgreich mit Gunicorn. Release-Lint ohne Befunde und APK-Signatur v2 gültig. Details stehen in den Reviews. Sichtprüfung auf einem Android-Gerät und Produktivupdate sind offen. Der lokale Versionsstand bleibt 0.11 mit Android-Code 10.
+
+## Entdecken – 21.11.2026
+
+Der Sammlungsbutton unter „Aktuell beliebt“ heißt im Web und auf Android „Zur Sammlung hinzufügen“. PWA-Cache v21. Die Beschriftung wurde im Quelltext beider Clients geprüft.
+
+## Einheitliche Kontofelder – 21.11.2026
+
+Screenshotkorrektur im Web-Reiter Konto: Die Labels im gemeinsamen Einstellungsraster richten ihren Inhalt mit `align-content: start` oben aus. Dadurch streckt der Hilfetext des aktuellen Passworts das benachbarte Benutzername-Feld nicht mehr. PWA-Cache v20. Chromium hat mit echtem Templateausschnitt und Projekt-/Bootstrap-CSS beide Designs bei 320 und 1366 px geprüft: alle vier Eingabefelder jeweils 42 px hoch, Desktop-Feldpaare auf gleicher Höhe, kein horizontaler Überlauf. Screenshot gesichtet; `git diff --check` erfolgreich. Reine CSS-Korrektur, kein erneuter Backendtest oder vollständiger Browser-Speichertest.
+
+## Web-Quellcode bereinigt – 21.11.2026
+
+Nach der Umstellung auf Besitzplattformen als Text sind die sieben ungenutzten PNGs aus `files/static/logos` entfernt. Die Webanwendung enthält keine Verweise mehr auf das Verzeichnis, die früheren externen Plattformbilder oder die zugehörigen Kartenstile. CSS-Reste der früheren Plattform-Mehrfachauswahl im Editor entfallen. Filter und Sortierung verwenden ihre Funktionen nun ausschließlich innerhalb von `ui.js`. Der PWA-Cache steht auf v19, damit der Service Worker ältere Cache-Generationen samt gespeicherten Plattformbildern verwirft.
+
+64 Backendtests mit temporären Datenbanken bestanden. JavaScript-Syntax und `git diff --check` geprüft. Chromium prüfte Sammlung, Filter und Spiel-Editor in beiden Designs bei 320 und 1366 px sowie den Cachewechsel und die Offline-Hinweisseite. Details stehen im [Server-Review](SERVER_REVIEW.md#web-quellcode-und-pwa-cache--21112026). Die Bereinigung liegt im lokalen Arbeitsbaum.
+
+## Sammlungskarten und Titelposition – 21.11.2026
+
+Die eigene Web-Sammlung folgt auf Desktop und Mobil dem Kartenaufbau der Android-App. Statt Plattformlogos zeigen beide Clients unter dem Cover die eindeutigen Besitzplattformen als Text sowie die Anzahl aller Exemplare in einer separaten Zeile. So bleibt die Anzahl auch bei langen Plattformlisten sichtbar. Persönliche Bewertungen erscheinen bei vorhandener Bewertung auf dem Cover.
+
+„Spieltitel in der Sammlung“ bietet in den Darstellungseinstellungen „Unter dem Cover“ und „Im Cover“. Die Voreinstellung unter dem Cover entspricht der bisherigen Android-Darstellung und gilt nun auch im Web. Eine Auswahl wird sofort übernommen und gilt über Designwechsel hinweg lokal im Browser beziehungsweise auf dem Android-Gerät. PWA-Cache v18.
+
+Chromium-Prüfung an einer temporären SQLite-Datenbank bei 320 und 1366 px mit beiden Designs und Titelpositionen. Geprüft wurden Wechsel zwischen den Designs, Neuladen, Karten mit null, einem und mehreren Exemplaren einschließlich doppelter Besitzplattform, lange Bezeichnungen, Filter und Öffnen des Spiel-Editors per Tastatur. 64 Backendtests bestanden. Android: 48 JVM-Tests bestanden, Release-Lint ohne Befunde, lokale APK 0.11 / Code 10 mit gültiger v2-Signatur erstellt. Die Sichtprüfung der Android-App auf einem Gerät steht aus.
+
+## Web-Spieleeditor – Korrektur vom 21.11.2026
+
+Die Desktop-Trefferliste nutzt bis zu 54 % der Fensterhöhe (maximal 540 px). Jede Zeile wählt einen Titel aus. Nach Auswahl stehen rechts unten „Abbrechen“, „Auf die Wunschliste“ und „Zur Sammlung hinzufügen“. Die Wunschlistenaktion öffnet die Plattform-/Regionsauswahl. Erfolgreiches Vormerken schließt den Editor. Bei Bestandsänderungen bleibt die Aktion „Speichern“. Die Korrektur betrifft den Webclient.
+
+Chromium-Prüfung mit Testdaten in beiden Designs bei 1366 und 390 px: Treffer auswählen, Fußzeilenreihenfolge prüfen, vormerken, zur Sammlung hinzufügen und gespeichertes Spiel wieder öffnen. Bei 1366 × 800 px öffnete die Liste mit elf Testtreffern auf über 400 px Höhe. Alle 64 Backendtests erfolgreich.
+
+## Wunschliste – lokaler Stand vom 21.11.2026
+
+Der lokale Commit `b7e2fb8` sichert den Stand vor der Umsetzung einschließlich der damaligen README-Ergänzung. Der Betreiber hat das Mockup für beide Clients freigegeben und die Bücher-/Pflanzenillustration im Desktop-Kopf ausgeschlossen.
+
+Unter Entdecken liegt die kontobezogene Wunschliste. Spielsuche und Entdecken bieten die Auswahl eines IGDB-Termins nach Plattform und Region. Entfernen und Übernahme in den vorhandenen Spieleditor sind möglich. Die zusätzliche SQLite-Tabelle `wish` ist pro Nutzer und Titel eindeutig. Beide Clients prüfen beim Online-Öffnen die aktuellen IGDB-Daten. Nur ein taggenauer regulärer Release löst eine Meldung aus. Verglichen wird mit dem Kalendertag in Europe/Berlin. Die Lesebestätigung gilt separat für Web und Android, damit eine Bestätigung im Browser die Systemmeldung auf Android erhält.
+
+Prüfungen mit temporären Datenbanken: Upgrade vom Rückkehrpunkt und wiederholter Start erhalten sämtliche bestehenden Tabelleninhalte. 64 Backendtests bestanden. Die vollständige IGDB-Abfrage für „The Witcher 3: Wild Hunt“ lieferte plattformbezogene Termine. Chromium-Bedienprüfung mit Testdaten für Editorial Shelf und Cinematic Dark bei 390 und 1366 px: Vormerken über Suche und Entdecken, Entfernen, Übergabe an den vorausgefüllten Editor und Erscheinungshinweis mit persistenter Lesebestätigung. 48 Android-JVM-Tests, Release-Lint und signierter Build erfolgreich. APK-v2-Signatur verifiziert. Das Dockerfile mit Podman gebaut und den Health-Endpunkt sowie die Kalenderberechnung im isolierten Testcontainer geprüft. APK unter `android/app/build/outputs/apk/release/Games-Collection-0.11-release.apk`. Physischer Gerätetest der Berechtigungsabfrage und Systemmeldung offen. Lokaler Entwicklungsstand ohne Veröffentlichung.
+
 ## Versionsanzeige und lokaler Stand 0.11 – 10.11.2026
 
 - Auf Betreiberauftrag Web/Server und Android auf 0.11 gesetzt. Android-Code von 9 auf 10 erhöht, damit der signierte Build als neuerer Stand erkannt wird. „Info“ zeigt dauerhaft die Version aus der zentralen Konfiguration an. Die Vorgabe steht in `AGENTS.md`.
@@ -433,7 +501,7 @@ Android (Kotlin/Compose) ── JSON + Cookies ───┘          │
 - `files/igdb.py`: OAuth-Token-Cache und USK-/PEGI-Auswahl.
 - `files/routes/`: `auth` (HTML-Anmeldung/Registrierung), `main` (Seite/Health/PWA/CSRF), `games`, `users`, `session` (native JSON-Anmeldung).
 - `files/templates/`: Jinja-Templates `index.html`, `auth.html`.
-- `files/static/`: gemeinsames CSS, Logos, PWA-Dateien und ES-Module in `js/`: `main`, `ui`, `api`, `games`, `igdb-search`, `account`, `admin`, `charts`, `pwa`.
+- `files/static/`: gemeinsames CSS, App-Icons, PWA-Dateien und ES-Module in `js/`. Die damaligen Plattformbilder wurden am 21.11.2026 entfernt.
 - `tests/test_app.py`: Backend-/Frontend-Vertragstests mit `unittest`, temporärer DB und gemockten externen Aufrufen.
 - `android/`: eigenständiges Gradle-Projekt; Anleitung in `android/README.md`.
 - Android-Package: `android/app/src/main/java/de/gamescollection/viewer/`; `MainActivity`, `CollectionUi`, `FormTextField`, `CollectionViewModel`, `ApiClient`, `HttpCall`, `SessionStore`, `Models`, `EditorState`, `CollectionSummary`, `NativeIcons`, `ServerAddress`.
@@ -442,7 +510,7 @@ Android (Kotlin/Compose) ── JSON + Cookies ───┘          │
 ## Technologien (im Projekt festgelegt, keine Aussage über neueste Versionen)
 
 - Docker-Basis `python:3.14.7-slim-trixie`; Flask 3.1.3, Flask-SQLAlchemy 3.1.1 / SQLAlchemy 2.0.54, Flask-Login 0.6.3, Flask-WTF 1.3.0, Gunicorn 26.2.0, Requests 2.34.2. Vollständige direkte und transitive Pins: `requirements.txt`.
-- Jinja, CSS, JavaScript-ES-Module ohne Node-Buildpipeline; Bootstrap 5.3.0 und Chart.js 4.5.1 über CDN. Einige Plattformlogos ebenfalls extern, andere lokal.
+- Jinja, CSS, JavaScript-ES-Module ohne Node-Buildpipeline; Bootstrap 5.3.0 und Chart.js 4.5.1 über CDN.
 - Android: Kotlin/Compose-Compiler 2.2.20, Android Gradle Plugin 8.13.2, Gradle-Wrapper 8.13 mit SHA-256-Prüfsumme, JDK 17.
 - Android minSdk 26 (Android 8), compileSdk/targetSdk 36, Build-Tools laut Anleitung 35.0.0; Compose BOM 2025.09.00, Material 3, Lifecycle/ViewModel, Coroutines, OkHttp 4.12.0, Coil 2.7.0. Tests mit JUnit und MockWebServer.
 - App-ID/Namespace `de.gamescollection.viewer`; kein Flutter, keine WebView, keine separate Android-Datenbank.
@@ -484,7 +552,7 @@ Android (Kotlin/Compose) ── JSON + Cookies ───┘          │
 - Sammlung: IGDB-Suche mit Jahresfilter, manuelles Anlegen, Bearbeiten/Löschen, Mehrfachbesitzplattformen, Status/Format/Bewertung, Metadaten und Cover.
 - Filter nach Text, Engine, Plattform, Status, Format, Altersfreigabe und Mindestbewertung; Sortierung und lokale Covergrößeneinstellung.
 - Zwei Designs; mobil schwebende kompakte Bottom-Bar, Profil/Konto für Einstellungen/Abmelden; bereinigte redundante Navigationsknöpfe.
-- Plattformlogos oder Text-Fallbacks; klassische Nintendo-/Sega-Plattformen sowie Wii/Wii U gehören zur kanonischen Liste in `config.py`.
+- Besitzplattformen stehen seit 21.11.2026 als Text auf den Sammlungskarten. Klassische Nintendo-/Sega-Plattformen sowie Wii/Wii U gehören zur kanonischen Liste in `config.py`.
 - Statistiken mit Chart.js, Namen/Anzahlen/Prozentwerten; Beschriftungen in ausreichend großen Tortenstücken, Restlegende für kleine Anteile.
 - Manifest, Icons, Service Worker, Offline-Hinweisseite. Service Worker nutzt Netzwerk zuerst, cached statische Dateien, nicht API-Antworten oder persönliche HTML-Seiten. Keine Offline-Bearbeitung/Synchronisation. Installation setzt einen geeigneten sicheren Browserkontext voraus (üblicherweise HTTPS; localhost-Sonderfall).
 

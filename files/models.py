@@ -1,5 +1,11 @@
 from flask_login import UserMixin
+from .config import MAX_PLAYTIME_MINUTES
 from .extensions import db
+
+PLAYTIME_CONSTRAINT = (
+    "playtime_minutes IS NULL OR "
+    f"(typeof(playtime_minutes) = 'integer' AND playtime_minutes BETWEEN 0 AND {MAX_PLAYTIME_MINUTES})"
+)
 
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -50,6 +56,7 @@ class Game(db.Model):
     available_platforms = db.Column(db.Text)
     format = db.Column(db.String(50), nullable=False, default='Digital')
     rating = db.Column(db.Integer)
+    playtime_minutes = db.Column(db.Integer, db.CheckConstraint(PLAYTIME_CONSTRAINT, name='playtime_range'))
     status = db.Column(db.String(50), nullable=False, default='Nicht gespielt')
     age_rating = db.Column(db.String(50))
     version = db.Column(db.Integer, nullable=False, default=1)
@@ -61,8 +68,10 @@ class Game(db.Model):
     custom_cover = db.relationship('GameCover', lazy='selectin', uselist=False,
                                    cascade='all, delete-orphan', passive_deletes=True)
 
-    def to_dict(self):
+    def to_dict(self, *, include_playtime=True):
         data = {column.name: getattr(self, column.name) for column in self.__table__.columns}
+        if not include_playtime:
+            data.pop('playtime_minutes')
         data['owned_platform'] = ', '.join(item.platform for item in self.owned_platforms)
         data['copies'] = [item.to_dict() for item in self.copies]
         if self.custom_cover:
@@ -127,3 +136,14 @@ class Friendship(db.Model):
     user_high = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False, index=True)
     requested_by = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
     status = db.Column(db.String(16), nullable=False, default='pending')
+
+
+class Wish(db.Model):
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), primary_key=True)
+    game_id = db.Column(db.Integer, primary_key=True)
+    platform = db.Column(db.Integer, nullable=False)
+    region = db.Column(db.String(80), nullable=False)
+    snapshot = db.Column(db.JSON, nullable=False)
+    created = db.Column(db.Date, nullable=False)
+    web_seen = db.Column(db.Boolean, nullable=False)
+    android_seen = db.Column(db.Boolean, nullable=False)

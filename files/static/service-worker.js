@@ -1,11 +1,12 @@
 const CACHE_PREFIX = 'games-collection-';
-const CACHE_NAME = `${CACHE_PREFIX}v15`;
+const CACHE_NAME = `${CACHE_PREFIX}v25`;
 const STATIC_ASSETS = [
     '/static/offline.html',
     '/static/style.css',
     '/static/js/main.js',
     '/static/js/cover-status.js',
     '/static/js/discover.js',
+    '/static/js/wishlist.js',
     '/static/js/friends.js',
     '/static/js/api.js',
     '/static/js/account.js',

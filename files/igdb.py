@@ -1,5 +1,7 @@
 import time
 import threading
+from collections import OrderedDict
+
 import requests
 from flask import current_app
 from .database import request_id
@@ -9,6 +11,8 @@ _token = None
 _token_expires = 0
 _token_owner = None
 _token_lock = threading.Lock()
+_playtime_lock = threading.Lock()
+_playtime_fields = ('hastily', 'normally', 'completely')
 
 # Current IGDB game_types (live verified on 2026-10-30), shared by search validation and UI.
 IGDB_GAME_TYPES = {
@@ -98,3 +102,35 @@ def get_igdb_credentials(verify=False):
 def get_igdb_token():
     credentials = get_igdb_credentials()
     return credentials['access_token'] if credentials else None
+
+
+def game_time_to_beat(game_id):
+    """Load one catalog record on demand, including cached misses."""
+    with _playtime_lock:
+        cache = current_app.extensions.setdefault('igdb_playtime', OrderedDict())
+        if game_id in cache:
+            expires_at, times = cache[game_id]
+            if time.monotonic() < expires_at:
+                cache.move_to_end(game_id)
+                return times
+
+    credentials = get_igdb_credentials()
+    if not credentials:
+        raise ValueError('IGDB credentials unavailable')
+    headers = {'Client-ID': credentials['client_id'], 'Authorization': 'Bearer ' + credentials['access_token']}
+    body = f'fields {",".join(_playtime_fields)}; where game_id = {game_id}; limit 1;'
+    response = requests.post('https://api.igdb.com/v4/game_time_to_beats', headers=headers, data=body, timeout=8)
+    response.raise_for_status()
+    results = response.json()
+    if not isinstance(results, list) or (results and not isinstance(results[0], dict)):
+        raise ValueError('Invalid IGDB playtime record')
+    record = results[0] if results else {}
+    times = {field: record[field] for field in _playtime_fields
+             if type(record.get(field)) is int and 0 < record[field] <= 2**31 - 1}
+
+    with _playtime_lock:
+        cache[game_id] = (time.monotonic() + 86_400, times)
+        cache.move_to_end(game_id)
+        if len(cache) > 512:
+            cache.popitem(last=False)
+    return times

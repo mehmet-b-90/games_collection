@@ -134,10 +134,6 @@ export function initializeFriends() {
     });
     document.getElementById('friendsRefresh').addEventListener('click', () => run(load));
     document.getElementById('friendLibraryClose').addEventListener('click', closeLibrary);
-    document.getElementById('openFriends').addEventListener('click', () => {
-        if (location.hash === '#friends') run(load);
-        else location.hash = 'friends';
-    });
     search.addEventListener('input', renderGames);
     function show() {
         generation++;

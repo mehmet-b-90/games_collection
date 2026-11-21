@@ -1,5 +1,6 @@
 """Additive, transactional SQLite data migrations; never recreate existing tables."""
 from .extensions import db
+from .models import PLAYTIME_CONSTRAINT
 
 COPIES_MIGRATION = '2026_11_game_copies'
 
@@ -26,6 +27,22 @@ def migrate_game_copies():
                     ORDER BY p.id
                 ''')
                 connection.exec_driver_sql('INSERT INTO schema_migration (name) VALUES (?)', (COPIES_MIGRATION,))
+            connection.commit()
+        except Exception:
+            connection.rollback()
+            raise
+
+
+def migrate_game_playtime():
+    with db.engine.connect() as connection:
+        connection.exec_driver_sql('BEGIN IMMEDIATE')
+        try:
+            columns = connection.exec_driver_sql('PRAGMA table_info(game)')
+            if not any(column[1] == 'playtime_minutes' for column in columns):
+                connection.exec_driver_sql(
+                    'ALTER TABLE game ADD COLUMN playtime_minutes INTEGER '
+                    f'CONSTRAINT playtime_range CHECK ({PLAYTIME_CONSTRAINT})'
+                )
             connection.commit()
         except Exception:
             connection.rollback()

@@ -97,6 +97,11 @@ private val EditorialColors = lightColorScheme(
 
 @Composable fun CollectionApp(model: CollectionViewModel) {
     val state = model.state
+    val wishlist = key(state.server, state.username, model.coverClient) {
+        val scope = rememberCoroutineScope()
+        remember { Wishlist(model.coverClient, scope) }
+    }
+    var wishTab by rememberSaveable(state.server, state.username) { mutableStateOf(false) }
     val activity = LocalActivity.current as? ComponentActivity
     SideEffect {
         val style = if (state.theme == "editorial") SystemBarStyle.light(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT)
@@ -178,7 +183,15 @@ private val EditorialColors = lightColorScheme(
                         when (tab) {
                             0 -> LibraryScreen(state, model.visibleGames, sort, model::changeSort,
                                 model::changeStatus) { model.showGame(it) }
-                            3 -> DiscoveryScreen(model.discovery, state, { model.loadDiscovery(force = true) }, model::addDiscovered)
+                            3 -> Column {
+                                Row {
+                                    FilterChip(selected = !wishTab, onClick = { wishTab = false }, label = { Text("Aktuell beliebt") })
+                                    Spacer(Modifier.width(8.dp))
+                                    FilterChip(selected = wishTab, onClick = { wishTab = true; wishlist.refresh() }, label = { Text("Wunschliste") })
+                                }
+                                if (wishTab) WishlistScreen(wishlist, state.games, model::addDiscovered)
+                                else DiscoveryScreen(wishlist, model.discovery, state, { model.loadDiscovery(force = true) }, model::addDiscovered)
+                            }
                             1 -> StatisticsScreen(state.summary)
                             else -> ProfileScreen(state, { settingsOpen = true }, { friendsOpen = true }, model::logout)
                         }
@@ -197,7 +210,9 @@ private val EditorialColors = lightColorScheme(
                     model::removeFriend, model::showFriendLibrary, model::loadFriends)
             }
             if (queueOpen && state.username != null) QueueDialog(state, model::discardQueued, { queueOpen = false })
-            if (settingsOpen && state.username != null) SettingsDialog(state, model::setTheme, model::setPostersPerRow, model::setShowCoverStatus, model::saveGameDefaults,
+            if (settingsOpen && state.username != null) SettingsDialog(
+                state, model::setTheme, model::setPostersPerRow, model::setShowCoverStatus,
+                model::setTitleInsideCover, model::saveGameDefaults,
                 { serverDialog = true }, { settingsOpen = false })
             if (serverDialog) Dialog(onDismissRequest = { if (!state.busy) serverDialog = false }) {
                 Surface(shape = RoundedCornerShape(24.dp)) {
@@ -214,15 +229,17 @@ private val EditorialColors = lightColorScheme(
                 matches = model.visibleGames.size,
                 close = { searchOpen = false }
             )
-            if (adding && state.username != null) SearchDialog(state, model.searchResults, model::search,
+            if (adding && state.username != null) SearchDialog(wishlist, state, model.searchResults, model::search,
                 model::dismissEditor, model::selectSearchResult)
+            if (state.username != null) WishlistEvents(wishlist, state.supportsWishlist && model.coverClient != null, state.server + "|" + state.username)
             selected?.takeIf { state.username != null }?.let { game ->
                 val collectionPage = if (tab == 0 && !edit && !adding && model.editor.pending == null) {
                     remember(game.id, model.visibleGames, state.queue) { model.collectionDetailPage(game.id) }
                 } else null
                 GameDialog(game, state, edit, model.editor.pending != null, model::startEditing,
                     model::dismissEditor, model::changeDraft, model::pickCover, model::save, { model.delete(game) }, model::retryWrite,
-                    collectionPage = collectionPage, browse = model::browseCollection, saveCopies = model::saveCopies)
+                    collectionPage = collectionPage, browse = model::browseCollection, saveCopies = model::saveCopies,
+                    playtimeClient = model.coverClient)
             }
             state.error?.let { message ->
                 AlertDialog(onDismissRequest = model::clearError, title = { Text("Hinweis") },
@@ -366,7 +383,9 @@ private val EditorialColors = lightColorScheme(
                 else "Keine Spiele für diese Filter gefunden.", color = MaterialTheme.colorScheme.onSurfaceVariant)
         } else LazyVerticalGrid(columns = GridCells.Fixed(state.postersPerRow), horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp), contentPadding = PaddingValues(bottom = 90.dp)) {
-            items(visible, key = { it.id }) { game -> GameCard(game, select, !state.busy, state.showCoverStatus, changeStatus) }
+            items(visible, key = { it.id }) { game ->
+                GameCard(game, select, !state.busy, state.showCoverStatus, state.titleInsideCover, changeStatus)
+            }
         }
     }
 }
@@ -387,13 +406,24 @@ private fun statusIcon(status: String): ImageVector = when (status) {
 }
 
 @Composable private fun GameCard(game: Game, select: (Game) -> Unit, statusEnabled: Boolean, showCoverStatus: Boolean,
-    changeStatus: (Int, String) -> Unit) {
+    titleInsideCover: Boolean, changeStatus: (Int, String) -> Unit) {
     // Round only the cover. Clipping the entire card also clips the lower text corners.
     Column(Modifier.clickable { select(game) }) {
         Box(Modifier.fillMaxWidth().aspectRatio(0.72f).clip(RoundedCornerShape(16.dp)).background(MaterialTheme.colorScheme.surfaceVariant)) {
             Icon(NativeIcons.Gamepad, null, Modifier.size(48.dp).align(Alignment.Center))
             GameCoverImage(game, "Cover von ${game.title}", Modifier.fillMaxSize())
-            Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = .75f)), startY = 140f)))
+            if (game.rating != null || titleInsideCover) {
+                Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth()
+                    .background(Brush.verticalGradient(0f to Color.Transparent,
+                        .4f to Color.Black.copy(alpha = .84f), 1f to Color.Black.copy(alpha = .96f)))
+                    .padding(start = 10.dp, top = 20.dp, end = 10.dp, bottom = 10.dp),
+                    verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    if (game.rating != null) Text("★ ${game.rating}", color = Color.White,
+                        modifier = Modifier.align(Alignment.End), fontSize = 13.sp)
+                    if (titleInsideCover) Text(game.title, color = Color.White,
+                        maxLines = 2, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleSmall)
+                }
+            }
             if (showCoverStatus) Box(Modifier.padding(2.dp).align(Alignment.TopStart)) {
                 var expanded by remember { mutableStateOf(false) }
                 IconButton(onClick = { expanded = true }, enabled = statusEnabled,
@@ -417,12 +447,16 @@ private fun statusIcon(status: String): ImageVector = when (status) {
                     }
                 }
             }
-            if (game.rating != null) Text("★ ${game.rating}", color = Color.White, modifier = Modifier.align(Alignment.BottomEnd).padding(10.dp), fontSize = 13.sp)
         }
         Column(Modifier.fillMaxWidth().padding(start = 4.dp, end = 4.dp, top = 8.dp, bottom = 4.dp),
             verticalArrangement = Arrangement.spacedBy(3.dp)) {
-            Text(game.title, maxLines = 2, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleSmall)
-            Text(game.ownedPlatforms.joinToString(" · ") + " · ${game.ownedCopies.size} Exemplare", maxLines = 2, overflow = TextOverflow.Ellipsis,
+            if (!titleInsideCover) Text(game.title, maxLines = 2, overflow = TextOverflow.Ellipsis,
+                style = MaterialTheme.typography.titleSmall)
+            Text(game.ownedPlatforms.joinToString(" · ").ifEmpty { "Keine Besitzplattform" },
+                maxLines = 2, overflow = TextOverflow.Ellipsis,
+                color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
+            val copyCount = game.ownedCopies.size
+            Text(if (copyCount == 1) "1 Exemplar" else "$copyCount Exemplare",
                 color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
         }
     }
@@ -564,7 +598,8 @@ private fun statusIcon(status: String): ImageVector = when (status) {
 }
 
 @Composable private fun SettingsDialog(state: ViewerState, setTheme: (String) -> Unit,
-    setPostersPerRow: (Int) -> Unit, setShowCoverStatus: (Boolean) -> Unit, saveDefaults: (GameDefaults) -> Unit,
+    setPostersPerRow: (Int) -> Unit, setShowCoverStatus: (Boolean) -> Unit, setTitleInsideCover: (Boolean) -> Unit,
+    saveDefaults: (GameDefaults) -> Unit,
     server: () -> Unit, close: () -> Unit) {
     var infoOpen by rememberSaveable { mutableStateOf(false) }
     FullScreenDialog("Einstellungen", true, close) {
@@ -580,6 +615,10 @@ private fun statusIcon(status: String): ImageVector = when (status) {
                     Text(label)
                 }
             }
+            val belowCover = "Unter dem Cover"
+            val insideCover = "Im Cover"
+            ChoiceField("Spieltitel in der Sammlung", if (state.titleInsideCover) insideCover else belowCover,
+                listOf(belowCover, insideCover)) { setTitleInsideCover(it == insideCover) }
             HorizontalDivider()
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f).padding(end = 12.dp)) {
@@ -655,7 +694,7 @@ private fun statusIcon(status: String): ImageVector = when (status) {
     }
 }
 
-@Composable private fun SearchDialog(state: ViewerState, results: List<Game>, search: (String, String, IgdbGameType) -> Unit,
+@Composable private fun SearchDialog(wishlist: Wishlist, state: ViewerState, results: List<Game>, search: (String, String, IgdbGameType) -> Unit,
     close: () -> Unit, select: (Game) -> Unit) {
     var query by rememberSaveable { mutableStateOf("") }
     var year by rememberSaveable { mutableStateOf("") }
@@ -687,6 +726,7 @@ private fun statusIcon(status: String): ImageVector = when (status) {
                             Column(Modifier.padding(start = 14.dp).weight(1f)) {
                                 Text(game.title, fontWeight = FontWeight.Bold)
                                 Text(game.release, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                WishButton(game, wishlist)
                             }
                         }
                     }
@@ -710,7 +750,8 @@ private fun statusIcon(status: String): ImageVector = when (status) {
 
 @Composable private fun GameDialog(game: Game, state: ViewerState, edit: Boolean, pending: Boolean, startEditing: () -> Unit,
     close: () -> Unit, changeDraft: (Game) -> Unit, pickCover: (Uri) -> Unit, save: (Game) -> Unit, delete: () -> Unit,
-    retry: () -> Unit, collectionPage: CollectionDetailPage?, browse: (Int) -> Unit, saveCopies: (Game) -> Unit) {
+    retry: () -> Unit, collectionPage: CollectionDetailPage?, browse: (Int) -> Unit, saveCopies: (Game) -> Unit,
+    playtimeClient: ApiClient?) {
     val context = LocalContext.current
     val coverPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         uri?.let(pickCover)
@@ -730,6 +771,23 @@ private fun statusIcon(status: String): ImageVector = when (status) {
         else { savingCopy = copies; saveCopies(changed) }
     }
     var confirmDelete by rememberSaveable { mutableStateOf(false) }
+    var hours by rememberSaveable(state.server, state.username, game.id, game.igdbId, game.playtimeMinutes, edit) {
+        mutableStateOf(game.playtimeMinutes?.div(60)?.toString().orEmpty())
+    }
+    var minutes by rememberSaveable(state.server, state.username, game.id, game.igdbId, game.playtimeMinutes, edit) {
+        mutableStateOf(game.playtimeMinutes?.rem(60)?.toString().orEmpty())
+    }
+    val invalidMinutes = (minutes.toIntOrNull() ?: 0) > 59
+    val enteredPlaytime = if (hours.isEmpty() && minutes.isEmpty()) null
+        else (hours.toIntOrNull() ?: 0) * 60 + (minutes.toIntOrNull() ?: 0)
+    val playtimeId = game.igdbId?.takeIf { it > 0 }
+    val igdbPlaytime = key(playtimeId, playtimeClient) {
+        produceState<Result<JSONObject>?>(null) {
+            if (playtimeId != null && playtimeClient != null) {
+                value = loadIgdbPlaytime(playtimeClient, playtimeId)
+            }
+        }.value
+    }
     val content: @Composable (Game, Boolean) -> Unit = { draft, active ->
         val editable = active && !state.busy && !pending && !copyWriteBlocked
         val valid = draft.title.isNotBlank() && draft.title.length <= 200 && draft.ownedCopies.size <= 100
@@ -765,6 +823,10 @@ private fun statusIcon(status: String): ImageVector = when (status) {
                 Text("Der Ausgang der Änderung ist unklar. Prüfe denselben Vorgang erneut, bevor du den Entwurf änderst.")
                 Button(onClick = retry, modifier = Modifier.fillMaxWidth()) { Text("Vorgang erneut prüfen") }
             }
+            if (!edit && draft.status == PLAYED_STATUS && draft.playtimeMinutes != null) item {
+                Metadata("Eigene Spielzeit", formatPlaytime(draft.playtimeMinutes.toLong()))
+            }
+            if (active && igdbPlaytime != null) item { IgdbPlaytime(igdbPlaytime.getOrNull()) }
             item {
                 GameCopiesList(draft.ownedCopies, editable,
                     add = { copyIndex = -1 }, edit = { copyIndex = it }, remove = { removingCopy = it })
@@ -776,7 +838,18 @@ private fun statusIcon(status: String): ImageVector = when (status) {
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), enabled = editable, modifier = Modifier.fillMaxWidth()) }
                 item { ChoiceField("Status", draft.status, GAME_STATUSES, enabled = editable) { changeDraft(draft.copy(status = it)) } }
                 item { ChoiceField("Bewertung", draft.rating?.toString() ?: "Nicht bewertet", listOf("Nicht bewertet") + (0..10).map { it.toString() }, enabled = editable) { changeDraft(draft.copy(rating = it.toIntOrNull())) } }
-                item { Button(onClick = { save(draft.copy(title = draft.title.trim())) }, enabled = valid && editable, modifier = Modifier.fillMaxWidth()) { Text(if (state.connected) "Speichern" else "Lokal speichern") } }
+                if (draft.status == PLAYED_STATUS) item {
+                    PersonalPlaytimeFields(hours, minutes, { hours = it }, { minutes = it }, invalidMinutes, editable)
+                }
+                item {
+                    Button(onClick = {
+                        val updated = if (draft.status == PLAYED_STATUS && enteredPlaytime != draft.playtimeMinutes) {
+                            draft.copy(playtimeMinutes = enteredPlaytime, playtimeEdited = true)
+                        } else draft
+                        save(updated.copy(title = updated.title.trim()))
+                    }, enabled = valid && editable && (draft.status != PLAYED_STATUS || !invalidMinutes),
+                        modifier = Modifier.fillMaxWidth()) { Text(if (state.connected) "Speichern" else "Lokal speichern") }
+                }
             } else {
                 item { Button(onClick = startEditing, enabled = editable, modifier = Modifier.fillMaxWidth()) { Icon(Icons.Default.Edit, null); Spacer(Modifier.width(8.dp)); Text("Bearbeiten") } }
             }

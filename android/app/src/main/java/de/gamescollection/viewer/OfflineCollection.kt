@@ -42,7 +42,9 @@ data class OfflineCollection(val owner: String, val username: String,
         // An unsent local creation can be removed without a server request.
         if (deleting && id < 0) return copy(queue = rest)
         val wireGame = game.copy(id = if (id < 0) 0 else id)
-        return copy(queue = rest + QueuedWrite(PendingGameWrite(wireGame, deleting), id),
+        val queuedGame = if (game.status == PLAYED_STATUS) wireGame else wireGame.copy(
+            playtimeMinutes = games.firstOrNull { it.id == id }?.playtimeMinutes, playtimeEdited = false)
+        return copy(queue = rest + QueuedWrite(PendingGameWrite(queuedGame, deleting), id),
             nextId = if (game.id == 0) nextId - 1 else nextId)
     }
 

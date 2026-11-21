@@ -1,5 +1,9 @@
 # Games Collection für Android
 
+### Wunschliste (lokaler Stand vom 21.11.2026)
+
+In der IGDB-Suche oder unter **Entdecken** auf **Auf die Wunschliste** tippen und den Termin für die gewünschte Plattform und Region wählen. **Entdecken → Wunschliste** zeigt die kontoweite Liste. Änderungen benötigen eine Serververbindung. Beim Öffnen prüft die App auf neu erschienene Titel. Für zusätzliche Systemmeldungen die Android-Benachrichtigungsberechtigung erteilen.
+
 ### Exemplare (lokaler Stand vom 10.11.2026, noch nicht veröffentlicht)
 
 Unter **Spieldetails → Mein Besitz** einzelne Exemplare hinzufügen, bearbeiten und entfernen: Plattform, Digital/Physisch und optionale Ausgabe. Der Titel bleibt eine Karte, Status und Bewertung gelten gemeinsam. In der Detailansicht speichert „Exemplar speichern“ lokal über die Offline-Warteschlange; im Spieleditor zunächst „Übernehmen“, danach das Spiel speichern. Filter verbinden Plattform und Format je Exemplar. Details und Updateablauf: [Exemplare und Datenmigration](../docs/EXEMPLARE.md).
@@ -10,7 +14,7 @@ Zuerst ausstehende Änderungen synchronisieren, dann Server mit Datenübernahme 
 
 Unter **Profil → Einstellungen** Titeltyp der Suche, Format, Status und mehrere Besitzplattformen setzen und **Standardwerte speichern**. Gilt kontoweit auch im Web; benötigt den aktuellen Serverstand mit Capability `game_defaults`. Bei Anmeldung/Verbindung/Synchronisierung lädt die App die Vorgaben; pro Server/Konto gespeicherte Werte bleiben offline nutzbar. Neue Spiele aus Suche, manueller Anlage und Entdecken übernehmen die Werte. Vorhandene Spiele und Entwürfe bleiben unverändert.
 
-Der lokale Entwicklungsstand ist **Android 0.11 / VersionCode 10**. Unter **Profil → Einstellungen → Info** steht die Versionsnummer des installierten Builds.
+Der lokale Entwicklungsstand ist **Android 0.12 / VersionCode 11**. Unter **Profil → Einstellungen → Info** steht die Versionsnummer des installierten Builds.
 
 **Android 0.9 / VersionCode 8 (02.11.2026) veröffentlicht.** [Release Notes](../release-notes/android-v0.9.md). Die signierte GitHub-APK ist veröffentlicht; den verifizierten Abschluss dokumentiert `../PROJECT_CONTEXT.md`. Der Play-Test bleibt bei 0.7 / Code 4.
 
@@ -34,6 +38,7 @@ Lokale Korrektur vom 01.11.2026 (noch nicht in der veröffentlichten GitHub-APK)
 - Filter nach Plattform, Status, Format, Engine, Altersfreigabe und Mindestbewertung
 - Native Statistik mit Anzahl und Prozentwerten
 - Spieldetails, Bearbeiten und Löschen mit Sicherheitsabfrage
+- IGDB-Richtwerte zur Spielzeit in den Spieldetails und im Editor. Bei **Gespielt** lässt sich die eigene Zeit in Stunden und Minuten auch offline erfassen und später synchronisieren.
 - Hinzufügen über IGDB mit optionalem Release-Jahr und Titeltyp oder manuell
 - Offline-Sammlung mit dauerhaft gespeicherten Änderungen und späterer Synchronisierung
 - Einzelne Exemplare mit Besitzplattform, Format und optionaler Ausgabe; gemeinsamer Spielstatus und Bewertung
@@ -68,16 +73,18 @@ Die folgenden Schritte betreffen die direkte APK-Installation. Zusätzlich läuf
 
 Play- und bisherige Release-APKs haben unterschiedliche Signaturen; vor einem Wechsel den [Hinweis unten](#google-play-und-bisherige-release-apks) lesen.
 
-1. Die [APK für Android-Version 0.9 herunterladen](https://github.com/mehmet-b-90/games_collection/releases/download/android-v0.9/games_collection-v0.9.apk) und auf dem Smartphone öffnen. Bei einem aktuellen eigenen Build verwende die signierte Release-APK unter `app/build/outputs/apk/release/Games-Collection-0.11-release.apk`. Hinweise zum Wechsel von der bisherigen Debug-Signatur stehen unten. Android fragt gegebenenfalls, ob die verwendete Browser- oder Datei-App APKs installieren darf.
+1. Die [APK für Android-Version 0.9 herunterladen](https://github.com/mehmet-b-90/games_collection/releases/download/android-v0.9/games_collection-v0.9.apk) und auf dem Smartphone öffnen. Bei einem aktuellen eigenen Build verwende die signierte Release-APK unter `app/build/outputs/apk/release/Games-Collection-0.12-release.apk`. Hinweise zum Wechsel von der bisherigen Debug-Signatur stehen unten. Android fragt gegebenenfalls, ob die verwendete Browser- oder Datei-App APKs installieren darf.
 2. Games Collection öffnen und deine Serveradresse eingeben, beispielsweise `https://games.example.org` oder für lokale Tests `http://192.168.178.20:7000`.
 3. Bei HTTP die Option „HTTP für lokale Tests zulassen“ aktivieren. Ohne Protokollangabe ergänzt die App beim Verbinden automatisch `http://`, wenn die Option aktiviert ist, andernfalls `https://`. Ein ausdrücklich eingegebenes Protokoll bleibt erhalten; `http://` benötigt weiterhin die Freigabe. HTTPS ist für den regulären Betrieb empfohlen.
 4. Mit deinem bestehenden Games-Collection-Konto anmelden.
 
 Unter „Profil → Einstellungen“ lassen sich Design, Posteranzahl pro Reihe und Serveradresse ändern. Das Dropdown bietet 1, 2 oder 3 Poster pro Reihe; die Postergröße passt sich an die Bildschirmbreite an. Standard sind 2 Poster pro Reihe; darauf lässt sich die Auswahl zurücksetzen. Die bisherige Slider-Einstellung wird durch diesen Standard ersetzt. Design und Posteranzahl werden lokal auf diesem Gerät gespeichert, bleiben bei Serverwechsel erhalten und ändern nicht die Darstellung im Browser.
 
+Unter **Profil → Einstellungen → Darstellung auf diesem Gerät → Spieltitel in der Sammlung** wählst du **Unter dem Cover** (Standard) oder **Im Cover**. Die Einstellung gilt für beide Designs und bleibt nach einem Neustart oder Serverwechsel auf dem Gerät erhalten. Besitzplattformen und Exemplarzahl stehen jeweils unter dem Cover.
+
 Beim Serverwechsel werden die bisherigen Anmelde-Cookies gelöscht; melde dich am neuen Server erneut an. Der Knopf `↻` lädt die Sammlung erneut.
 
-Der Downloadlink verweist auf Version 0.9 (`android-v0.9`, VersionCode 8), einschließlich Freundschaften, direktem Statuswechsel auf dem Cover und korrigierter Hinzufügen-Navigation. Das vom Betreiber hochgeladene Asset heißt `games_collection-v0.9.apk`. Der aktuelle lokale Build heißt `Games-Collection-0.11-release.apk`. Hinweise zum Signaturwechsel beachten. Änderungen und Voraussetzungen stehen in den GitHub Release Notes.
+Der Downloadlink verweist auf Version 0.9 (`android-v0.9`, VersionCode 8), einschließlich Freundschaften, direktem Statuswechsel auf dem Cover und korrigierter Hinzufügen-Navigation. Das vom Betreiber hochgeladene Asset heißt `games_collection-v0.9.apk`. Der aktuelle lokale Build heißt `Games-Collection-0.12-release.apk`. Hinweise zum Signaturwechsel beachten. Änderungen und Voraussetzungen stehen in den GitHub Release Notes.
 
 Das Smartphone muss den Server erreichen können, etwa im gleichen WLAN oder über ein VPN. `localhost` verweist auf dem Smartphone auf das Smartphone selbst. Im Android-Emulator ist der Hostrechner normalerweise unter `10.0.2.2` erreichbar. Die Anwendung erwartet die Serveradresse ohne Unterpfad, da die Webanwendung absolute Routen verwendet.
 
@@ -147,7 +154,7 @@ export JAVA_HOME=/pfad/zum/jdk-17
 
 Alternativ kann der SDK-Pfad in der lokal ignorierten Datei `android/local.properties` als `sdk.dir=/pfad/zum/Android/Sdk` eingetragen werden. Der Gradle-Wrapper und Abhängigkeiten werden bei Bedarf heruntergeladen. Lokales `.toolchain/env.sh` nur verwenden, wenn die dazugehörigen Werkzeuge vorhanden sind.
 
-Die APK liegt ausgehend vom Repository-Hauptverzeichnis unter `android/app/build/outputs/apk/release/Games-Collection-0.11-release.apk`. Der Dateiname folgt automatisch der `versionName`. Der aktuelle Quellstand ist **Version 0.11 / Code 10**. Neue Veröffentlichungen erhalten einen höheren VersionCode und eigene GitHub Release Notes.
+Die APK liegt ausgehend vom Repository-Hauptverzeichnis unter `android/app/build/outputs/apk/release/Games-Collection-0.12-release.apk`. Der Dateiname folgt automatisch der `versionName`. Der aktuelle Quellstand ist **Version 0.12 / Code 11**. Neue Veröffentlichungen erhalten einen höheren VersionCode und eigene GitHub Release Notes.
 
 ### App Bundle für Google Play bauen
 
@@ -175,7 +182,7 @@ Künftige Updates mit demselben Release-Schlüssel und passender Versionsnummer 
 
 ```bash
 cd android
-adb install -r app/build/outputs/apk/release/Games-Collection-0.11-release.apk
+adb install -r app/build/outputs/apk/release/Games-Collection-0.12-release.apk
 ```
 
 Für reine Entwicklungsprüfungen bleibt `./gradlew testDebugUnitTest lintDebug assembleDebug` verfügbar; dessen Ergebnis heißt weiterhin `app/build/outputs/apk/debug/app-debug.apk`. Debug und Release haben dieselbe App-ID und können deshalb nicht als zwei getrennte Apps parallel installiert werden.
@@ -194,6 +201,7 @@ Serverseitig prüfen `python -m unittest discover -s tests -v` unter anderem JSO
 - `POST /api/session`: Anmeldung mit JSON-Feldern `username`, `password`, optional `remember` (Boolean)
 - `DELETE /api/session`: Abmeldung
 - `GET /api/games`: eigene Spiele einschließlich Versionsnummern und verfügbare Besitzplattformen
+- `GET /api/igdb/playtime/<igdb_id>` liefert die verfügbaren IGDB-Durchschnittswerte in Sekunden. Die eigene Spielzeit wird über die Sammlung als `playtime_minutes` in ganzen Minuten übertragen. Der Server meldet die Unterstützung über `game_playtime`.
 - `POST /api/search`, `POST /api/games`, `PUT /api/games/<id>`, `DELETE /api/games/<id>`: bestehende Spielesuche und Verwaltung
 
 Ändernde Anfragen senden das CSRF-Token als `X-CSRFToken`, das zugehörige Sitzungs-Cookie und die konfigurierte Serveradresse als `Referer`. Damit bleibt auch die strenge HTTPS-Referrer-Prüfung von Flask-WTF aktiv. Nicht angemeldete Zugriffe auf geschützte API-Routen liefern JSON mit HTTP 401. Sitzung und Sammlung werden mit `Cache-Control: no-store` ausgeliefert. Es gibt keine CSRF-Ausnahme für die native App.

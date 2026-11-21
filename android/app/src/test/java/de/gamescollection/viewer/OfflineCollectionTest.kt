@@ -55,6 +55,25 @@ class OfflineCollectionTest {
         }
     }
 
+    @Test fun playtimeEditsPreserveExplicitClearsAndAttemptedPayloadsAfterRestart() {
+        val played = game.copy(status = PLAYED_STATUS, playtimeMinutes = 95)
+        val saved = collection.copy(games = listOf(played))
+        assertFalse(played.payload().has("playtime_minutes"))
+        val edited = played.copy(playtimeMinutes = 125, playtimeEdited = true)
+        assertEquals(125, edited.payload().getInt("playtime_minutes"))
+        val cleared = edited.copy(playtimeMinutes = null)
+        val queued = saved.enqueue(cleared, false)
+        val attempted = queued.copy(queue = queued.queue.map { it.copy(attempted = true) })
+        val restored = OfflineCollection.decode(attempted.encode())
+        assertEquals(attempted, restored)
+        val payload = restored.queue.single().write.game.payload()
+        assertTrue(payload.has("playtime_minutes"))
+        assertTrue(payload.isNull("playtime_minutes"))
+        val statusChanged = saved.enqueue(edited, false).changeStatus(played.id, "Abgebrochen")
+        assertEquals(95, statusChanged.visible().single().playtimeMinutes)
+        assertFalse(statusChanged.queue.single().write.game.payload().has("playtime_minutes"))
+    }
+
     @Test fun offlineChangesSurviveSerializationWithStableKeysAndVersion() {
         val queued = collection.enqueue(game.copy(title = "Geändert"), false)
             .enqueue(Game(title = "Neu", platforms = listOf("PC")), false)

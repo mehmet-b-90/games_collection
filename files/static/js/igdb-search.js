@@ -1,5 +1,6 @@
+import {wishButton} from './wishlist.js';
 import {apiFetch, responseJson} from './api.js';
-import {setCoverUrl, updateDekuDealsLink} from './games.js';
+import {refreshIgdbPlaytime, setCoverUrl, updateDekuDealsLink} from './games.js';
 
 let timeout;
 let controller;
@@ -17,6 +18,7 @@ export function selectGame(game, results = document.getElementById('searchResult
     set('releaseYearSearch', releaseYear);
     set('releaseInput', releaseYear);
     set('igdbIdInput', game.id || '');
+    refreshIgdbPlaytime(game.id);
     set('igdbUrlInput', game.url || '');
     set('engineInput', (game.game_engines || []).map(engine => engine.name).join(', '));
     set('platformsInput', (game.platforms || []).map(platform => platform.name).join(', '));
@@ -24,6 +26,12 @@ export function selectGame(game, results = document.getElementById('searchResult
     set('devInput', companies.filter(item => item.developer && item.company).map(item => item.company.name).join(', '));
     set('pubInput', companies.filter(item => item.publisher && item.company).map(item => item.company.name).join(', '));
     set('ageRatingInput', game.mapped_age_rating || '');
+    if (!document.getElementById('gameId').value) {
+        const slot = document.getElementById('gameWishAction');
+        const modal = document.getElementById('gameModal');
+        slot.replaceChildren(wishButton(game, () => bootstrap.Modal.getInstance(modal)?.hide()));
+        slot.hidden = false;
+    }
     updateDekuDealsLink(game.name || '');
     results.style.display = 'none';
 }
@@ -44,7 +52,7 @@ function renderResults(games, results) {
         title.textContent = `${game.name || ''}${year}`;
         button.append(image, title);
         button.addEventListener('click', () => selectGame(game, results));
-        results.appendChild(button);
+        results.append(button);
     });
     results.style.display = games.length ? 'block' : 'none';
 }
@@ -54,6 +62,13 @@ export function initializeIgdbSearch() {
     const yearInput = document.getElementById('releaseYearSearch');
     const typeInput = document.getElementById('gameTypeSearch');
     const results = document.getElementById('searchResults');
+    document.getElementById('gameModal').addEventListener('hidden.bs.modal', () => {
+        clearTimeout(timeout);
+        controller?.abort();
+        requestSequence += 1;
+        results.replaceChildren();
+        results.style.display = 'none';
+    });
     const scheduleSearch = () => {
         clearTimeout(timeout);
         controller?.abort();

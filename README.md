@@ -10,7 +10,11 @@ Games Collection verwaltet deine Videospielesammlung auf einem eigenen Server. D
 
 **Neue lokale Erweiterung:** Einzelne [Exemplare pro Spiel](docs/EXEMPLARE.md) mit Plattform, Format und optionaler Ausgabe in Web und Android. Noch nicht veröffentlicht; vor einem Update den dort beschriebenen datenerhaltenden Migrationsweg beachten.
 
-Der lokale Web-Stand ist **0.11**. Unter **Einstellungen → Info** steht die Version des verbundenen Webservers.
+Der lokale Web-Stand ist **0.12**. Unter **Einstellungen → Info** steht die Version des verbundenen Webservers.
+
+Im lokalen Stand zeigen Web und Android für IGDB-Titel verfügbare Richtwerte für Hauptgeschichte, Spielen mit Nebeninhalten und 100 % Abschluss. Mit dem Status **Gespielt** kannst du deine eigene Spielzeit im Spieleditor in Stunden und Minuten erfassen. Die Angabe wird zwischen Web und Android synchronisiert und ist nur in deinem Konto sichtbar.
+
+Die eigene Sammlung zeigt auf Desktop und Mobil Besitzplattformen und Exemplarzahl unter dem Cover. Unter **Einstellungen → Darstellung → Spieltitel in der Sammlung** wählst du zwischen **Unter dem Cover** (Standard) und **Im Cover**. Die Auswahl gilt in diesem Browser für beide Designs.
 
 Games Collection wurde mit Unterstützung von OpenAI Codex entwickelt.
 

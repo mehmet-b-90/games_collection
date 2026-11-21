@@ -1,5 +1,21 @@
 # Serverprüfung vom 19.10.2026
 
+## Lokale Version 0.12 – 21.11.2026
+
+Flask rendert im Info-Reiter „Web-Version 0.12“. Alle 67 Backendtests bestanden im vorhandenen Podman-Image mit aktuellem Quellcode, temporären Datenbanken und deaktiviertem Netzwerk.
+
+## Spielzeit in Web und API – 21.11.2026
+
+`GET /api/igdb/playtime/<igdb_id>` liest nach Anmeldung die drei verfügbaren Durchschnittswerte von `game_time_to_beats`. Der Server cached Treffer und fehlende Werte bis zu 24 Stunden. Der Aufruf erfolgt beim Öffnen des Editors und nach Auswahl eines IGDB-Titels. Die Spielverwaltung kann auch bei einem Fehler von IGDB gespeichert werden.
+
+Die Startmigration ergänzt `game.playtime_minutes` transaktional in SQLite. API-Prüfungen decken zulässige Werte, Statuswechsel, Löschen einer Zeitangabe, Optimistic Locking, idempotente Wiederholung und die Trennung von der Freundeansicht ab. 67 Backendtests mit temporären Datenbanken bestanden, einschließlich wiederholter Migration und SQLite-Integritätsprüfung. Live-Abruf von „The Witcher 3: Wild Hunt“ über die lokale API erfolgreich. Das lokale Podman-Testimage lieferte unter Gunicorn einen erfolgreichen Healthcheck und meldete `game_playtime` in der Sitzung.
+
+Chromium prüfte mit Testdaten beide Designs bei 320 und 1366 px. Die Prüfung umfasste vorhandene und neu ausgewählte IGDB-Titel, teilweise oder vollständig fehlende Richtwerte, Minutengrenze, Speicherung, Leeren der eigenen Zeit und Erhalt nach Statuswechsel. PWA-Cache v22, JavaScript-Syntax und `git diff --check` geprüft. Produktivmigration steht aus.
+
+## Web-Quellcode und PWA-Cache – 21.11.2026
+
+Chromium prüfte mit temporärer Datenbank bei 320 und 1366 px beide Designs, Titelpositionen, Besitzplattformen als Text, Exemplarzahlen, Textfilter und das Öffnen des Spieleeditors per Tastatur. In einem separaten Browserkontext installierte der Service Worker Cache v19, löschte den vorbereiteten v15-Cache samt Plattformbild und lieferte die Offline-Hinweisseite aus. Das App-Icon lag im neuen Cache. Alle sieben früheren Logo-URLs lieferten HTTP 404. Alle 64 Backendtests bestanden. Die JavaScript-Syntaxprüfung und `git diff --check` waren erfolgreich. Kein Container- oder Android-Build für diese Web-Bereinigung.
+
 ## Lokale Web-Version 0.11 – 10.11.2026
 
 Der Info-Reiter rendert im angemeldeten Flask-Testclient „Web-Version 0.11“ aus `APP_VERSION`. Alle 63 Backendtests mit temporären Datenbanken bestanden.

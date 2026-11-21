@@ -94,4 +94,4 @@ def friend_collection(user_id):
     if user is None:
         return api_error('Diese Sammlung ist nicht freigegeben.', 403)
     games = Game.query.filter_by(user_id=user_id).order_by(Game.title, Game.id).all()
-    return {'user': public_user(user), 'games': [game.to_dict() for game in games]}
+    return {'user': public_user(user), 'games': [game.to_dict(include_playtime=False) for game in games]}

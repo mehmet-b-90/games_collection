@@ -1,5 +1,5 @@
 from urllib.parse import urlparse
-from .config import PLATFORMS
+from .config import MAX_PLAYTIME_MINUTES, PLATFORMS
 from .covers import decode_cover
 
 GAME_TEXT_FIELDS = {
@@ -7,7 +7,9 @@ GAME_TEXT_FIELDS = {
     'publisher': 1000, 'game_engine': 1000, 'available_platforms': 2000,
     'igdb_url': 500, 'age_rating': 50,
 }
-GAME_ALLOWED_FIELDS = set(GAME_TEXT_FIELDS) | {'igdb_id', 'owned_platform', 'format', 'rating', 'status', 'version', 'custom_cover', 'copies'}
+GAME_ALLOWED_FIELDS = set(GAME_TEXT_FIELDS) | {
+    'igdb_id', 'owned_platform', 'format', 'rating', 'status', 'version', 'custom_cover', 'copies', 'playtime_minutes',
+}
 VALID_AGE_RATINGS = {
     'USK 0', 'USK 6', 'USK 12', 'USK 16', 'USK 18',
     'PEGI 3', 'PEGI 7', 'PEGI 12', 'PEGI 16', 'PEGI 18',
@@ -126,6 +128,11 @@ def validate_game_payload(data, creating=False):
             cleaned['rating'] = None
         else:
             cleaned['rating'] = validate_integer(rating, 'rating', 0, 10)
+    if 'playtime_minutes' in data:
+        minutes = data['playtime_minutes']
+        if minutes is not None and (type(minutes) is not int or not 0 <= minutes <= MAX_PLAYTIME_MINUTES):
+            raise ValueError('Die eigene Spielzeit muss in ganzen, nicht negativen Minuten angegeben werden.')
+        cleaned['playtime_minutes'] = minutes
     if 'igdb_id' in data:
         igdb_id = data['igdb_id']
         if igdb_id in (None, ''):
@@ -136,3 +143,8 @@ def validate_game_payload(data, creating=False):
         version = data['version']
         cleaned['version'] = validate_integer(version, 'version', 1, 2**63 - 2)
     return cleaned
+
+
+def validate_playtime_status(changes, current_status='Nicht gespielt'):
+    if 'playtime_minutes' in changes and changes.get('status', current_status) != 'Gespielt':
+        raise ValueError('Die eigene Spielzeit kann nur bei „Gespielt“ geändert werden.')
