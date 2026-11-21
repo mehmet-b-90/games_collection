@@ -781,9 +781,9 @@ private fun statusIcon(status: String): ImageVector = when (status) {
     val enteredPlaytime = if (hours.isEmpty() && minutes.isEmpty()) null
         else (hours.toIntOrNull() ?: 0) * 60 + (minutes.toIntOrNull() ?: 0)
     val playtimeId = game.igdbId?.takeIf { it > 0 }
-    val igdbPlaytime = key(playtimeId, playtimeClient) {
-        produceState<Result<JSONObject>?>(null) {
-            if (playtimeId != null && playtimeClient != null) {
+    val igdbPlaytime = key(playtimeId, playtimeClient, game.igdbPlaytime) {
+        produceState<Result<IgdbDurations>?>(null) {
+            if (game.igdbPlaytime == null && playtimeId != null && playtimeClient != null) {
                 value = loadIgdbPlaytime(playtimeClient, playtimeId)
             }
         }.value
@@ -826,7 +826,11 @@ private fun statusIcon(status: String): ImageVector = when (status) {
             if (!edit && draft.status == PLAYED_STATUS && draft.playtimeMinutes != null) item {
                 Metadata("Eigene Spielzeit", formatPlaytime(draft.playtimeMinutes.toLong()))
             }
-            if (active && igdbPlaytime != null) item { IgdbPlaytime(igdbPlaytime.getOrNull()) }
+            val currentGame = draft.id == game.id
+            val estimates = draft.igdbPlaytime ?: igdbPlaytime?.getOrNull().takeIf { currentGame }
+            if (estimates != null || (currentGame && playtimeId != null && playtimeClient != null)) item {
+                IgdbPlaytime(estimates, loading = estimates == null && igdbPlaytime == null)
+            }
             item {
                 GameCopiesList(draft.ownedCopies, editable,
                     add = { copyIndex = -1 }, edit = { copyIndex = it }, remove = { removingCopy = it })

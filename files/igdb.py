@@ -1,6 +1,5 @@
 import time
 import threading
-from collections import OrderedDict
 
 import requests
 from flask import current_app
@@ -11,7 +10,6 @@ _token = None
 _token_expires = 0
 _token_owner = None
 _token_lock = threading.Lock()
-_playtime_lock = threading.Lock()
 _playtime_fields = ('hastily', 'normally', 'completely')
 
 # Current IGDB game_types (live verified on 2026-10-30), shared by search validation and UI.
@@ -104,33 +102,26 @@ def get_igdb_token():
     return credentials['access_token'] if credentials else None
 
 
-def game_time_to_beat(game_id):
-    """Load one catalog record on demand, including cached misses."""
-    with _playtime_lock:
-        cache = current_app.extensions.setdefault('igdb_playtime', OrderedDict())
-        if game_id in cache:
-            expires_at, times = cache[game_id]
-            if time.monotonic() < expires_at:
-                cache.move_to_end(game_id)
-                return times
-
+def fetch_game_durations(game_ids):
+    """Return a duration dictionary for each requested ID, including confirmed misses."""
     credentials = get_igdb_credentials()
     if not credentials:
         raise ValueError('IGDB credentials unavailable')
     headers = {'Client-ID': credentials['client_id'], 'Authorization': 'Bearer ' + credentials['access_token']}
-    body = f'fields {",".join(_playtime_fields)}; where game_id = {game_id}; limit 1;'
+    ids = str(game_ids[0]) if len(game_ids) == 1 else f'({",".join(map(str, game_ids))})'
+    body = f'fields game_id,{",".join(_playtime_fields)}; where game_id = {ids}; limit {len(game_ids)};'
     response = requests.post('https://api.igdb.com/v4/game_time_to_beats', headers=headers, data=body, timeout=8)
     response.raise_for_status()
     results = response.json()
-    if not isinstance(results, list) or (results and not isinstance(results[0], dict)):
+    if not isinstance(results, list):
         raise ValueError('Invalid IGDB playtime record')
-    record = results[0] if results else {}
-    times = {field: record[field] for field in _playtime_fields
-             if type(record.get(field)) is int and 0 < record[field] <= 2**31 - 1}
-
-    with _playtime_lock:
-        cache[game_id] = (time.monotonic() + 86_400, times)
-        cache.move_to_end(game_id)
-        if len(cache) > 512:
-            cache.popitem(last=False)
-    return times
+    durations = {game_id: {} for game_id in game_ids}
+    seen_ids = set()
+    for record in results:
+        game_id = record.get('game_id') if isinstance(record, dict) else None
+        if type(game_id) is not int or game_id not in durations or game_id in seen_ids:
+            raise ValueError('Invalid IGDB playtime game ID')
+        seen_ids.add(game_id)
+        durations[game_id] = {field: record[field] for field in _playtime_fields
+                              if type(record.get(field)) is int and 0 < record[field] <= 2**31 - 1}
+    return durations

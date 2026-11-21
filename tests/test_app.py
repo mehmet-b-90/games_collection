@@ -106,7 +106,7 @@ class GamesCollectionTestCase(unittest.TestCase):
         path = '/api/igdb/playtime/1942'
         self.assertEqual(self.client.get(path).status_code, 401)
         self.register()
-        post.return_value.json.return_value = [{'hastily': 3600, 'normally': 5020, 'completely': 0}]
+        post.return_value.json.return_value = [{'game_id': 1942, 'hastily': 3600, 'normally': 5020, 'completely': 0}]
         for _ in range(2):
             self.assertEqual(self.client.get(path).json, {'hastily': 3600, 'normally': 5020})
         post.assert_called_once()
@@ -117,6 +117,77 @@ class GamesCollectionTestCase(unittest.TestCase):
         post.side_effect = Timeout('upstream')
         self.assertEqual(self.client.get('/api/igdb/playtime/3').status_code, 502)
         self.assertEqual(self.client.get('/api/igdb/playtime/0').status_code, 400)
+
+    @patch('files.igdb.get_igdb_credentials', return_value={'client_id': 'test', 'access_token': 'sample'})
+    @patch('files.igdb.requests.post')
+    @patch('files.routes.admin.PLAYTIME_BATCH_SIZE', 2)
+    def test_one_time_playtime_import_resumes_and_populates_both_collections(self, post, _credentials):
+        from requests import Timeout
+
+        path = '/api/admin/igdb-playtime/import'
+        self.assertEqual(self.client.post(path).status_code, 401)
+        alice, bob, _ = self.friend_accounts()
+        for client, game_id in ((alice, 1942), (bob, 1942), (bob, 2), (alice, 3), (alice, None)):
+            self.assertEqual(client.post('/api/games', json={
+                'title': 'Bestand', 'igdb_id': game_id, 'copies': [], 'status': 'Gespielt', 'playtime_minutes': 71,
+            }).status_code, 201)
+        self.assertIn(b'adminPlaytimeBtn', alice.get('/').data)
+        self.assertNotIn(b'adminPlaytimeBtn', bob.get('/').data)
+        with patch.dict(app.config, {'APP_VERSION': '0.13'}):
+            self.assertNotIn(b'adminPlaytimeBtn', alice.get('/').data)
+            self.assertEqual(alice.post(path).status_code, 404)
+        self.assertEqual(bob.post(path).status_code, 403)
+        self.assertEqual(alice.post(path, json={'test': True}).status_code, 400)
+        post.assert_not_called()
+
+        post.return_value.json.return_value = [{'game_id': 2, 'normally': 5000}]
+        self.assertEqual(alice.post(path).json, {'processed': 2, 'done': False})
+        self.assertIn('where game_id = (2,3); limit 2;', post.call_args.kwargs['data'])
+        post.side_effect = Timeout('upstream')
+        self.assertEqual(alice.post(path).status_code, 502)
+        self.assertIn(b'adminPlaytimeBtn', alice.get('/').data)
+        post.side_effect = None
+        post.return_value.json.return_value = [{'game_id': 1942, 'hastily': 133200, 'completely': 579600}]
+        self.assertEqual(alice.post(path).json, {'processed': 1, 'done': True})
+        calls = post.call_count
+
+        self.assertNotIn(b'adminPlaytimeBtn', alice.get('/').data)
+        self.assertEqual(alice.post(path).json, {'processed': 0, 'done': True})
+        for client, extra in ((alice, {3: {}, None: None}), (bob, {2: {'normally': 5000}})):
+            games = client.get('/api/games').json['games']
+            self.assertEqual({game['igdb_id']: game.get('igdb_playtime') for game in games},
+                             {1942: {'hastily': 133200, 'completely': 579600}, **extra})
+            self.assertTrue(all(game['version'] == 1 and game['playtime_minutes'] == 71 for game in games))
+        self.assertEqual(alice.get('/api/igdb/playtime/3').json, {})
+        self.assertEqual(post.call_count, calls)
+        with patch.dict(app.config, {'APP_VERSION': '0.13'}):
+            self.assertEqual(alice.post(path).status_code, 404)
+            self.assertNotIn(b'adminPlaytimeBtn', alice.get('/').data)
+            self.assertEqual(alice.get('/api/igdb/playtime/1942').json['hastily'], 133200)
+        self.assertEqual(post.call_count, calls)
+
+    def test_igdb_playtime_table_is_added_to_existing_database_on_startup(self):
+        from files.app import create_app
+        from files.migrations import COPIES_MIGRATION
+        from files.models import IgdbPlaytime, SchemaMigration
+
+        self.register()
+        self.assertEqual(self.add_game().status_code, 201)
+        old_games = self.client.get('/api/games').json['games']
+        with app.app_context():
+            db.session.add(SchemaMigration(name=COPIES_MIGRATION))
+            db.session.commit()
+            IgdbPlaytime.__table__.drop(db.engine)
+        with patch('files.igdb.requests.post') as post:
+            restarted = create_app()
+            post.assert_not_called()
+        with restarted.app_context():
+            try:
+                self.assertEqual(IgdbPlaytime.query.count(), 0)
+                self.assertEqual([game.to_dict() for game in Game.query.all()], old_games)
+            finally:
+                db.session.remove()
+                db.engine.dispose()
 
     def test_playtime_column_migration_preserves_games_versions_and_copies(self):
         from files.migrations import migrate_game_playtime

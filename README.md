@@ -14,6 +14,8 @@ Der lokale Web-Stand ist **0.12**. Unter **Einstellungen → Info** steht die Ve
 
 Im lokalen Stand zeigen Web und Android für IGDB-Titel verfügbare Richtwerte für Hauptgeschichte, Spielen mit Nebeninhalten und 100 % Abschluss. Mit dem Status **Gespielt** kannst du deine eigene Spielzeit im Spieleditor in Stunden und Minuten erfassen. Die Angabe wird zwischen Web und Android synchronisiert und ist nur in deinem Konto sichtbar.
 
+Im aktualisierten Serverstand **0.12** können Administratoren unter **Serververwaltung → IGDB-Spielzeiten nachtragen → Spielzeiten abrufen** die Werte für vorhandene Sammlungen einmalig ergänzen. Die gespeicherten Richtwerte bleiben auch nach dem nächsten Versionssprung verfügbar.
+
 Die eigene Sammlung zeigt auf Desktop und Mobil Besitzplattformen und Exemplarzahl unter dem Cover. Unter **Einstellungen → Darstellung → Spieltitel in der Sammlung** wählst du zwischen **Unter dem Cover** (Standard) und **Im Cover**. Die Auswahl gilt in diesem Browser für beide Designs.
 
 Games Collection wurde mit Unterstützung von OpenAI Codex entwickelt.

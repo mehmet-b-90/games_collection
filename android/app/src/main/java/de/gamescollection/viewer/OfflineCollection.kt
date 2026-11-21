@@ -21,7 +21,12 @@ data class OfflineCollection(val owner: String, val username: String,
         val result = games.associateBy { it.id }.toMutableMap()
         queue.forEach { entry ->
             if (entry.write.deleting) result.remove(entry.localId)
-            else result[entry.localId] = entry.write.game.copy(id = entry.localId)
+            else {
+                val game = entry.write.game
+                val confirmed = result[entry.localId]?.takeIf { it.igdbId == game.igdbId }
+                result[entry.localId] = game.copy(id = entry.localId,
+                    igdbPlaytime = confirmed?.igdbPlaytime ?: game.igdbPlaytime)
+            }
         }
         return result.values.toList()
     }

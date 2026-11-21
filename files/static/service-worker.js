@@ -1,5 +1,5 @@
 const CACHE_PREFIX = 'games-collection-';
-const CACHE_NAME = `${CACHE_PREFIX}v25`;
+const CACHE_NAME = `${CACHE_PREFIX}v27`;
 const STATIC_ASSETS = [
     '/static/offline.html',
     '/static/style.css',

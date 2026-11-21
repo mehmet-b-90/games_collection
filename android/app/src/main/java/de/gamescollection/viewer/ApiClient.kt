@@ -123,7 +123,8 @@ class ApiClient private constructor(val server: String, persistence: CookiePersi
     suspend fun saveGameDefaults(values: GameDefaults): GameDefaults = GameDefaults.fromJson(
         JSONObject(request("PUT", "/api/account/game-defaults", values.json())))
     suspend fun collection(): JSONObject = JSONObject(request("GET", "/api/games"))
-    suspend fun igdbPlaytime(id: Int): JSONObject = JSONObject(request("GET", "/api/igdb/playtime/$id"))
+    suspend fun igdbPlaytime(id: Int): IgdbDurations =
+        IgdbDurations.fromJson(JSONObject(request("GET", "/api/igdb/playtime/$id")))
 
     suspend fun save(game: Game, operationKey: String) {
         requireIdempotency()

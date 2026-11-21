@@ -1,10 +1,24 @@
 # Serverprüfung vom 19.10.2026
 
+## Anordnung der IGDB-Spielzeiten im Web – 21.11.2026
+
+Die IGDB-Spielzeitbox folgt im Template und im CSS-Raster direkt auf die Metadatenbox. Chromium bestätigte die Reihenfolge in beiden Designs bei 320, 390 und 1366 px. Bei gespeicherten Werten und beim Hinweis auf fehlende IGDB-Zeiten stehen beide Boxen sauber untereinander. Der Einstieg über die IGDB-Suche funktioniert weiterhin. PWA-Cache v27. 69 Backendtests, Syntaxprüfung des Service Workers und `git diff --check` erfolgreich.
+
+## Befristeter IGDB-Spielzeitimport – 21.11.2026
+
+Die vorhandene Startmigration legt die zusätzliche Tabelle `igdb_playtime` an. Sie ergänzt die Sammlung per IGDB-ID um gespeicherte Sekundenwerte, einschließlich bestätigter leerer Antworten. Der Import verarbeitet ausschließlich noch ungeprüfte IDs in Gruppen von höchstens 50. Erfolgreiche Gruppen werden sofort gespeichert. Nach der letzten Gruppe verhindert ein dauerhafter Migrationsbeleg weitere Importläufe. Login, Admin-Rechte und CSRF sind erforderlich. Die Serverversion 0.12 begrenzt UI und API des Imports.
+
+69 Backendtests bestanden. Geprüft wurden ein Start mit älterer SQLite-Datenbank, mehrere Konten mit gleicher IGDB-ID, fortsetzbare Teilimporte, fehlende Richtwerte, unveränderte Spielversionen und eigene Zeiten sowie der Wegfall des Imports bei Versionswechsel. Der Live-Import von zwei Titeln mit vorhandenen IGDB-Daten funktionierte in einer separaten temporären Datenbank. Lokales Podman-Testimage gebaut und isoliert mit Gunicorn, `/health` und neuer SQLite-Tabelle geprüft.
+
+Chromium prüfte beide Designs bei 320 und 1366 px sowie Editorial Shelf bei 390 px. Die Prüfung umfasste den Admin-Import im Browser, Anzeige aus gespeicherten Daten ohne neuen Abruf, leere IGDB-Spielzeiten, manuelle Titel und neue Suchtreffer. PWA-Cache v26. JavaScript-Syntax und `git diff --check` geprüft.
+
 ## Lokale Version 0.12 – 21.11.2026
 
 Flask rendert im Info-Reiter „Web-Version 0.12“. Alle 67 Backendtests bestanden im vorhandenen Podman-Image mit aktuellem Quellcode, temporären Datenbanken und deaktiviertem Netzwerk.
 
 ## Spielzeit in Web und API – 21.11.2026
+
+Historischer Stand vor dem dauerhaft gespeicherten IGDB-Abruf.
 
 `GET /api/igdb/playtime/<igdb_id>` liest nach Anmeldung die drei verfügbaren Durchschnittswerte von `game_time_to_beats`. Der Server cached Treffer und fehlende Werte bis zu 24 Stunden. Der Aufruf erfolgt beim Öffnen des Editors und nach Auswahl eines IGDB-Titels. Die Spielverwaltung kann auch bei einem Fehler von IGDB gespeichert werden.
 

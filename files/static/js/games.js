@@ -24,37 +24,53 @@ function formatIgdbPlaytime(seconds) {
     return [hours && `${hours} h`, minutes % 60 && `${minutes % 60} min`].filter(Boolean).join(' ');
 }
 
-export async function refreshIgdbPlaytime(id) {
+export async function refreshIgdbPlaytime(id, savedDurations) {
     playtimeRequest?.abort();
     const panel = document.getElementById('igdbPlaytime');
     const values = document.getElementById('igdbPlaytimeValues');
-    const message = document.getElementById('igdbPlaytimeError');
+    const message = document.getElementById('igdbPlaytimeMessage');
     panel.hidden = values.hidden = message.hidden = true;
     values.replaceChildren();
     if (!Number.isSafeInteger(id) || id <= 0) return;
 
-    const controller = new AbortController();
-    playtimeRequest = controller;
-    try {
-        const response = await apiFetch(`/api/igdb/playtime/${id}`, {signal: controller.signal});
-        const durations = await responseJson(response, 'IGDB-Spielzeiten sind derzeit nicht verfügbar.');
-        if (controller.signal.aborted) return;
-        for (const [field, label] of igdbDurations) {
-            const seconds = durations[field];
-            if (!Number.isSafeInteger(seconds) || seconds <= 0) continue;
-            const entry = document.createElement('div');
-            const term = document.createElement('dt');
-            const value = document.createElement('dd');
-            term.textContent = label;
-            value.textContent = formatIgdbPlaytime(seconds);
-            entry.append(term, value);
-            values.append(entry);
-        }
-        panel.hidden = values.hidden = values.childElementCount === 0;
-    } catch {
-        if (controller.signal.aborted) return;
-        message.textContent = 'IGDB-Spielzeiten sind derzeit nicht verfügbar.';
+    function showMessage(text) {
+        message.textContent = text;
         panel.hidden = message.hidden = false;
+    }
+
+    let durations = savedDurations;
+    if (durations == null) {
+        const controller = new AbortController();
+        playtimeRequest = controller;
+        showMessage('IGDB-Spielzeiten werden geladen …');
+        try {
+            const response = await apiFetch(`/api/igdb/playtime/${id}`, {signal: controller.signal});
+            durations = await responseJson(response, 'IGDB-Spielzeiten sind derzeit nicht verfügbar.');
+        } catch {
+            if (!controller.signal.aborted) showMessage('IGDB-Spielzeiten sind derzeit nicht verfügbar.');
+            return;
+        } finally {
+            if (playtimeRequest === controller) playtimeRequest = undefined;
+        }
+        if (controller.signal.aborted) return;
+    }
+
+    for (const [field, label] of igdbDurations) {
+        const seconds = durations[field];
+        if (!Number.isSafeInteger(seconds) || seconds <= 0) continue;
+        const entry = document.createElement('div');
+        const term = document.createElement('dt');
+        const value = document.createElement('dd');
+        term.textContent = label;
+        value.textContent = formatIgdbPlaytime(seconds);
+        entry.append(term, value);
+        values.append(entry);
+    }
+    if (values.childElementCount) {
+        panel.hidden = values.hidden = false;
+        message.hidden = true;
+    } else {
+        showMessage('Für diesen Titel sind bei IGDB keine Spielzeiten hinterlegt.');
     }
 }
 
@@ -160,7 +176,7 @@ export function openGameDetails(game) {
     set('statusSelect', game.status || 'Nicht gespielt');
     set('ratingInput', game.rating ?? '');
     resetPlaytime(game.playtime_minutes ?? null);
-    refreshIgdbPlaytime(game.igdb_id);
+    refreshIgdbPlaytime(game.igdb_id, game.igdb_playtime);
     resetCover(game);
     set('releaseInput', game.release_date || ''); set('devInput', game.developer || '');
     set('pubInput', game.publisher || ''); set('engineInput', game.game_engine || '');

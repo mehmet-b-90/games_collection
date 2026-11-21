@@ -9,6 +9,7 @@ from ..igdb import IGDB_GAME_TYPES
 from ..game_defaults import get_defaults
 from ..models import Game
 from ..database import log_exception
+from .admin import playtime_import_available
 
 main_bp = Blueprint('main', __name__)
 
@@ -52,4 +53,5 @@ def index():
         'index.html', games=[game.to_dict() for game in games], engines=engines,
         platforms=sorted(PLATFORMS), summary=summary, igdb_game_types=IGDB_GAME_TYPES,
         game_defaults=get_defaults(current_user.id),
+        offer_playtime_import=current_user.is_admin and playtime_import_available(),
     )

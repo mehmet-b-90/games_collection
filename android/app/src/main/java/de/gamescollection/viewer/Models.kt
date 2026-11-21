@@ -27,7 +27,8 @@ data class Game(
     // null preserves the exact legacy payload of already attempted offline writes.
     val copies: List<GameCopy>? = null,
     val playtimeMinutes: Int? = null,
-    val playtimeEdited: Boolean = false
+    val playtimeEdited: Boolean = false,
+    val igdbPlaytime: IgdbDurations? = null
 ) {
     val ownedCopies: List<GameCopy> get() = copies ?: platforms.map { GameCopy(it, format) }
     val ownedPlatforms: List<String> get() = ownedCopies.map { it.platform }.distinct()
@@ -65,7 +66,8 @@ data class Game(
             customCoverEdit = if (json.has("custom_cover")) json.text("custom_cover") else null,
             copies = if (json.has("copies")) json.getJSONArray("copies").objects().map(GameCopy::fromJson) else null,
             playtimeMinutes = if (json.isNull("playtime_minutes")) null else json.getInt("playtime_minutes"),
-            playtimeEdited = json.optBoolean("playtime_edited")
+            playtimeEdited = json.optBoolean("playtime_edited"),
+            igdbPlaytime = json.optJSONObject("igdb_playtime")?.let(IgdbDurations::fromJson)
         )
 
         fun fromIgdb(json: JSONObject): Game {
@@ -79,7 +81,8 @@ data class Game(
                 publisher = companies.filter { it.optBoolean("publisher") }.joinToString(", ") { it.optJSONObject("company")?.text("name").orEmpty() },
                 engine = json.optJSONArray("game_engines").objects().joinToString(", ") { it.text("name") },
                 available = json.optJSONArray("platforms").objects().joinToString(", ") { it.text("name") },
-                ageRating = json.text("mapped_age_rating")
+                ageRating = json.text("mapped_age_rating"),
+                igdbPlaytime = json.optJSONObject("igdb_playtime")?.let(IgdbDurations::fromJson)
             )
         }
     }

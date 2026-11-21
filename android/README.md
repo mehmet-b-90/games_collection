@@ -38,7 +38,7 @@ Lokale Korrektur vom 01.11.2026 (noch nicht in der veröffentlichten GitHub-APK)
 - Filter nach Plattform, Status, Format, Engine, Altersfreigabe und Mindestbewertung
 - Native Statistik mit Anzahl und Prozentwerten
 - Spieldetails, Bearbeiten und Löschen mit Sicherheitsabfrage
-- IGDB-Richtwerte zur Spielzeit in den Spieldetails und im Editor. Bei **Gespielt** lässt sich die eigene Zeit in Stunden und Minuten auch offline erfassen und später synchronisieren.
+- IGDB-Richtwerte zur Spielzeit in den Spieldetails und im Editor. Die App speichert die Richtwerte bei der Sammlungssynchronisierung für die Offline-Ansicht. Bei **Gespielt** lässt sich die eigene Zeit in Stunden und Minuten auch offline erfassen und später synchronisieren.
 - Hinzufügen über IGDB mit optionalem Release-Jahr und Titeltyp oder manuell
 - Offline-Sammlung mit dauerhaft gespeicherten Änderungen und späterer Synchronisierung
 - Einzelne Exemplare mit Besitzplattform, Format und optionaler Ausgabe; gemeinsamer Spielstatus und Bewertung
@@ -201,7 +201,7 @@ Serverseitig prüfen `python -m unittest discover -s tests -v` unter anderem JSO
 - `POST /api/session`: Anmeldung mit JSON-Feldern `username`, `password`, optional `remember` (Boolean)
 - `DELETE /api/session`: Abmeldung
 - `GET /api/games`: eigene Spiele einschließlich Versionsnummern und verfügbare Besitzplattformen
-- `GET /api/igdb/playtime/<igdb_id>` liefert die verfügbaren IGDB-Durchschnittswerte in Sekunden. Die eigene Spielzeit wird über die Sammlung als `playtime_minutes` in ganzen Minuten übertragen. Der Server meldet die Unterstützung über `game_playtime`.
+- `GET /api/games` enthält gespeicherte IGDB-Durchschnittswerte als `igdb_playtime` in Sekunden. Für ungeprüfte Titel kann `GET /api/igdb/playtime/<igdb_id>` die verfügbaren Werte abrufen. Die eigene Spielzeit wird über die Sammlung als `playtime_minutes` in ganzen Minuten übertragen. Der Server meldet die Unterstützung für die eigene Spielzeit über `game_playtime`.
 - `POST /api/search`, `POST /api/games`, `PUT /api/games/<id>`, `DELETE /api/games/<id>`: bestehende Spielesuche und Verwaltung
 
 Ändernde Anfragen senden das CSRF-Token als `X-CSRFToken`, das zugehörige Sitzungs-Cookie und die konfigurierte Serveradresse als `Referer`. Damit bleibt auch die strenge HTTPS-Referrer-Prüfung von Flask-WTF aktiv. Nicht angemeldete Zugriffe auf geschützte API-Routen liefern JSON mit HTTP 401. Sitzung und Sammlung werden mit `Cache-Control: no-store` ausgeliefert. Es gibt keine CSRF-Ausnahme für die native App.

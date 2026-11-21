@@ -74,6 +74,22 @@ class OfflineCollectionTest {
         assertFalse(statusChanged.queue.single().write.game.payload().has("playtime_minutes"))
     }
 
+    @Test fun igdbDurationsSurviveOfflineAndDoNotChangeTheWritePayload() {
+        val original = game.copy(igdbId = 1942)
+        val queued = collection.copy(games = listOf(original)).enqueue(original.copy(title = "Geändert"), false)
+        val durations = IgdbDurations(hastily = 3600, completely = 8000)
+        val updated = queued.copy(games = listOf(original.copy(igdbPlaytime = durations)))
+        for (values in listOf(durations, IgdbDurations(), null)) {
+            val current = updated.copy(games = updated.games.map { it.copy(igdbPlaytime = values) })
+            val restored = OfflineCollection.decode(current.encode())
+            assertEquals(values, restored.visible().single().igdbPlaytime)
+            assertEquals("Geändert", restored.visible().single().title)
+            assertEquals(queued.queue.single().write.game.payload().toString(),
+                restored.queue.single().write.game.payload().toString())
+            assertFalse(restored.visible().single().payload().has("igdb_playtime"))
+        }
+    }
+
     @Test fun offlineChangesSurviveSerializationWithStableKeysAndVersion() {
         val queued = collection.enqueue(game.copy(title = "Geändert"), false)
             .enqueue(Game(title = "Neu", platforms = listOf("PC")), false)

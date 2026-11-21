@@ -42,6 +42,7 @@ Gilt für das gesamte Repository. Stand: 20.10.2026. Technische Bestandsaufnahme
 ## UI-Konventionen aus bisherigen Aufträgen
 
 - Spielzeit seit Auftrag vom 21.11.2026: Web und Android zeigen beim Öffnen eines IGDB-Titels vorhandene Durchschnittswerte für Hauptgeschichte, Nebeninhalte und 100 % Abschluss. Die eigene Spielzeit pro Titel ist bei „Gespielt“ optional in Stunden und Minuten editierbar, bleibt bei Statuswechsel erhalten und erscheint nur im eigenen Konto. Android speichert Änderungen über die Offline-Warteschlange.
+- Ergänzung vom 21.11.2026: IGDB-Spielzeiten je IGDB-ID dauerhaft in SQLite speichern und mit der Sammlung ausliefern. Auch eine bestätigte leere IGDB-Antwort speichern. Android übernimmt sie in den Offline-Bestand. Der Nachimport unter Serververwaltung ist auf 0.12 begrenzt und läuft ausschließlich auf Admin-Aktion. Beim nächsten Versionssprung die befristete Aktion aus UI und API entfernen und die gespeicherten IGDB-Werte samt Anzeige erhalten.
 
 - Web-Einstellungen führen seit 10.11.2026 fünf Reiter (Darstellung, Spielvorgaben, Konto, App und Info). Kontoaktionen liegen unter Konto. Seit 21.11.2026 sind Freunde und Anfragen im Web direkt über „Freunde“ in der Desktop- und Mobilnavigation erreichbar. Dezente Trennlinien gliedern die drei Listenabschnitte. Die Serververwaltung bleibt separat. Reiterwechsel erhält Eingaben, Speicheraktionen sind bereichsbezogen. Beide Designs und schmale Mobilansichten berücksichtigen.
 
@@ -73,7 +74,7 @@ Gilt für das gesamte Repository. Stand: 20.10.2026. Technische Bestandsaufnahme
 - Android-Sammlung: keine große Überschrift „Meine Sammlung“, Suche über Top-Bar und schwebendes Feld, Kennzahlen auf der Statistikseite, kompakte Sortierung.
 - Bei Coverkarten keine Texte an Rundungen abschneiden.
 - Im Web-Spieleditor stehen Status, bei „Gespielt“ die eigene Spielzeit und danach die Bewertung vor „Mein Besitz“ in der Formularreihenfolge. Auf Desktop stehen diese Felder links und „Mein Besitz“ rechts. Die Fußzeilenaktionen passen auf Desktop in eine Zeile und dürfen auf schmalen Bildschirmen umbrechen. Suchvorschläge und Buttonbeschriftungen müssen mobil ausreichend Platz erhalten.
-- Im oberen Bereich des Web-Spieleditors bekommt das Cover auf breiten Bildschirmen etwa ein Viertel der Breite. Titelsuche, Release-Jahr, Titeltyp und Metadaten teilen sich die linke Spalte. Auf schmalen Bildschirmen hat die Vorschau eine kompakte Breite.
+- Im oberen Bereich des Web-Spieleditors bekommt das Cover auf breiten Bildschirmen etwa ein Viertel der Breite. Titelsuche, Release-Jahr, Titeltyp und Metadaten teilen sich die linke Spalte. Auf schmalen Bildschirmen hat die Vorschau eine kompakte Breite. „Spielzeit laut IGDB“ steht auf Desktop und Mobil direkt unter der Box mit Release, Entwickler und den übrigen Metadaten.
 - Statistikbeschriftungen lesbar halten; Prozentwerte in Klammern, auch innerhalb ausreichend großer Tortenstücke.
 
 ## Exemplare seit Auftrag vom 10.11.2026

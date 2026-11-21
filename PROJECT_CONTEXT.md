@@ -1,5 +1,19 @@
 # Games Collection – Projektkontext
 
+## Reihenfolge der Spielinformationen im Web – 21.11.2026
+
+Nach Screenshot-Korrektur steht „Spielzeit laut IGDB“ im Web-Spieleditor direkt unter der Box mit Release, Entwickler und den übrigen Metadaten. Die visuelle Reihenfolge und die Reihenfolge im HTML stimmen auf Desktop und Mobil überein. PWA-Cache v27.
+
+Chromium prüfte Cinematic Dark und Editorial Shelf bei 320, 390 und 1366 px mit temporärer Datenbank. Geprüft wurden gespeicherte Spielzeiten, der Hinweis bei fehlenden Werten und der Einstieg über die IGDB-Suche. Desktop- und Mobil-Screenshots gesichtet. Alle 69 Backendtests, die Syntaxprüfung des Service Workers und `git diff --check` waren erfolgreich.
+
+## IGDB-Spielzeiten für vorhandene Sammlungen – 21.11.2026
+
+Der bisherige Detailabruf hielt IGDB-Spielzeiten nur im Arbeitsspeicher des Servers. Die neue SQLite-Tabelle `igdb_playtime` speichert die drei Richtwerte je IGDB-ID für alle Konten gemeinsam. Der Sammlungsabruf liefert die gespeicherten Werte an Web und Android. Android speichert sie bei der Synchronisierung auch offline. Ein erfolgreich geprüfter Titel ohne IGDB-Werte wird mit einer leeren Antwort gespeichert. Für bislang ungeprüfte Titel greift der Detailabruf weiterhin bei Bedarf.
+
+Unter **Serververwaltung → IGDB-Spielzeiten nachtragen → Spielzeiten abrufen** steht in 0.12 ein einmaliger Admin-Import für die vorhandenen Titel mit IGDB-ID bereit. Er verarbeitet bis zu 50 unterschiedliche IDs je Anfrage und kann nach einer Unterbrechung fortgesetzt werden. Server- und App-Starts lösen den Import nicht aus. Nach Abschluss verschwindet die Aktion. Der nächste Versionssprung blendet sie unabhängig vom Fortschritt aus und sperrt den Endpunkt. Beim Versionssprung die befristete Bedienung und Route aus dem Quellcode entfernen. Importierte Daten und die reguläre Anzeige bleiben erhalten.
+
+Android zeigt die Werte in einer Karte nahe am Titel. Die ursprüngliche Webanordnung aus PWA-Cache v26 wurde durch die Layoutkorrektur ersetzt. Live-Import von zwei Titeln in einer temporären Datenbank bestätigt. 69 Backendtests und 50 Android-JVM-Tests bestanden. Chromium prüfte Cinematic Dark und Editorial Shelf bei 320 und 1366 px sowie Editorial Shelf bei 390 px. Der signierte lokale Android-Build 0.12 / Code 11 ist verfügbar. Die Produktivbereitstellung, der Import auf dem VPS und die Android-Sichtprüfung auf einem Gerät stehen aus.
+
 ## Lokale Version 0.12 – 21.11.2026
 
 Auf Betreiberauftrag stehen Server/Web und Android lokal auf **0.12**. Android verwendet **VersionCode 11**. Aktuelle Versionshinweise und lokale APK-Pfade sind abgeglichen.
@@ -25,6 +39,8 @@ Chromium prüfte beide Designs bei 320, 390, 680, 681, 768, 992 und 1.569 px. Pl
 Chromium prüfte beide Designs bei 320 und 1366 px mit temporärer Testdatenbank. Kontoreiter ohne Freundeszeile, aktiver Freundesreiter, zwei Trennlinien und Navigation ohne horizontalen Überlauf bestätigt. Screenshots gesichtet. JavaScript-Syntax und `git diff --check` geprüft.
 
 ## Spielzeit – 21.11.2026
+
+Historischer Stand vor dem dauerhaft gespeicherten IGDB-Abruf und dem Nachimport.
 
 Web und Android zeigen beim Öffnen eines IGDB-Titels verfügbare Durchschnittswerte für Hauptgeschichte, Spielen mit Nebeninhalten und 100 % Abschluss. Der gemeinsame Server-Endpunkt ruft die Sekundenwerte bei Bedarf ab, auch für bereits gespeicherte Titel. Die Clients zeigen sie in Stunden und Minuten an. Ein Live-Abruf über die lokale API bestätigte alle drei Werte für „The Witcher 3: Wild Hunt“. [IGDB-Dokumentation](https://api-docs.igdb.com/#game-time-to-beat)
 

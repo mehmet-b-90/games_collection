@@ -1,19 +1,68 @@
-"""Server administration without modifications to the production schema."""
+"""Administration actions for server operators."""
 from contextlib import closing
 from datetime import datetime, timezone
 import os
 import shutil
 import sqlite3
 import tempfile
+import threading
 import time
 
-from flask import Blueprint, send_file
+import requests
+from flask import Blueprint, current_app, request, send_file
 from flask_login import current_user, login_required
+from sqlalchemy.dialects.sqlite import insert
 
 from ..database import api_error, log_exception
 from ..extensions import db
+from ..igdb import fetch_game_durations, log_upstream_failure
+from ..igdb_playtime import store_game_durations
+from ..models import Game, IgdbPlaytime, SchemaMigration
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/api/admin')
+PLAYTIME_IMPORT_VERSION = '0.12'
+PLAYTIME_IMPORT_MARKER = '2026_11_igdb_playtime_import'
+PLAYTIME_BATCH_SIZE = 50
+_playtime_import_lock = threading.Lock()
+
+
+def playtime_import_available():
+    return (current_app.config['APP_VERSION'] == PLAYTIME_IMPORT_VERSION
+            and db.session.get(SchemaMigration, PLAYTIME_IMPORT_MARKER) is None)
+
+
+@admin_bp.post('/igdb-playtime/import')
+@login_required
+def import_igdb_playtime():
+    if not current_user.is_admin:
+        return api_error('Du hast keine Berechtigung für diese Aktion.', 403)
+    if current_app.config['APP_VERSION'] != PLAYTIME_IMPORT_VERSION:
+        return api_error('Der einmalige IGDB-Spielzeitimport ist in dieser Version nicht verfügbar.', 404)
+    if request.args or (request.data and request.get_json(silent=True) != {}):
+        return api_error('Für den Import werden keine zusätzlichen Angaben erwartet.')
+    if not _playtime_import_lock.acquire(blocking=False):
+        return api_error('Ein Spielzeitimport läuft bereits. Bitte warte kurz.', 409)
+    try:
+        if not playtime_import_available():
+            return {'processed': 0, 'done': True}
+        pending = db.session.scalars(
+            db.select(Game.igdb_id).distinct().outerjoin(IgdbPlaytime, Game.igdb_id == IgdbPlaytime.igdb_id)
+            .where(Game.igdb_id > 0, IgdbPlaytime.igdb_id.is_(None))
+            .order_by(Game.igdb_id).limit(PLAYTIME_BATCH_SIZE + 1)
+        ).all()
+        batch = pending[:PLAYTIME_BATCH_SIZE]
+        if batch:
+            store_game_durations(fetch_game_durations(batch))
+        done = len(pending) <= PLAYTIME_BATCH_SIZE
+        if done:
+            db.session.execute(insert(SchemaMigration).values(name=PLAYTIME_IMPORT_MARKER).on_conflict_do_nothing())
+        db.session.commit()
+        return {'processed': len(batch), 'done': done}
+    except (requests.RequestException, ValueError) as error:
+        log_upstream_failure('IGDB-Spielzeitimport fehlgeschlagen', error)
+        return api_error('Der IGDB-Abruf ist fehlgeschlagen. Starte den Import erneut, um ihn fortzusetzen.', 502)
+    finally:
+        _playtime_import_lock.release()
 
 
 @admin_bp.post('/backup')

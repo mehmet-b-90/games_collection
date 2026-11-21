@@ -8,7 +8,8 @@ from ..database import api_error, commit_changes
 from ..config import PLATFORMS
 from ..extensions import db
 from ..idempotency import idempotent_game_write
-from ..igdb import IGDB_GAME_TYPES, game_time_to_beat, get_igdb_token, get_preferred_age_rating, log_upstream_failure
+from ..igdb import IGDB_GAME_TYPES, get_igdb_token, get_preferred_age_rating, log_upstream_failure
+from ..igdb_playtime import game_time_to_beat
 from ..models import Game, GameCover
 from ..ownership import legacy_copies, set_copies
 from ..popscore import IGDB_GAME_FIELDS, PopScoreError, popular_games

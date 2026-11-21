@@ -5,6 +5,8 @@ export async function openAdminModal() {
     if (!modal) return;
     bootstrap.Modal.getOrCreateInstance(modal).show();
     document.getElementById('adminBackupBtn').onclick = exportDatabase;
+    const playtimeButton = document.getElementById('adminPlaytimeBtn');
+    if (playtimeButton) playtimeButton.onclick = importPlaytime;
     const status = document.getElementById('adminUsersStatus');
     status.textContent = 'Benutzer werden geladen …';
     try {
@@ -12,6 +14,31 @@ export async function openAdminModal() {
         document.getElementById('adminUserList').replaceChildren(...users.map(createUserRow));
         status.textContent = '';
     } catch (error) { status.textContent = error.message; }
+}
+
+async function importPlaytime(event) {
+    const button = event.currentTarget;
+    const status = document.getElementById('adminPlaytimeStatus');
+    button.disabled = true;
+    status.textContent = 'IGDB-Spielzeiten werden abgerufen …';
+    let processed = 0;
+    try {
+        while (true) {
+            const response = await apiFetch('/api/admin/igdb-playtime/import', {method: 'POST'});
+            const batch = await responseJson(response, 'IGDB-Spielzeiten konnten nicht abgerufen werden.');
+            processed += batch.processed;
+            if (batch.done) {
+                button.hidden = true;
+                status.textContent = 'Import abgeschlossen. Die Spielzeiten sind in den Spieldetails verfügbar.';
+                return;
+            }
+            status.textContent = `${processed} IGDB-Titel geprüft. Der Import läuft weiter …`;
+            await new Promise(resolve => setTimeout(resolve, 500));
+        }
+    } catch (error) {
+        status.textContent = error.message;
+        button.disabled = false;
+    }
 }
 
 async function exportDatabase() {

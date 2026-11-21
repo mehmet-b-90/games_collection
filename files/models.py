@@ -24,6 +24,11 @@ class UserGameDefaults(db.Model):
     values = db.Column(db.JSON, nullable=False)
 
 
+class IgdbPlaytime(db.Model):
+    igdb_id = db.Column(db.Integer, primary_key=True)
+    durations = db.Column(db.JSON, nullable=False)
+
+
 class Game(db.Model):
     __table_args__ = (
         db.CheckConstraint('rating IS NULL OR (rating >= 0 AND rating <= 10)', name='rating_range'),
@@ -67,6 +72,10 @@ class Game(db.Model):
 
     custom_cover = db.relationship('GameCover', lazy='selectin', uselist=False,
                                    cascade='all, delete-orphan', passive_deletes=True)
+    igdb_playtime = db.relationship(
+        IgdbPlaytime, primaryjoin='foreign(Game.igdb_id) == IgdbPlaytime.igdb_id',
+        viewonly=True, lazy='joined',
+    )
 
     def to_dict(self, *, include_playtime=True):
         data = {column.name: getattr(self, column.name) for column in self.__table__.columns}
@@ -74,6 +83,8 @@ class Game(db.Model):
             data.pop('playtime_minutes')
         data['owned_platform'] = ', '.join(item.platform for item in self.owned_platforms)
         data['copies'] = [item.to_dict() for item in self.copies]
+        if self.igdb_playtime is not None:
+            data['igdb_playtime'] = self.igdb_playtime.durations
         if self.custom_cover:
             data['custom_cover_url'] = f'/api/games/{self.id}/cover/{self.custom_cover.digest}'
         return data

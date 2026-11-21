@@ -1,5 +1,11 @@
 # Android-Codeprüfung vom 17.10.2026
 
+## Gespeicherte IGDB-Spielzeiten – 21.11.2026
+
+Die Sammlung und ihre lokale Offline-Kopie übernehmen die IGDB-Spielzeiten aus der API. Die Detailkarte stellt die drei möglichen Zeiten mit getrennten Beschriftungen und Werten dar. Für bereits geprüfte Titel bleibt die Karte auf Basis der gespeicherten Daten sichtbar. Für ungeprüfte Titel ist der Abruf beim Öffnen weiterhin möglich. Der neue JVM-Test prüft Werte und bestätigte leere Antworten nach dem Offline-Neustart sowie unveränderte Schreib-Payloads.
+
+50 JVM-Tests, Release-Lint und signierter Build erfolgreich. APK-v2-Signatur und Metadaten 0.12 / Code 11 verifiziert. Lokale APK unter `android/app/build/outputs/apk/release/Games-Collection-0.12-release.apk`. Die Sichtprüfung auf einem Android-Gerät steht aus.
+
 ## Lokale Version 0.12 – 21.11.2026
 
 Der signierte Release-Build mit `testReleaseUnitTest lintRelease assembleRelease --offline --no-daemon` war erfolgreich. 49 JVM-Tests bestanden, Lint meldete keine Befunde. APK-Signatur v2, Metadaten 0.12 / Code 11 und Info-Text im kompilierten APK-Code geprüft. Die Sichtprüfung auf einem Android-Gerät steht aus. Lokale APK unter `android/app/build/outputs/apk/release/Games-Collection-0.12-release.apk`.

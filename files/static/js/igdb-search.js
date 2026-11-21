@@ -18,7 +18,7 @@ export function selectGame(game, results = document.getElementById('searchResult
     set('releaseYearSearch', releaseYear);
     set('releaseInput', releaseYear);
     set('igdbIdInput', game.id || '');
-    refreshIgdbPlaytime(game.id);
+    refreshIgdbPlaytime(game.id, game.igdb_playtime);
     set('igdbUrlInput', game.url || '');
     set('engineInput', (game.game_engines || []).map(engine => engine.name).join(', '));
     set('platformsInput', (game.platforms || []).map(platform => platform.name).join(', '));
